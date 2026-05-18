@@ -35,9 +35,14 @@ export default function LoginForm() {
         setSuccess(true)
         setError(null)
         
-        // Redirecionar para o dashboard
+        // Redirecionar para o painel admin ou dashboard do utilizador
         setTimeout(() => {
-          router.replace('/dashboard')
+          const lowerEmail = email.trim().toLowerCase()
+          if (lowerEmail === 'admin.xoxo@gmail.com' || lowerEmail === 'superadmin.xoxo@gmail.com') {
+            router.replace('/admin')
+          } else {
+            router.replace('/dashboard')
+          }
         }, 500)
       }
     } catch (err: any) {

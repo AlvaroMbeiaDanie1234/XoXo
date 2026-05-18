@@ -20,7 +20,8 @@ export default function SuggestedCreators() {
     async function fetchCreators() {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, is_verified')
+        .select('id, display_name, avatar_url, is_verified, email')
+        .not('email', 'in', '("admin.xoxo@gmail.com","superadmin.xoxo@gmail.com")')
         .limit(5)
       
       if (!error && data) {
