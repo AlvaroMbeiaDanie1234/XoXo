@@ -21,13 +21,33 @@ export default function AdminUserDetailPage() {
   const [creditAmount, setCreditAmount] = useState('')
   const [creditDescription, setCreditDescription] = useState('')
   const [crediting, setCrediting] = useState(false)
+  const [updatingPlan, setUpdatingPlan] = useState(false)
   const supabase = createClient()
   const router = useRouter()
+
+  const handleToggleFreePlan = async () => {
+    setUpdatingPlan(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_free_plan: !profile.is_free_plan })
+        .eq('id', id)
+      
+      if (error) throw error
+
+      setProfile((prev: any) => ({ ...prev, is_free_plan: !prev.is_free_plan }))
+      alert(!profile.is_free_plan ? 'Plano Grátis atribuído com sucesso!' : 'Plano Grátis removido com sucesso!')
+    } catch (err: any) {
+      alert('Erro ao atualizar plano: ' + err.message)
+    } finally {
+      setUpdatingPlan(false)
+    }
+  }
 
   useEffect(() => {
     async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (!user || (user.email !== 'admin.xoxo@gmail.com' && user.email !== 'superadmin.xoxo@gmail.com')) {
         router.push('/')
         return
       }
@@ -177,6 +197,10 @@ export default function AdminUserDetailPage() {
                     <DollarSign size={18} className="text-gray-400" />
                     <span>Saldo: <strong className="text-accent">AOA {profile.balance?.toLocaleString() || 0}</strong></span>
                   </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <Star size={18} className="text-gray-400" />
+                    <span>Plano: <strong>{profile.is_free_plan ? 'Grátis (🌟 Tudo Desbloqueado)' : 'Standard (Pago)'}</strong></span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -234,6 +258,19 @@ export default function AdminUserDetailPage() {
               <h3 className="text-red-700 font-bold mb-4 flex items-center gap-2">
                 <Shield size={18} /> Ações de Moderação
               </h3>
+              
+              <button 
+                onClick={handleToggleFreePlan}
+                disabled={updatingPlan}
+                className={`w-full py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 mb-3 text-sm ${
+                  profile.is_free_plan 
+                    ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' 
+                    : 'bg-purple-600 text-white hover:bg-purple-700 shadow-purple-200'
+                }`}
+              >
+                {updatingPlan ? 'A processar...' : profile.is_free_plan ? 'Remover Plano Grátis' : 'Atribuir Plano Grátis'}
+              </button>
+
               <button className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200">
                 Suspender Conta
               </button>

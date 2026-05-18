@@ -91,26 +91,42 @@ export default function EditProfilePage() {
   }
 
   const handleBuyBadge = async () => {
-    const price = Number(vipBadgePrice)
-    if (balance < price) {
+    const isFreePlan = !!profile?.is_free_plan
+    const price = isFreePlan ? 0 : Number(vipBadgePrice)
+    if (!isFreePlan && balance < price) {
       alert(`Saldo insuficiente! Precisas de AOA ${price.toLocaleString()} para comprar o selo VIP. O teu saldo atual é AOA ${balance.toLocaleString()}. Podes carregar a tua carteira no menu Saldo.`)
       return
     }
 
-    if (!confirm(`Confirmas a compra do Selo VIP por AOA ${price.toLocaleString()}? O valor será descontado do teu saldo.`)) return
+    const confirmMsg = isFreePlan
+      ? "Desejas ativar o Selo VIP Oficial gratuitamente?"
+      : `Confirmas a compra do Selo VIP por AOA ${price.toLocaleString()}? O valor será descontado do teu saldo.`
+
+    if (!confirm(confirmMsg)) return
 
     setRequestingBadge(true)
     try {
-      // 1. Inserir transação de compra (isso vai descontar o saldo via trigger)
-      const { error: txError } = await supabase.from('transactions').insert({
-        user_id: user.id,
-        amount: price,
-        type: 'purchase',
-        description: 'Compra de Selo VIP Oficial',
-        status: 'completed'
-      })
+      // 1. Inserir transação de compra se não for plano grátis
+      if (!isFreePlan) {
+        const { error: txError } = await supabase.from('transactions').insert({
+          user_id: user.id,
+          amount: price,
+          type: 'purchase',
+          description: 'Compra de Selo VIP Oficial',
+          status: 'completed'
+        })
 
-      if (txError) throw txError
+        if (txError) throw txError
+      } else {
+        // Se for plano grátis, cria transação informativa de valor 0
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          amount: 0,
+          type: 'purchase',
+          description: 'Selo VIP Ativado Gratuitamente (Plano Grátis)',
+          status: 'completed'
+        }).catch(console.error)
+      }
 
       // 2. Atualizar perfil para verificado
       const { error: verifyError } = await supabase.from('profiles').update({ is_verified: true }).eq('id', user.id)
@@ -118,9 +134,11 @@ export default function EditProfilePage() {
 
       // 3. Atualizar estado local
       setProfile({ ...profile, is_verified: true })
-      setBalance(balance - price)
+      if (!isFreePlan) {
+        setBalance(balance - price)
+      }
       
-      alert('Parabéns! Adquiriste o Selo VIP Oficial com sucesso. O teu perfil está agora destacado!')
+      alert(isFreePlan ? 'Selo VIP Oficial ativado gratuitamente!' : 'Parabéns! Adquiriste o Selo VIP Oficial com sucesso. O teu perfil está agora destacado!')
     } catch (err: any) {
       alert('Erro ao processar compra: ' + err.message)
     } finally {
@@ -431,7 +449,9 @@ export default function EditProfilePage() {
 
             <div className="bg-gray-50 rounded-xl p-3 mb-5 border border-gray-100 flex justify-between items-center">
               <span className="text-xs text-gray-500 font-bold">Preço</span>
-              <span className="font-black text-accent">AOA {Number(vipBadgePrice).toLocaleString()}</span>
+              <span className="font-black text-accent">
+                {profile?.is_free_plan ? 'Grátis 🌟' : `AOA ${Number(vipBadgePrice).toLocaleString()}`}
+              </span>
             </div>
 
             <button
@@ -451,6 +471,8 @@ export default function EditProfilePage() {
                 <>
                   <Loader2 size={16} className="animate-spin" /> Processando...
                 </>
+              ) : profile?.is_free_plan ? (
+                'Ativar Selo Grátis'
               ) : (
                 'Comprar Selo'
               )}
@@ -458,7 +480,9 @@ export default function EditProfilePage() {
             
             {!profile?.is_verified && (
                <p className="text-[9px] text-center text-gray-400 mt-3 font-medium">
-                 O valor será descontado do seu Saldo Disponível.
+                 {profile?.is_free_plan 
+                   ? 'Plano Grátis ativo. Não haverá qualquer custo.' 
+                   : 'O valor será descontado do seu Saldo Disponível.'}
                </p>
             )}
           </div>

@@ -93,13 +93,119 @@ export default function AdminDashboard() {
     }))
   }
 
+  const handleToggleFreePlan = async (userId: string, currentVal: boolean) => {
+    try {
+      const { error } = await supabase.from('profiles').update({ is_free_plan: !currentVal }).eq('id', userId)
+      if (error) throw error
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_free_plan: !currentVal } : u))
+      toast({
+        title: !currentVal ? "Plano Grátis Atribuído" : "Plano Grátis Removido",
+        description: !currentVal ? "O utilizador agora pode usar planos e ver conteúdos sem pagar." : "O utilizador voltou ao plano standard."
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro ao atualizar plano",
+        description: err.message,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleToggleVerification = async (userId: string, currentVal: boolean) => {
+    try {
+      const { error } = await supabase.from('profiles').update({ is_verified: !currentVal }).eq('id', userId)
+      if (error) throw error
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !currentVal } : u))
+      toast({
+        title: !currentVal ? "Selo VIP Atribuído" : "Selo VIP Removido",
+        description: !currentVal ? "O selo oficial azul foi ativado com sucesso para este utilizador." : "O selo oficial azul foi removido."
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro ao atualizar selo",
+        description: err.message,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleExportTransactionsCsv = () => {
+    try {
+      if (transactions.length === 0) {
+        toast({ title: "Sem Transações", description: "Não há transações para exportar." })
+        return
+      }
+      
+      const headers = ["Data", "Utilizador", "Email", "Tipo", "Descricao", "Valor (AOA)", "Estado"]
+      const rows = transactions.map(t => [
+        new Date(t.created_at).toLocaleString(),
+        t.profiles?.display_name || 'Desconhecido',
+        t.profiles?.email || 'N/A',
+        t.type,
+        t.description.replace(/"/g, '""'),
+        t.amount,
+        t.status
+      ])
+      
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + [headers.join(","), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n")
+      
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement("a")
+      link.setAttribute("href", encodedUri)
+      link.setAttribute("download", `xoxo-transacoes-${new Date().toISOString().slice(0,10)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast({ title: "Histórico Exportado! 📁", description: "O ficheiro CSV de transações foi gerado com sucesso." })
+    } catch (err: any) {
+      toast({ title: "Erro ao exportar", description: err.message, variant: "destructive" })
+    }
+  }
+
+  const handleExportFinancialReportCsv = () => {
+    try {
+      const reportData = [
+        ["Relatório Financeiro XoXo", new Date().toLocaleString()],
+        [],
+        ["Indicador", "Valor (AOA)"],
+        ["Depósitos Totais na Plataforma", totalDeposits],
+        ["Levantamentos Concluídos", totalUserCompletedWithdrawals],
+        ["Depósitos Líquidos (excluindo lucro)", netDeposits],
+        ["Lucro Acumulado com Selos VIP", lucroVIP],
+        ["Lucro Acumulado com Comissões de Conteúdo", lucroComissoes],
+        ["Lucro Total Acumulado (VIP + Comissões)", lucroTotalEarned],
+        ["Lucro Sacado pela Administração", lucroRetirado],
+        ["Lucro Disponível para Saque", lucroDisponivel],
+        ["Saldos Retidos dos Utilizadores (Intocável)", saldoRestanteNaoLucro],
+        ["Dinheiro Total no Cofre (Inclusivo Lucro)", saldoTotalInclusivoLucro]
+      ]
+      
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + reportData.map(e => e.map(val => `"${val}"`).join(",")).join("\n")
+      
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement("a")
+      link.setAttribute("href", encodedUri)
+      link.setAttribute("download", `xoxo-relatorio-financeiro-${new Date().toISOString().slice(0,10)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast({ title: "Relatório Financeiro Exportado! 📊", description: "O ficheiro CSV do relatório foi gerado." })
+    } catch (err: any) {
+      toast({ title: "Erro ao exportar", description: err.message, variant: "destructive" })
+    }
+  }
+
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
     async function loadAdminData() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (!user || (user.email !== 'admin.xoxo@gmail.com' && user.email !== 'superadmin.xoxo@gmail.com')) {
         router.push('/')
         return
       }
@@ -629,6 +735,17 @@ export default function AdminDashboard() {
                     <h2 className="text-xs font-black uppercase tracking-widest text-accent mb-1">Balanço de Ganhos e Saldos da Plataforma</h2>
                     <p className="text-sm text-gray-400">Controlo auditado em tempo real de capitais e lucros.</p>
                   </div>
+                  
+                  {/* Export Financial Report Button */}
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleExportFinancialReportCsv}
+                      className="bg-slate-800 hover:bg-slate-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 border border-slate-700"
+                    >
+                      Exportar Relatório (CSV)
+                    </button>
+                  </div>
 
                   {/* Profit Withdrawal Form */}
                   <form onSubmit={handleWithdrawProfit} className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -755,6 +872,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 font-bold">Utilizador</th>
                       <th className="px-6 py-4 font-bold">Email</th>
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
+                      <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
                     </tr>
                   </thead>
@@ -771,7 +889,28 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 text-gray-500">{u.email}</td>
                         <td className="px-6 py-4 font-black text-accent text-lg">AOA {u.balance?.toLocaleString() || 0}</td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleToggleFreePlan(u.id, !!u.is_free_plan)}
+                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                              u.is_free_plan 
+                                ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {u.is_free_plan ? 'Plano Grátis 🌟' : 'Standard'}
+                          </button>
+                        </td>
                         <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => handleToggleVerification(u.id, !!u.is_verified)}
+                            className={`p-2 rounded-lg transition-colors mr-2 ${
+                              u.is_verified ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            title={u.is_verified ? 'Remover Selo VIP' : 'Atribuir Selo VIP (Grátis)'}
+                          >
+                            <ShieldCheck size={18} />
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedUserForCredit(u)
@@ -805,8 +944,14 @@ export default function AdminDashboard() {
 
           {activeTab === 'transactions' && (
             <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="p-6 border-b border-border">
+              <div className="p-6 border-b border-border flex items-center justify-between">
                 <h2 className="text-xl font-bold flex items-center gap-2"><List /> Todas as Transações</h2>
+                <button
+                  onClick={handleExportTransactionsCsv}
+                  className="bg-accent hover:bg-accent/90 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center gap-2"
+                >
+                  Exportar Histórico (CSV)
+                </button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">

@@ -57,15 +57,20 @@ export default function PostDetailsPage() {
       if (postData.is_free || postData.user_id === user?.id) {
         setHasAccess(true)
       } else if (user) {
-        const { data: purchase } = await supabase
-          .from('purchases')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('post_id', id)
-          .single()
-        
-        if (purchase) setHasAccess(true)
-        else setShowPaywall(!postData.is_free)
+        const { data: profile } = await supabase.from('profiles').select('is_free_plan').eq('id', user.id).single()
+        if (profile?.is_free_plan) {
+          setHasAccess(true)
+        } else {
+          const { data: purchase } = await supabase
+            .from('purchases')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('post_id', id)
+            .single()
+          
+          if (purchase) setHasAccess(true)
+          else setShowPaywall(!postData.is_free)
+        }
       } else {
         setShowPaywall(!postData.is_free)
       }

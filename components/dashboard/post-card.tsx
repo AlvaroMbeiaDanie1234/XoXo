@@ -62,6 +62,7 @@ export default function PostCard({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleted, setIsDeleted] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isFreePlan, setIsFreePlan] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -111,8 +112,12 @@ export default function PostCard({
         if (creatorRes.data) setCreatorVerified(creatorRes.data.is_verified)
 
         if (user) {
-          const { data: likeData } = await supabase.from('likes').select('id').eq('post_id', id).eq('user_id', user.id).maybeSingle()
-          setIsLiked(!!likeData)
+          const [likeDataRes, profileRes] = await Promise.all([
+            supabase.from('likes').select('id').eq('post_id', id).eq('user_id', user.id).maybeSingle(),
+            supabase.from('profiles').select('is_free_plan').eq('id', user.id).maybeSingle()
+          ])
+          setIsLiked(!!likeDataRes.data)
+          setIsFreePlan(!!profileRes.data?.is_free_plan)
         }
       } catch (err) {
         console.error('Error fetching post stats:', err)
@@ -123,7 +128,7 @@ export default function PostCard({
   }, [id, creator_id, supabase])
 
   const handleTimeUpdate = () => {
-    if (is_free === false && videoRef.current && videoRef.current.currentTime >= 5) {
+    if (is_free === false && !isFreePlan && videoRef.current && videoRef.current.currentTime >= 5) {
       videoRef.current.pause()
       setIsPlaying(false)
       setShowCardPaywall(true)
