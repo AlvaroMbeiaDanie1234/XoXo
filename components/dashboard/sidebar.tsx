@@ -3,12 +3,12 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Home, Compass, Heart, User, LogOut, Menu, X, Wallet, DollarSign, List, ArrowLeft, PlusCircle, ArrowUpRight, MessageCircle, Radio } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 
-export default function Sidebar() {
+function SidebarContent() {
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
@@ -132,12 +132,12 @@ export default function Sidebar() {
           <div className="px-4 py-5 border-b border-border flex flex-col items-center gap-3">
              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] shadow-lg">
                 <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-muted flex items-center justify-center text-white font-bold text-xl">
-                  {profile?.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : (profile?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U')}
+                   {profile?.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : (profile?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U')}
                 </div>
              </div>
              <div className="text-center">
-               <h3 className="font-bold text-sm text-foreground truncate max-w-[180px]">{profile?.display_name || user?.email?.split('@')[0]}</h3>
-               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Membro Premium</p>
+                <h3 className="font-bold text-sm text-foreground truncate max-w-[180px]">{profile?.display_name || user?.email?.split('@')[0]}</h3>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Membro Premium</p>
              </div>
           </div>
 
@@ -237,5 +237,13 @@ export default function Sidebar() {
         document.body
       )}
     </>
+  )
+}
+
+export default function Sidebar() {
+  return (
+    <Suspense fallback={<div className="hidden lg:block w-[225px] h-96 bg-gray-50 border border-border rounded-md animate-pulse" />}>
+      <SidebarContent />
+    </Suspense>
   )
 }
