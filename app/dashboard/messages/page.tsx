@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck } from 'lucide-react'
 
-export default function MessagesPage() {
+function MessagesContent() {
   const [contacts, setContacts] = useState<any[]>([])
   const [selectedContact, setSelectedContact] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
@@ -304,5 +304,13 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>}>
+      <MessagesContent />
+    </Suspense>
   )
 }

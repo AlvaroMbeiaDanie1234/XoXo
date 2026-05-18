@@ -13,6 +13,7 @@ import {
   CheckCircle2, ExternalLink, ArrowUpRight, ArrowDownLeft,
   Banknote, Building2, Send, Megaphone, X
 } from 'lucide-react'
+import { Suspense } from 'react'
 
 interface Post {
   id: string
@@ -32,7 +33,7 @@ interface Post {
   }
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const [posts, setPosts] = useState<Post[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [dashboardAnnouncements, setDashboardAnnouncements] = useState<any[]>([])
@@ -465,5 +466,13 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>}>
+      <DashboardContent />
+    </Suspense>
   )
 }

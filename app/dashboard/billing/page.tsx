@@ -3,7 +3,7 @@
 import Sidebar from '@/components/dashboard/sidebar'
 import Header from '@/components/dashboard/header'
 import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 
 export default function BillingPage() {
   const [user, setUser] = useState<any>(null)
@@ -18,7 +18,9 @@ export default function BillingPage() {
       <Header user={user} />
       <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4">
         <div className="hidden lg:block w-[225px] flex-shrink-0">
-          <Sidebar />
+          <Suspense fallback={<div>Loading...</div>}>
+            <Sidebar />
+          </Suspense>
         </div>
         <div className="flex-1 max-w-2xl w-full">
           <div className="bg-white border border-border rounded-md p-8 shadow-sm">
