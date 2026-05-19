@@ -112,6 +112,20 @@ export default function AdminUserDetailPage() {
         setProfile((prev: any) => ({ ...prev, balance: updatedProfile.balance }))
       }
 
+      // Send SMS notification
+      try {
+        await fetch('/api/sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: id,
+            body: `XoXo: A sua conta foi creditada com AOA ${amount.toLocaleString()}. Saldo Atual: AOA ${updatedProfile?.balance?.toLocaleString() || amount.toLocaleString()}.`
+          })
+        })
+      } catch (smsErr) {
+        console.warn('Erro ao enviar SMS:', smsErr)
+      }
+
       alert(`Saldo carregado com sucesso! Adicionado AOA ${amount.toLocaleString()} à conta de ${profile.display_name}.`)
       setCreditAmount('')
       setCreditDescription('')

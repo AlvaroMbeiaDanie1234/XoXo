@@ -3,6 +3,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const client = new Client({
   connectionString: process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL,
   ssl: { rejectUnauthorized: false }
