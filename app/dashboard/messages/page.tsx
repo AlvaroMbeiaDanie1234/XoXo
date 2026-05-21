@@ -14,7 +14,8 @@ function MessagesContent() {
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const [userBalance, setUserBalance] = useState<number>(0)
+  const [userBalance, setUserBalance] = useState<number>(0);
+  const [freeMessagesSent, setFreeMessagesSent] = useState<number>(0)
   const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>({})
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -32,8 +33,11 @@ function MessagesContent() {
       setUser(currentUser)
 
       // Fetch user balance
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', currentUser.id).single()
-      if (profile) setUserBalance(profile.balance || 0)
+      const { data: profile } = await supabase.from('profiles').select('balance, free_messages_sent').eq('id', currentUser.id).single()
+      if (profile) {
+        setUserBalance(profile.balance || 0);
+        setFreeMessagesSent(profile.free_messages_sent || 0);
+      }
 
       // Fetch contacts (people you follow or who follow you)
       // For simplicity, let's fetch everyone you've exchanged messages with or follow
@@ -149,6 +153,15 @@ function MessagesContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Block sending if no balance and free message limit reached
+    if (userBalance <= 0 && freeMessagesSent >= 5) {
+      toast({
+        title: "Limite de mensagens grátis atingido",
+        description: "Carrega a tua carteira para enviar mais mensagens.",
+        variant: "destructive"
+      })
+      return
+    }
     if (!newMessage.trim() || !selectedContact || !user) return
 
     const messageObj = {
@@ -165,6 +178,14 @@ function MessagesContent() {
     if (error) {
       alert('Erro ao enviar mensagem')
       fetchMessages() // Rollback
+    } else {
+      // If user has no balance, increment free message count
+      if (userBalance <= 0) {
+        const { error: updError } = await supabase.from('profiles').update({ free_messages_sent: freeMessagesSent + 1 }).eq('id', user.id)
+        if (!updError) {
+          setFreeMessagesSent(prev => prev + 1)
+        }
+      }
     }
   }
 
@@ -269,9 +290,15 @@ function MessagesContent() {
               {/* Message Input */}
               <div className="p-4 bg-white border-t border-border">
                 {userBalance <= 0 ? (
-                  <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
-                    O teu saldo é insuficiente para enviar mensagens. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para conversar em tempo real.
-                  </div>
+                  freeMessagesSent < 5 ? (
+                    <div className="p-4 bg-yellow-50 text-yellow-800 rounded-xl text-center text-sm font-medium border border-yellow-200 shadow-sm animate-in fade-in zoom-in duration-300">
+                      Tens {5 - freeMessagesSent} mensagens gratuitas restantes. <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-yellow-900">Carrega a tua carteira</a> para desbloquear mensagens ilimitadas.
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
+                      O teu saldo é insuficiente e já usaste as 5 mensagens gratuitas. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para continuar a conversar.
+                    </div>
+                  )
                 ) : (
                   <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <input 
