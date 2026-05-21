@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Search, Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe } from 'lucide-react'
+import { Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe, Users } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import DepositModal from './deposit-modal'
+import UsersPanel from './users-panel'
 
 interface HeaderProps {
   user: any
@@ -16,9 +17,11 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [isDepositOpen, setIsDepositOpen] = useState(false)
+  const [usersPanelOpen, setUsersPanelOpen] = useState(false)
   const [lang, setLang] = useState<'PT' | 'EN'>('PT')
   const [langDropdownOpen, setLangDropdownOpen] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
+  const usersPanelRef = useRef<HTMLDivElement>(null)
   const [balance, setBalance] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -29,12 +32,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   const [displayName, setDisplayName] = useState('')
 
-  // Search states & refs
-  const searchRef = useRef<HTMLDivElement>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [loadingSearch, setLoadingSearch] = useState(false)
+  
 
   const loadBalance = async () => {
     if (!user) return
@@ -90,8 +88,8 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       if (langRef.current && !langRef.current.contains(event.target as Node)) {
         setLangDropdownOpen(false)
       }
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false)
+      if (usersPanelRef.current && !usersPanelRef.current.contains(event.target as Node)) {
+        setUsersPanelOpen(false)
       }
     }
 
@@ -104,35 +102,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     }
   }, [user, supabase])
 
-  // Real-time Facebook-style search autocomplete logic with debounce
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([])
-      return
-    }
-
-    setLoadingSearch(true)
-    const delayDebounce = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, display_name, email, avatar_url, is_verified, bio')
-          .or(`display_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
-          .order('is_verified', { ascending: false })
-          .limit(6)
-
-        if (!error && data) {
-          setSearchResults(data)
-        }
-      } catch (err) {
-        console.error("Erro na pesquisa:", err)
-      } finally {
-        setLoadingSearch(false)
-      }
-    }, 300) // 300ms debounce
-
-    return () => clearTimeout(delayDebounce)
-  }, [searchQuery, supabase])
+  
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -157,90 +127,6 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-xl font-bold text-accent">XoXo</Link>
-
-          {/* Modern Facebook-style Autocomplete Search bar */}
-          <div className="hidden sm:block relative" ref={searchRef}>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f3f2ef] border border-border w-64 transition-all focus-within:w-80 focus-within:bg-white focus-within:border-accent/40 focus-within:shadow-md">
-              <Search size={16} className="text-gray-500 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Pesquisar utilizadores..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setShowSuggestions(true)
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                className="w-full bg-transparent text-sm outline-none placeholder-gray-500 text-gray-900"
-              />
-            </div>
-
-            {/* suggestions dropdown list */}
-            {showSuggestions && searchQuery.trim() !== '' && (
-              <div className="absolute left-0 mt-2 w-80 bg-white/95 backdrop-blur-md rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-3 duration-200">
-                <div className="p-3 border-b border-gray-50 bg-gray-50/40 flex justify-between items-center">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sugestões de Pesquisa</p>
-                  {loadingSearch && (
-                    <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
-                  )}
-                </div>
-
-                <div className="max-h-[360px] overflow-y-auto divide-y divide-gray-50">
-                  {searchResults.length > 0 ? (
-                    searchResults.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          router.push(`/dashboard/creator/${p.id}`)
-                          setShowSuggestions(false)
-                          setSearchQuery('')
-                        }}
-                        className="p-3 hover:bg-slate-50 flex items-center justify-between cursor-pointer transition-colors group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Avatar with luxury border */}
-                          <div className="relative flex-shrink-0">
-                            {p.avatar_url ? (
-                              <img src={p.avatar_url} className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm" alt={p.display_name} />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                                {p.display_name ? p.display_name.charAt(0).toUpperCase() : p.email.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            {p.is_verified && (
-                              <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
-                                <CheckCircle size={12} className="text-blue-500 fill-blue-500" />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-gray-900 truncate group-hover:text-accent transition-colors flex items-center gap-1">
-                              {p.display_name || 'Sem Nome'}
-                            </p>
-                            <p className="text-[10px] text-gray-400 truncate mt-0.5">
-                              {p.bio || p.email}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Interactive View Profile Arrow/Label */}
-                        <div className="text-[10px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          Ver Perfil
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    !loadingSearch && (
-                      <div className="p-6 text-center text-xs text-gray-400">
-                        Nenhum utilizador encontrado para <strong className="text-gray-600">"{searchQuery}"</strong>.
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* User Info & Actions */}
@@ -278,6 +164,26 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Users Panel */}
+            <div className="relative" ref={usersPanelRef}>
+              <button
+                onClick={() => setUsersPanelOpen(!usersPanelOpen)}
+                className={`relative p-2 rounded-full transition-colors ${
+                  usersPanelOpen
+                    ? 'text-accent bg-accent/10'
+                    : 'text-gray-500 hover:text-accent hover:bg-gray-100'
+                }`}
+                title="Utilizadores"
+              >
+                <Users size={20} />
+              </button>
+
+              <UsersPanel
+                isOpen={usersPanelOpen}
+                onClose={() => setUsersPanelOpen(false)}
+              />
             </div>
 
             {/* Notifications */}
