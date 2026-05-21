@@ -660,6 +660,27 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Deseja realmente excluir este utilizador? Esta ação é irreversível.')) return;
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao eliminar');
+      // Update UI state
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      toast({
+        title: 'Utilizador eliminado',
+        description: data.warning || 'O utilizador foi removido com sucesso.',
+      });
+    } catch (err: any) {
+      toast({ title: 'Erro ao eliminar utilizador', description: err.message, variant: 'destructive' });
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center"><p>Carregando painel admin...</p></div>
 
   const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending')
@@ -948,7 +969,7 @@ export default function AdminDashboard() {
                               {u.sms_suspended_by_admin && <line x1="1" y1="1" x2="23" y2="23"/>}
                             </svg>
                           </button>
-                          <button className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"><Trash2 size={18} /></button>
+                          <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"><Trash2 size={18} /></button>
                         </td>
                       </tr>
                     ))}

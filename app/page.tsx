@@ -1,8 +1,27 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Play, BookOpen, Image as ImageIcon, ShieldCheck, Zap, Infinity, CheckCircle2, ArrowRight, Star } from 'lucide-react'
+import { Play, BookOpen, Image as ImageIcon, ShieldCheck, Zap, Infinity, CheckCircle2, ArrowRight, Star, Globe } from 'lucide-react'
+import { useTranslation } from '@/hooks/useTranslation'
+import { Language } from '@/lib/translations'
 
 export default function HomePage() {
+  const { t, lang, changeLanguage } = useTranslation()
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false)
+  const langRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden relative selection:bg-accent/30">
       {/* Background Effects */}
@@ -17,20 +36,60 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="font-bold text-2xl tracking-tighter">
             <span className="text-foreground">O</span>
-            <span className="text-accent ml-1">Exclusivo</span>
+            <span className="text-accent ml-1">{t('nav.logo').replace('O', '')}</span>
           </div>
+
           <div className="flex gap-4 items-center">
+            {/* Language Selector Dropdown */}
+            <div className="relative mr-2" ref={langRef}>
+              <button
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-foreground rounded-full border border-border/40 hover:bg-muted/40 transition-colors font-semibold text-xs"
+                title="Mudar Idioma / Change Language"
+              >
+                <Globe size={14} className="text-muted-foreground" />
+                <span>{lang}</span>
+              </button>
+
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-36 bg-card/95 backdrop-blur-md rounded-xl shadow-2xl border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-1">
+                    <button
+                      onClick={() => {
+                        changeLanguage('PT')
+                        setLangDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/15 text-accent' : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}`}
+                    >
+                      <span className="text-sm">🇵🇹</span>
+                      Português
+                    </button>
+                    <button
+                      onClick={() => {
+                        changeLanguage('EN')
+                        setLangDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/15 text-accent' : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}`}
+                    >
+                      <span className="text-sm">🇬🇧</span>
+                      English
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <Link
               href="/auth/login"
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Entrar
+              {t('nav.login')}
             </Link>
             <Link
               href="/auth/sign-up"
               className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-sm"
             >
-              Cadastrar
+              {t('nav.signup')}
             </Link>
           </div>
         </div>
@@ -44,24 +103,23 @@ export default function HomePage() {
             <div className="flex flex-col items-start text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border mb-8 backdrop-blur-sm">
                 <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-medium text-secondary-foreground">Acesso VIP Liberado</span>
+                <span className="text-xs font-medium text-secondary-foreground">{t('hero.badge')}</span>
               </div>
 
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]">
-                Conteúdo{' '}
+                {t('hero.title_part1')}
                 <span className="relative inline-block">
                   <span className="relative z-10 bg-gradient-to-r from-accent to-accent/70 bg-clip-text text-transparent">
-                    Exclusivo
+                    {t('hero.title_exclusivo')}
                   </span>
                   <span className="absolute -bottom-2 left-0 w-full h-3 bg-accent/20 blur-md" />
                 </span>
                 <br />
-                Premium
+                {t('hero.title_part2')}
               </h1>
 
               <p className="text-lg sm:text-xl text-muted-foreground mb-6 leading-relaxed max-w-xl">
-                Acesse uma curadoria de excelência com vídeos, artigos e fotos selecionados especialmente para você.
-                Uma plataforma moderna, segura e incrivelmente sedutora.
+                {t('hero.desc')}
               </p>
 
               <div className="flex items-center gap-3.5 p-4.5 rounded-2xl bg-accent/5 border border-accent/10 mb-8 max-w-xl text-left backdrop-blur-sm shadow-sm hover:border-accent/20 transition-all duration-300">
@@ -69,10 +127,10 @@ export default function HomePage() {
                   <ShieldCheck className="w-6 h-6 animate-pulse" />
                 </div>
                 <div>
-                  <p className="text-xs font-black uppercase text-accent tracking-wider">🔒 Chats Criptografados e Seguros</p>
+                  <p className="text-xs font-black uppercase text-accent tracking-wider">{t('hero.secure_chats')}</p>
                   <p className="text-xs text-muted-foreground italic mt-0.5 leading-relaxed">
-                    Comunicação encriptada de ponta a ponta: nem mesmo o <strong>XoXo</strong> tem acesso às tuas conversas.
-                    <span className="font-bold text-foreground not-italic block mt-1">"Porque o que ninguém sabe, ninguém estraga."</span>
+                    {t('hero.secure_chats_desc')}
+                    <span className="font-bold text-foreground not-italic block mt-1">{t('hero.secure_chats_quote')}</span>
                   </p>
                 </div>
               </div>
@@ -82,14 +140,14 @@ export default function HomePage() {
                   href="/auth/sign-up"
                   className="group relative flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-accent text-accent-foreground font-semibold text-lg hover:shadow-[0_0_20px_rgba(227,30,36,0.4)] transition-all hover:-translate-y-1 w-full"
                 >
-                  Começar Agora
+                  {t('hero.cta_start')}
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
                   href="/auth/login"
                   className="flex items-center justify-center px-8 py-4 rounded-full bg-card border border-border text-card-foreground font-semibold text-lg hover:bg-muted backdrop-blur-sm transition-all w-full"
                 >
-                  Já tenho conta
+                  {t('hero.cta_login')}
                 </Link>
               </div>
             </div>
@@ -135,7 +193,7 @@ export default function HomePage() {
                     <Star className="w-4 h-4 fill-current" />
                     <Star className="w-4 h-4 fill-current" />
                   </div>
-                  <span className="text-xs font-bold text-foreground">Comunidade VIP</span>
+                  <span className="text-xs font-bold text-foreground">{t('hero.community_vip')}</span>
                 </div>
               </div>
             </div>
@@ -149,9 +207,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform relative z-10">
                 <Play className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 relative z-10">Vídeos Premium</h3>
+              <h3 className="text-2xl font-bold mb-4 relative z-10">{t('features.videos.title')}</h3>
               <p className="text-muted-foreground leading-relaxed relative z-10">
-                Acesse conteúdo em vídeo de alta qualidade de criadores exclusivos. Experiência cinematográfica em qualquer dispositivo.
+                {t('features.videos.desc')}
               </p>
               <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors" />
             </div>
@@ -160,9 +218,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform relative z-10">
                 <BookOpen className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 relative z-10">Artigos Selecionados</h3>
+              <h3 className="text-2xl font-bold mb-4 relative z-10">{t('features.articles.title')}</h3>
               <p className="text-muted-foreground leading-relaxed relative z-10">
-                Leia conteúdo aprofundado e bem pesquisado de especialistas. Conhecimento que transforma, inspira e seduz.
+                {t('features.articles.desc')}
               </p>
               <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors" />
             </div>
@@ -171,9 +229,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform relative z-10">
                 <ImageIcon className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 relative z-10">Fotos Exclusivas</h3>
+              <h3 className="text-2xl font-bold mb-4 relative z-10">{t('features.photos.title')}</h3>
               <p className="text-muted-foreground leading-relaxed relative z-10">
-                Descubra uma coleção curada de ensaios fotográficos de alta resolução. Arte visual intensa disponível apenas para membros.
+                {t('features.photos.desc')}
               </p>
               <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors" />
             </div>
@@ -187,15 +245,15 @@ export default function HomePage() {
           <div className="absolute inset-0 flex items-center">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
               <div className="max-w-lg">
-                <h2 className="text-4xl font-bold mb-4 text-foreground">Sedução & Elegância</h2>
+                <h2 className="text-4xl font-bold mb-4 text-foreground">{t('banner.title')}</h2>
                 <p className="text-lg text-muted-foreground mb-8">
-                  Nossa curadoria seleciona apenas os perfis mais fascinantes e os conteúdos mais instigantes. Uma experiência visual incomparável.
+                  {t('banner.desc')}
                 </p>
                 <Link
                   href="/auth/sign-up"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-medium hover:scale-105 transition-transform"
                 >
-                  Descubra Mais <ArrowRight className="w-4 h-4" />
+                  {t('banner.cta')} <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -206,7 +264,10 @@ export default function HomePage() {
         <section className="bg-card/30 py-20 relative overflow-hidden backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold">Seguro e <span className="text-accent">Confiável</span></h2>
+              <h2 className="text-3xl md:text-4xl font-bold">
+                {t('metrics.title')}
+                <span className="text-accent">{t('metrics.title_colored')}</span>
+              </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               <div className="flex flex-col items-center text-center space-y-3">
@@ -214,28 +275,28 @@ export default function HomePage() {
                   <ShieldCheck className="w-8 h-8" />
                 </div>
                 <div className="text-3xl font-bold">100%</div>
-                <p className="text-muted-foreground font-medium">Privacidade Garantida</p>
+                <p className="text-muted-foreground font-medium">{t('metrics.privacy')}</p>
               </div>
               <div className="flex flex-col items-center text-center space-y-3">
                 <div className="p-4 rounded-full bg-accent/10 text-accent mb-2">
                   <Zap className="w-8 h-8" />
                 </div>
                 <div className="text-3xl font-bold">24/7</div>
-                <p className="text-muted-foreground font-medium">Acesso Ilimitado</p>
+                <p className="text-muted-foreground font-medium">{t('metrics.access')}</p>
               </div>
               <div className="flex flex-col items-center text-center space-y-3">
                 <div className="p-4 rounded-full bg-accent/10 text-accent mb-2">
                   <Infinity className="w-8 h-8" />
                 </div>
                 <div className="text-3xl font-bold">∞</div>
-                <p className="text-muted-foreground font-medium">Novo Conteúdo</p>
+                <p className="text-muted-foreground font-medium">{t('metrics.new_content')}</p>
               </div>
               <div className="flex flex-col items-center text-center space-y-3">
                 <div className="p-4 rounded-full bg-accent/10 text-accent mb-2">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <div className="text-3xl font-bold">✓</div>
-                <p className="text-muted-foreground font-medium">Qualidade Premium</p>
+                <p className="text-muted-foreground font-medium">{t('metrics.premium_quality')}</p>
               </div>
             </div>
           </div>
@@ -245,7 +306,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="relative z-10 py-10 text-center border-t border-border">
         <p className="text-muted-foreground text-sm">
-          &copy; {new Date().getFullYear()} XoXo. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} XoXo. {t('footer.rights')}
         </p>
       </footer>
     </div>

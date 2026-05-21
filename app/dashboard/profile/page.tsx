@@ -119,13 +119,16 @@ export default function EditProfilePage() {
         if (txError) throw txError
       } else {
         // Se for plano grátis, cria transação informativa de valor 0
-        await supabase.from('transactions').insert({
+        const { error: freeTxError } = await supabase.from('transactions').insert({
           user_id: user.id,
           amount: 0,
           type: 'purchase',
           description: 'Selo VIP Ativado Gratuitamente (Plano Grátis)',
           status: 'completed'
-        }).catch(console.error)
+        })
+        if (freeTxError) {
+          console.error('Erro ao registar transação gratuita:', freeTxError)
+        }
       }
 
       // 2. Atualizar perfil para verificado

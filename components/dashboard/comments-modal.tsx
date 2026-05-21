@@ -29,20 +29,55 @@ export default function CommentsModal({ isOpen, onClose, postId, user, content_u
 
   const fetchComments = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('comments')
-      .select('*, profiles(display_name, avatar_url, is_verified)')
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true })
-    
-    if (data) {
-      const rootComments = data.filter(c => !c.parent_id)
-      const replies = data.filter(c => c.parent_id)
-      const tree = rootComments.map(c => ({
+    try {
+      // Step 1: Fetch raw comments without FK join to avoid PostgREST 400 errors
+      const { data: rawComments, error: commentsError } = await supabase
+        .from('comments')
+        .select('id, user_id, post_id, content, created_at, updated_at, parent_id')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true })
+
+      if (commentsError) {
+        console.error("XoXo CommentsModal: Error fetching comments:", commentsError)
+        setLoading(false)
+        return
+      }
+
+      if (!rawComments || rawComments.length === 0) {
+        setComments([])
+        setLoading(false)
+        return
+      }
+
+      // Step 2: Fetch profiles for comment authors separately
+      const userIds = [...new Set(rawComments.map((c: any) => c.user_id))]
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', userIds)
+
+      const profilesMap: Record<string, any> = {}
+      if (profilesData) {
+        profilesData.forEach((p: any) => { profilesMap[p.id] = p })
+      }
+
+      // Step 3: Merge profiles into comments
+      const enriched = rawComments.map((c: any) => ({
         ...c,
-        replies: replies.filter(r => r.parent_id === c.id)
+        profiles: profilesMap[c.user_id] || null
       }))
+
+      const rootComments = enriched.filter((c: any) => !c.parent_id)
+      const replies = enriched.filter((c: any) => c.parent_id)
+      const tree = rootComments.map((c: any) => ({
+        ...c,
+        replies: replies.filter((r: any) => r.parent_id === c.id)
+      }))
+
+      console.log("XoXo CommentsModal: Comments loaded:", tree.length)
       setComments(tree)
+    } catch (err) {
+      console.error("XoXo CommentsModal: Exception in fetchComments:", err)
     }
     setLoading(false)
   }
@@ -110,7 +145,6 @@ export default function CommentsModal({ isOpen, onClose, postId, user, content_u
                     <div className="bg-[#f2f3f5] p-3 rounded-2xl">
                       <div className="flex items-center gap-1 mb-0.5">
                         <span className="font-bold text-xs">{comment.profiles?.display_name}</span>
-                        {comment.profiles?.is_verified && <CheckCircle size={10} className="text-blue-500 fill-blue-500" />}
                       </div>
                       <p className="text-sm text-gray-800">{comment.content}</p>
                     </div>

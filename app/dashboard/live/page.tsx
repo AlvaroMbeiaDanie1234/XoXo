@@ -167,7 +167,7 @@ export default function LiveStreamPage() {
   const loadActiveStreams = async () => {
     const { data } = await supabase
       .from('live_streams')
-      .select('*, profiles(display_name, avatar_url, is_verified)')
+      .select('*, profiles(display_name, avatar_url)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
 
@@ -585,7 +585,7 @@ export default function LiveStreamPage() {
         .eq('id', user.id)
         .single()
 
-      const currentBalance = buyerProfile?.balance || 0
+      const currentBalance = Number(buyerProfile?.balance || 0)
       const buyerName = buyerProfile?.display_name || user.email?.split('@')[0] || 'Alguém'
 
       if (currentBalance < selectedStream.price) {
@@ -784,14 +784,6 @@ export default function LiveStreamPage() {
 
   // Start live stream as creator
   const handleStartStream = async () => {
-    if (!profile?.is_verified) {
-      toast({
-        title: "VIP Necessário",
-        description: "Apenas criadores com o Selo VIP Verificado podem iniciar transmissões ao vivo.",
-        variant: "destructive"
-      })
-      return
-    }
 
     if (!streamTitle.trim()) {
       toast({
@@ -1196,7 +1188,7 @@ export default function LiveStreamPage() {
             <div className="space-y-6">
 
               {/* Creator Live Setup Card */}
-              {profile?.is_verified ? (
+              {profile ? (
                 <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">

@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Search, Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle } from 'lucide-react'
+import { Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe, Users } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import DepositModal from './deposit-modal'
+import UsersPanel from './users-panel'
 
 interface HeaderProps {
   user: any
@@ -16,6 +17,11 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [isDepositOpen, setIsDepositOpen] = useState(false)
+  const [usersPanelOpen, setUsersPanelOpen] = useState(false)
+  const [lang, setLang] = useState<'PT' | 'EN'>('PT')
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false)
+  const langRef = useRef<HTMLDivElement>(null)
+  const usersPanelRef = useRef<HTMLDivElement>(null)
   const [balance, setBalance] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -26,62 +32,100 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   const [displayName, setDisplayName] = useState('')
 
-  // Search states & refs
-  const searchRef = useRef<HTMLDivElement>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [loadingSearch, setLoadingSearch] = useState(false)
+  
 
   const loadBalance = async () => {
     if (!user) return
-    const { data } = await supabase.from('profiles').select('balance, display_name').eq('id', user.id).single()
-    if (data) {
-      setBalance(data.balance || 0)
-      setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+    try {
+      const { data, error } = await supabase.from('profiles').select('balance, display_name').eq('id', user.id).single()
+      if (error) {
+        console.error("XoXo Header: Error loading balance from profiles:", error)
+      }
+      if (data) {
+        const val = Number(data.balance);
+        setBalance(isNaN(val) ? 0 : val)
+        setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+      }
+    } catch (err) {
+      console.error("XoXo Header: Exception loading balance:", err)
     }
   }
 
   const loadNotifications = async () => {
     if (!user) return
-    // Fetch recent earnings (sales) as notifications
+    // Fetch recent earnings (sales) and deposits as notifications
     const { data } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
-      .eq('type', 'earnings')
+      .in('type', ['earnings', 'deposit'])
       .order('created_at', { ascending: false })
       .limit(5)
 
     if (data) {
       setNotifications(data)
-      // Since we don't have an is_read field on transactions, we can just highlight them all
-      // or assume the first 1-2 are new for visual flair.
-      setUnreadCount(data.length > 0 ? 1 : 0) // Just to show a red dot if they have earnings
+      setUnreadCount(data.length > 0 ? 1 : 0) // Show red dot if any notifications
     }
   }
 
   useEffect(() => {
-    if (user) {
-      loadBalance()
-      loadNotifications()
-    }
+    if (!user) return
+    loadBalance()
+    loadNotifications()
+
+    // Realtime subscription for profile balance updates
+    const profileChannel = supabase
+      .channel('public:profiles')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        (payload) => {
+          // Update balance from payload if present, otherwise reload
+          if (payload.new && payload.new.balance !== undefined && payload.new.balance !== null) {
+            const val = Number(payload.new.balance);
+            setBalance(isNaN(val) ? 0 : val);
+          } else {
+            loadBalance();
+          }
+        },
+      )
+      .subscribe();
+
+    // Realtime subscription for new transaction notifications (deposits/earnings)
+        const txnChannel = supabase
+          .channel(`public:transactions:user=${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
+            (payload) => {
+              // If the payload includes an amount, increment balance locally
+              if (payload.new && payload.new.amount !== undefined && payload.new.amount !== null) {
+                const val = Number(payload.new.amount);
+                setBalance((prev) => prev + (isNaN(val) ? 0 : val));
+              } else {
+                loadBalance();
+              }
+              // Refresh notifications list
+              loadNotifications();
+            },
+          )
+          .subscribe();
 
     const handleBalanceUpdate = () => {
       loadBalance()
       loadNotifications()
     }
 
+    if (typeof window !== 'undefined') {
+      const storedLang = localStorage.getItem('xoxo_lang') as 'PT' | 'EN'
+      if (storedLang) setLang(storedLang)
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false)
-      }
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setNotifOpen(false)
-      }
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false)
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setDropdownOpen(false)
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) setNotifOpen(false)
+      if (langRef.current && !langRef.current.contains(event.target as Node)) setLangDropdownOpen(false)
+      if (usersPanelRef.current && !usersPanelRef.current.contains(event.target as Node)) setUsersPanelOpen(false)
     }
 
     window.addEventListener('balanceUpdated', handleBalanceUpdate)
@@ -90,38 +134,12 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     return () => {
       window.removeEventListener('balanceUpdated', handleBalanceUpdate)
       document.removeEventListener('mousedown', handleClickOutside)
+      supabase.removeChannel(profileChannel)
+      supabase.removeChannel(txnChannel)
     }
   }, [user, supabase])
 
-  // Real-time Facebook-style search autocomplete logic with debounce
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([])
-      return
-    }
-
-    setLoadingSearch(true)
-    const delayDebounce = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, display_name, email, avatar_url, is_verified, bio')
-          .or(`display_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
-          .order('is_verified', { ascending: false })
-          .limit(6)
-
-        if (!error && data) {
-          setSearchResults(data)
-        }
-      } catch (err) {
-        console.error("Erro na pesquisa:", err)
-      } finally {
-        setLoadingSearch(false)
-      }
-    }, 300) // 300ms debounce
-
-    return () => clearTimeout(delayDebounce)
-  }, [searchQuery, supabase])
+  
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -133,100 +151,68 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     if (!notifOpen) setUnreadCount(0)
   }
 
+  const handleLangChange = (newLang: 'PT' | 'EN') => {
+    setLang(newLang)
+    localStorage.setItem('xoxo_lang', newLang)
+    setLangDropdownOpen(false)
+    window.dispatchEvent(new Event('languageChanged'))
+    alert(newLang === 'PT' ? 'Idioma alterado para Português!' : 'Language changed to English!')
+  }
+
   return (
     <div className="sticky top-0 z-40 bg-white border-b border-border shadow-sm w-full">
       <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-xl font-bold text-accent">XoXo</Link>
-
-          {/* Modern Facebook-style Autocomplete Search bar */}
-          <div className="hidden sm:block relative" ref={searchRef}>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f3f2ef] border border-border w-64 transition-all focus-within:w-80 focus-within:bg-white focus-within:border-accent/40 focus-within:shadow-md">
-              <Search size={16} className="text-gray-500 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Pesquisar utilizadores..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setShowSuggestions(true)
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                className="w-full bg-transparent text-sm outline-none placeholder-gray-500 text-gray-900"
-              />
-            </div>
-
-            {/* suggestions dropdown list */}
-            {showSuggestions && searchQuery.trim() !== '' && (
-              <div className="absolute left-0 mt-2 w-80 bg-white/95 backdrop-blur-md rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-3 duration-200">
-                <div className="p-3 border-b border-gray-50 bg-gray-50/40 flex justify-between items-center">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sugestões de Pesquisa</p>
-                  {loadingSearch && (
-                    <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
-                  )}
-                </div>
-
-                <div className="max-h-[360px] overflow-y-auto divide-y divide-gray-50">
-                  {searchResults.length > 0 ? (
-                    searchResults.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          router.push(`/dashboard/creator/${p.id}`)
-                          setShowSuggestions(false)
-                          setSearchQuery('')
-                        }}
-                        className="p-3 hover:bg-slate-50 flex items-center justify-between cursor-pointer transition-colors group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Avatar with luxury border */}
-                          <div className="relative flex-shrink-0">
-                            {p.avatar_url ? (
-                              <img src={p.avatar_url} className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm" alt={p.display_name} />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                                {p.display_name ? p.display_name.charAt(0).toUpperCase() : p.email.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            {p.is_verified && (
-                              <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
-                                <CheckCircle size={12} className="text-blue-500 fill-blue-500" />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-gray-900 truncate group-hover:text-accent transition-colors flex items-center gap-1">
-                              {p.display_name || 'Sem Nome'}
-                            </p>
-                            <p className="text-[10px] text-gray-400 truncate mt-0.5">
-                              {p.bio || p.email}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Interactive View Profile Arrow/Label */}
-                        <div className="text-[10px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          Ver Perfil
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    !loadingSearch && (
-                      <div className="p-6 text-center text-xs text-gray-400">
-                        Nenhum utilizador encontrado para <strong className="text-gray-600">"{searchQuery}"</strong>.
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* User Info & Actions */}
         {user && (
           <div className="flex items-center gap-4">
+
+            {/* Language Selector Dropdown */}
+            <div className="relative" ref={langRef}>
+              <button
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1 p-2 text-gray-500 hover:text-accent hover:bg-gray-100 rounded-full transition-colors font-bold text-xs"
+                title="Mudar Idioma / Change Language"
+              >
+                <Globe size={18} />
+                <span className="hidden sm:inline ml-0.5">{lang}</span>
+              </button>
+
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-1">
+                    <button
+                      onClick={() => handleLangChange('PT')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/10 text-accent' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      <span className="text-sm">🇵🇹</span>
+                      Português (PT)
+                    </button>
+                    <button
+                      onClick={() => handleLangChange('EN')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/10 text-accent' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      <span className="text-sm">🇬🇧</span>
+                      English (EN)
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Users Panel */}
+            <div className="relative" ref={usersPanelRef}>
+  <button
+    onClick={() => router.push('/dashboard/explore')}
+    className="relative p-2 rounded-full text-gray-500 hover:text-accent hover:bg-gray-100"
+    title="Utilizadores"
+  >
+    <Users size={20} />
+  </button>
+</div>
 
             {/* Notifications */}
             <div className="relative" ref={notifRef}>

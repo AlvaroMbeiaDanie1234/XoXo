@@ -14,7 +14,8 @@ function MessagesContent() {
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const [userBalance, setUserBalance] = useState<number>(0)
+  const [userBalance, setUserBalance] = useState<number>(0);
+  const [freeMessagesSent, setFreeMessagesSent] = useState<number>(0)
   const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>({})
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -32,8 +33,12 @@ function MessagesContent() {
       setUser(currentUser)
 
       // Fetch user balance
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', currentUser.id).single()
-      if (profile) setUserBalance(profile.balance || 0)
+      const { data: profile } = await supabase.from('profiles').select('balance, free_messages_sent').eq('id', currentUser.id).single()
+      if (profile) {
+        const val = Number(profile.balance);
+        setUserBalance(isNaN(val) ? 0 : val);
+        setFreeMessagesSent(profile.free_messages_sent || 0);
+      }
 
       // Fetch contacts (people you follow or who follow you)
       // For simplicity, let's fetch everyone you've exchanged messages with or follow
@@ -149,6 +154,11 @@ function MessagesContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Block sending if no balance and free message limit reached
+    if (userBalance <= 0 && freeMessagesSent >= 5) {
+      alert('Limite de mensagens grátis atingido. Carrega a tua carteira para enviar mais mensagens.')
+      return
+    }
     if (!newMessage.trim() || !selectedContact || !user) return
 
     const messageObj = {
@@ -165,6 +175,14 @@ function MessagesContent() {
     if (error) {
       alert('Erro ao enviar mensagem')
       fetchMessages() // Rollback
+    } else {
+      // If user has no balance, increment free message count
+      if (userBalance <= 0) {
+        const { error: updError } = await supabase.from('profiles').update({ free_messages_sent: freeMessagesSent + 1 }).eq('id', user.id)
+        if (!updError) {
+          setFreeMessagesSent(prev => prev + 1)
+        }
+      }
     }
   }
 
@@ -268,27 +286,34 @@ function MessagesContent() {
 
               {/* Message Input */}
               <div className="p-4 bg-white border-t border-border">
-                {userBalance <= 0 ? (
+                {userBalance <= 0 && freeMessagesSent >= 5 ? (
                   <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
-                    O teu saldo é insuficiente para enviar mensagens. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para conversar em tempo real.
+                    Já usaste as tuas 5 mensagens gratuitas. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para continuar a conversar.
                   </div>
                 ) : (
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Escreve uma mensagem..." 
-                      className="flex-1 bg-gray-100 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!newMessage.trim()}
-                      className="w-12 h-12 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:shadow-none"
-                    >
-                      <Send size={20} className="ml-1" />
-                    </button>
-                  </form>
+                  <>
+                    {userBalance <= 0 && freeMessagesSent > 0 && (
+                      <div className="mb-2 px-3 py-1.5 bg-gray-100 rounded-full text-[11px] text-gray-500 font-medium text-center">
+                        {5 - freeMessagesSent} mensagem(ns) gratuita(s) restante(s)
+                      </div>
+                    )}
+                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Escreve uma mensagem..." 
+                        className="flex-1 bg-gray-100 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!newMessage.trim()}
+                        className="w-12 h-12 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:shadow-none"
+                      >
+                        <Send size={20} className="ml-1" />
+                      </button>
+                    </form>
+                  </>
                 )}
               </div>
             </>

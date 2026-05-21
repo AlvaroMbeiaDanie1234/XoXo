@@ -28,8 +28,27 @@ export default function CommentSection({ postId, userId }: CommentSectionProps) 
   const supabase = createClient()
 
   useEffect(() => {
+    // Initial load of comments
     fetchComments()
-  }, [postId])
+
+    // Set up realtime subscription for new comments on this post
+    const commentChannel = supabase
+      .channel(`public:comments:post=${postId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments', filter: `post_id=eq.${postId}` },
+        (payload) => {
+          const newComment = payload.new as any
+          // Prepend the new comment to the list
+          setComments((prev) => [newComment, ...prev])
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(commentChannel)
+    }
+  }, [postId, supabase])
 
   const fetchComments = async () => {
     try {
@@ -54,16 +73,20 @@ export default function CommentSection({ postId, userId }: CommentSectionProps) 
 
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('comments').insert({
-        post_id: postId,
-        user_id: userId,
-        content: newComment,
-      })
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          content: newComment,
+          post_id: postId,
+          user_id: userId,
+        })
+        .select('*, profiles(display_name, avatar_url)')
+        .single()
 
       if (error) throw error
-
+      // Prepend the new comment with profile data to the list
+      setComments((prev) => [data, ...prev])
       setNewComment('')
-      await fetchComments()
     } catch (err) {
       console.error('Error submitting comment:', err)
     } finally {
