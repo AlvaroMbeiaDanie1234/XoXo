@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Search, Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle } from 'lucide-react'
+import { Search, Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -16,6 +16,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [isDepositOpen, setIsDepositOpen] = useState(false)
+  const [lang, setLang] = useState<'PT' | 'EN'>('PT')
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false)
+  const langRef = useRef<HTMLDivElement>(null)
   const [balance, setBalance] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -72,12 +75,20 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       loadNotifications()
     }
 
+    if (typeof window !== 'undefined') {
+      const storedLang = localStorage.getItem('xoxo_lang') as 'PT' | 'EN'
+      if (storedLang) setLang(storedLang)
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false)
       }
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setNotifOpen(false)
+      }
+      if (langRef.current && !langRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false)
       }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSuggestions(false)
@@ -131,6 +142,14 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const toggleNotif = () => {
     setNotifOpen(!notifOpen)
     if (!notifOpen) setUnreadCount(0)
+  }
+
+  const handleLangChange = (newLang: 'PT' | 'EN') => {
+    setLang(newLang)
+    localStorage.setItem('xoxo_lang', newLang)
+    setLangDropdownOpen(false)
+    window.dispatchEvent(new Event('languageChanged'))
+    alert(newLang === 'PT' ? 'Idioma alterado para Português!' : 'Language changed to English!')
   }
 
   return (
@@ -227,6 +246,39 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
         {/* User Info & Actions */}
         {user && (
           <div className="flex items-center gap-4">
+
+            {/* Language Selector Dropdown */}
+            <div className="relative" ref={langRef}>
+              <button
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1 p-2 text-gray-500 hover:text-accent hover:bg-gray-100 rounded-full transition-colors font-bold text-xs"
+                title="Mudar Idioma / Change Language"
+              >
+                <Globe size={18} />
+                <span className="hidden sm:inline ml-0.5">{lang}</span>
+              </button>
+
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-1">
+                    <button
+                      onClick={() => handleLangChange('PT')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/10 text-accent' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      <span className="text-sm">🇵🇹</span>
+                      Português (PT)
+                    </button>
+                    <button
+                      onClick={() => handleLangChange('EN')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/10 text-accent' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      <span className="text-sm">🇬🇧</span>
+                      English (EN)
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Notifications */}
             <div className="relative" ref={notifRef}>

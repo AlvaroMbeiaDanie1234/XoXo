@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -10,7 +10,18 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [verificationStatus, setVerificationStatus] = useState<'true' | 'already' | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const verified = params.get('verified') as 'true' | 'already' | null
+      if (verified) {
+        setVerificationStatus(verified)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,6 +64,28 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Alerta de E-mail Verificado com Sucesso */}
+      {verificationStatus === 'true' && (
+        <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm animate-in fade-in flex items-start gap-2.5">
+          <span className="text-emerald-600 font-extrabold text-lg leading-none mt-0.5">✓</span>
+          <div>
+            <p className="font-bold text-emerald-900">E-mail ativado com sucesso! 💋</p>
+            <p className="text-emerald-700 text-xs mt-0.5">A sua conta está agora 100% ativa. Faça login abaixo para aceder à plataforma.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de Conta Já Verificada */}
+      {verificationStatus === 'already' && (
+        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm animate-in fade-in flex items-start gap-2.5">
+          <span className="text-blue-600 font-bold text-lg leading-none mt-0.5">ℹ</span>
+          <div>
+            <p className="font-bold text-blue-900">Conta já ativada</p>
+            <p className="text-blue-700 text-xs mt-0.5">A sua conta já se encontrava ativada. Pode iniciar sessão normalmente.</p>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="p-4 rounded-lg bg-red-100 border border-red-400 text-red-700 text-sm animate-in fade-in">
           <p className="font-semibold mb-1">Erro ao fazer login:</p>

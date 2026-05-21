@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import nodemailer from 'nodemailer'
+import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
-  console.log('[API/Signup] Iniciando fluxo de cadastro personalizado via SMTP')
+  console.log('[API/Signup] Iniciando fluxo de cadastro 100% administrativo para contornar limite de e-mail do Supabase')
 
   try {
     const body = await request.json()
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = createAdminClient()
 
-    // 1. Verificar se o utilizador já existe no Supabase
+    // 1. Verificar se o utilizador já existe no Supabase de forma paginada e segura
     console.log(`[API/Signup] Verificando existência do utilizador: ${trimmedEmail}`)
     let existingUser = null
     let pageNum = 1
@@ -57,8 +58,8 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       } else {
-        // Se o utilizador existe mas NÃO está confirmado, removemos o registo incompleto
-        // para permitir um novo registo limpo e envio de e-mail fresco
+        // Se o utilizador existe mas NÃO está verificado, removemos o registo inacabado
+        // para dar lugar a uma nova tentativa limpa
         console.log(`[API/Signup] Removendo registo de e-mail não confirmado: ${existingUser.id}`)
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(existingUser.id)
         if (deleteError) {
@@ -67,41 +68,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Gerar o link oficial de confirmação de cadastro do Supabase (sem enviar e-mail automático)
-    console.log('[API/Signup] Gerando link de confirmação do Supabase')
-    const origin = request.nextUrl.origin
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
+    // 2. Gerar nosso próprio token seguro de ativação
+    const verificationToken = crypto.randomUUID()
+    console.log(`[API/Signup] Token de verificação gerado para ${trimmedEmail}`)
+
+    // 3. Criar o utilizador de forma puramente administrativa (Bypassa totalmente o limite do Supabase!)
+    console.log('[API/Signup] Criando utilizador administrativamente no Supabase')
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: trimmedEmail,
       password: password,
-      options: {
-        redirectTo: `${origin}/auth/callback`,
-        data: {
-          display_name: trimmedName,
-        },
+      email_confirm: false, // Requerer confirmação manual através do nosso endpoint
+      user_metadata: {
+        display_name: trimmedName,
+        verification_token: verificationToken,
       },
     })
 
-    if (linkError) {
-      console.error('[API/Signup] Erro ao gerar link de confirmação:', linkError)
+    if (createError || !userData?.user) {
+      console.error('[API/Signup] Erro ao criar utilizador administrativamente:', createError)
       return NextResponse.json(
-        { error: `Erro ao criar conta no sistema: ${linkError.message}` },
+        { error: `Erro ao criar conta: ${createError?.message || 'Tente novamente.'}` },
         { status: 400 }
       )
     }
 
-    const actionLink = linkData?.properties?.action_link
-    if (!actionLink) {
-      console.error('[API/Signup] Link de ação não retornado pelo Supabase.')
-      return NextResponse.json(
-        { error: 'Não foi possível gerar o link de ativação da conta.' },
-        { status: 500 }
-      )
-    }
+    const userId = userData.user.id
+    console.log(`[API/Signup] Utilizador criado com ID: ${userId}`)
 
-    console.log('[API/Signup] Link gerado com sucesso:', actionLink)
+    // 4. Montar o nosso link de confirmação personalizado
+    const origin = request.nextUrl.origin
+    const actionLink = `${origin}/api/auth/confirm?token=${verificationToken}&email=${encodeURIComponent(trimmedEmail)}`
+    console.log('[API/Signup] Link de ativação customizado gerado:', actionLink)
 
-    // 3. Configurar e-mail com nodemailer e SMTP do Gmail
+    // 5. Configurar e-mail com nodemailer e SMTP do Gmail
     const mailHost = process.env.MAIL_HOST || 'smtp.gmail.com'
     const mailPort = Number(process.env.MAIL_PORT || 587)
     const mailUser = process.env.MAIL_USERNAME || 'alvarombeiadanielmiguel@gmail.com'
@@ -123,7 +122,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // 4. HTML premium do e-mail de ativação XOXO (Preto elegante e acentos rosa vibrante)
+    // HTML premium do e-mail de ativação XOXO (Preto elegante e acentos rosa vibrante)
     const emailHtml = `
       <!DOCTYPE html>
       <html lang="pt">
@@ -148,7 +147,7 @@ export async function POST(request: NextRequest) {
             max-width: 550px;
             margin: 0 auto;
             background-color: #161618;
-            border: 1px border #242427;
+            border: 1px solid #242427;
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -282,7 +281,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[API/Signup] Enviando e-mail via SMTP...')
     await transporter.sendMail({
-      from: `"XOXO" <${mailUser}>`, // Remetente exatamente como solicitado
+      from: `"XOXO" <${mailUser}>`, // Remetente oficial
       to: trimmedEmail,
       subject: 'Ativa a tua conta XoXo 💋',
       text: `Olá, ${trimmedName}! Por favor ative sua conta no XoXo clicando no link: ${actionLink}`,
