@@ -38,9 +38,8 @@ export default function UsersPanel({ isOpen, onClose }: UsersPanelProps) {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, display_name, email, avatar_url, is_verified, bio')
+          .select('id, display_name, email, avatar_url, bio')
           .not('email', 'in', '("admin.xoxo@gmail.com","superadmin.xoxo@gmail.com")')
-          .order('is_verified', { ascending: false })
           .limit(20)
 
         if (!error && data) {

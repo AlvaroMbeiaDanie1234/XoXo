@@ -30,14 +30,26 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess }: Depos
       // Simulate successful payment callback
       const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
       const newBalance = (profile?.balance || 0) + depositAmount
-      
-      const { error } = await supabase
+
+      // Update balance
+      const { error: balanceError } = await supabase
         .from('profiles')
         .update({ balance: newBalance })
         .eq('id', user.id)
 
-      if (error) throw error
-      
+      if (balanceError) throw balanceError
+
+      // Record deposit transaction for notifications
+      const { error: txnError } = await supabase.from('transactions').insert({
+        user_id: user.id,
+        amount: depositAmount,
+        type: 'deposit',
+        description: 'Depósito via LinkPaga',
+        created_at: new Date().toISOString(),
+      })
+
+      if (txnError) throw txnError
+
       setSuccess(true)
       onSuccess()
       setTimeout(() => {

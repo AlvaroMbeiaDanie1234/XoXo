@@ -79,11 +79,6 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
               <div className="mt-4">
                 <h1 className="text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
                   {creator.display_name || 'Usuário'}
-                  {creator.is_verified && (
-                    <div className="bg-blue-500 text-white rounded-full p-1 shadow-sm">
-                      <CheckCircle2 size={12} className="fill-current" />
-                    </div>
-                  )}
                 </h1>
 
                 {creator.phone && (
@@ -142,7 +137,7 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
                     content_type={post.content_type}
                     creator_name={post.profiles?.display_name || 'Usuário'}
                     creator_avatar={post.profiles?.avatar_url || undefined}
-                    creator_verified={post.profiles?.is_verified}
+                    creator_verified={false}
                     creator_id={post.user_id}
                     price={post.price}
                     is_free={post.is_free}

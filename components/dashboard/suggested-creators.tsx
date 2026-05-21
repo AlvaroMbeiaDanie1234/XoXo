@@ -23,8 +23,7 @@ export default function SuggestedCreators() {
     async function fetchCreators() {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, is_verified, email')
-        .order('is_verified', { ascending: false })
+        .select('id, display_name, avatar_url, email')
         .order('display_name', { ascending: true })
 
       if (!error && data) {

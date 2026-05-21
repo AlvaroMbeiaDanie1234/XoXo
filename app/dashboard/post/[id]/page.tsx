@@ -43,7 +43,7 @@ export default function PostDetailsPage() {
       // Fetch Post
       const { data: postData } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url, is_verified)')
+        .select('*, profiles(display_name, avatar_url)')
         .eq('id', id)
         .single()
       
@@ -86,7 +86,7 @@ export default function PostDetailsPage() {
   const fetchComments = async () => {
     const { data } = await supabase
       .from('comments')
-      .select('*, profiles(display_name, avatar_url, is_verified)')
+      .select('*, profiles(display_name, avatar_url)')
       .eq('post_id', id)
       .order('created_at', { ascending: true })
     
@@ -367,7 +367,6 @@ export default function PostDetailsPage() {
                   <div>
                     <h3 className="font-bold text-lg flex items-center gap-1">
                       {post.profiles?.display_name || 'Usuário'}
-                      {post.profiles?.is_verified && <CheckCircle size={16} className="text-blue-500 fill-blue-500" />}
                     </h3>
                     <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Criador de Conteúdo</p>
                   </div>
@@ -453,7 +452,6 @@ export default function PostDetailsPage() {
                       <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
                         <div className="flex items-center gap-1 mb-1">
                           <span className="font-bold text-sm">{comment.profiles?.display_name}</span>
-                          {comment.profiles?.is_verified && <CheckCircle size={12} className="text-blue-500 fill-blue-500" />}
                         </div>
                         <p className="text-sm text-gray-800 leading-relaxed">{comment.content}</p>
                       </div>
@@ -480,7 +478,6 @@ export default function PostDetailsPage() {
                         <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
                           <div className="flex items-center gap-1 mb-1">
                             <span className="font-bold text-xs">{reply.profiles?.display_name}</span>
-                            {reply.profiles?.is_verified && <CheckCircle size={10} className="text-blue-500 fill-blue-500" />}
                           </div>
                           <p className="text-xs text-gray-800 leading-relaxed">{reply.content}</p>
                         </div>

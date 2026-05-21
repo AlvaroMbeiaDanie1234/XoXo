@@ -36,37 +36,80 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   const loadBalance = async () => {
     if (!user) return
-    const { data } = await supabase.from('profiles').select('balance, display_name').eq('id', user.id).single()
-    if (data) {
-      setBalance(data.balance || 0)
-      setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+    try {
+      const { data, error } = await supabase.from('profiles').select('balance, display_name').eq('id', user.id).single()
+      if (error) {
+        console.error("XoXo Header: Error loading balance from profiles:", error)
+      }
+      if (data) {
+        const val = Number(data.balance);
+        setBalance(isNaN(val) ? 0 : val)
+        setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+      }
+    } catch (err) {
+      console.error("XoXo Header: Exception loading balance:", err)
     }
   }
 
   const loadNotifications = async () => {
     if (!user) return
-    // Fetch recent earnings (sales) as notifications
+    // Fetch recent earnings (sales) and deposits as notifications
     const { data } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
-      .eq('type', 'earnings')
+      .in('type', ['earnings', 'deposit'])
       .order('created_at', { ascending: false })
       .limit(5)
 
     if (data) {
       setNotifications(data)
-      // Since we don't have an is_read field on transactions, we can just highlight them all
-      // or assume the first 1-2 are new for visual flair.
-      setUnreadCount(data.length > 0 ? 1 : 0) // Just to show a red dot if they have earnings
+      setUnreadCount(data.length > 0 ? 1 : 0) // Show red dot if any notifications
     }
   }
 
   useEffect(() => {
-    if (user) {
-      loadBalance()
-      loadNotifications()
-    }
+    if (!user) return
+    loadBalance()
+    loadNotifications()
+
+    // Realtime subscription for profile balance updates
+    const profileChannel = supabase
+      .channel('public:profiles')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        (payload) => {
+          // Update balance from payload if present, otherwise reload
+          if (payload.new && payload.new.balance !== undefined && payload.new.balance !== null) {
+            const val = Number(payload.new.balance);
+            setBalance(isNaN(val) ? 0 : val);
+          } else {
+            loadBalance();
+          }
+        },
+      )
+      .subscribe();
+
+    // Realtime subscription for new transaction notifications (deposits/earnings)
+        const txnChannel = supabase
+          .channel(`public:transactions:user=${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
+            (payload) => {
+              // If the payload includes an amount, increment balance locally
+              if (payload.new && payload.new.amount !== undefined && payload.new.amount !== null) {
+                const val = Number(payload.new.amount);
+                setBalance((prev) => prev + (isNaN(val) ? 0 : val));
+              } else {
+                loadBalance();
+              }
+              // Refresh notifications list
+              loadNotifications();
+            },
+          )
+          .subscribe();
 
     const handleBalanceUpdate = () => {
       loadBalance()
@@ -79,18 +122,10 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     }
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false)
-      }
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setNotifOpen(false)
-      }
-      if (langRef.current && !langRef.current.contains(event.target as Node)) {
-        setLangDropdownOpen(false)
-      }
-      if (usersPanelRef.current && !usersPanelRef.current.contains(event.target as Node)) {
-        setUsersPanelOpen(false)
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setDropdownOpen(false)
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) setNotifOpen(false)
+      if (langRef.current && !langRef.current.contains(event.target as Node)) setLangDropdownOpen(false)
+      if (usersPanelRef.current && !usersPanelRef.current.contains(event.target as Node)) setUsersPanelOpen(false)
     }
 
     window.addEventListener('balanceUpdated', handleBalanceUpdate)
@@ -99,6 +134,8 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     return () => {
       window.removeEventListener('balanceUpdated', handleBalanceUpdate)
       document.removeEventListener('mousedown', handleClickOutside)
+      supabase.removeChannel(profileChannel)
+      supabase.removeChannel(txnChannel)
     }
   }, [user, supabase])
 
@@ -168,23 +205,14 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
             {/* Users Panel */}
             <div className="relative" ref={usersPanelRef}>
-              <button
-                onClick={() => setUsersPanelOpen(!usersPanelOpen)}
-                className={`relative p-2 rounded-full transition-colors ${
-                  usersPanelOpen
-                    ? 'text-accent bg-accent/10'
-                    : 'text-gray-500 hover:text-accent hover:bg-gray-100'
-                }`}
-                title="Utilizadores"
-              >
-                <Users size={20} />
-              </button>
-
-              <UsersPanel
-                isOpen={usersPanelOpen}
-                onClose={() => setUsersPanelOpen(false)}
-              />
-            </div>
+  <button
+    onClick={() => router.push('/dashboard/explore')}
+    className="relative p-2 rounded-full text-gray-500 hover:text-accent hover:bg-gray-100"
+    title="Utilizadores"
+  >
+    <Users size={20} />
+  </button>
+</div>
 
             {/* Notifications */}
             <div className="relative" ref={notifRef}>

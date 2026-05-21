@@ -70,9 +70,13 @@ function DashboardContent() {
         setUser(currentUser)
 
         // Fetch User Profile
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+        if (profileError) {
+          console.error("XoXo Dashboard: Error fetching user profile:", profileError)
+        }
         if (profile) {
-          setBalance(profile.balance || 0)
+          const val = Number(profile.balance);
+          setBalance(isNaN(val) ? 0 : val)
           setUserProfile(profile)
         }
 
@@ -103,7 +107,7 @@ function DashboardContent() {
           // Fetch posts
           const { data: postsData, error: postsError } = await supabase
             .from('posts')
-            .select('*, profiles(display_name, avatar_url, is_verified)')
+            .select('*, profiles(display_name, avatar_url)')
             .order('created_at', { ascending: false })
 
           if (postsError) throw postsError
@@ -420,7 +424,7 @@ function DashboardContent() {
                       {...post}
                       creator_name={post.profiles?.display_name || 'Usuário'}
                       creator_avatar={post.profiles?.avatar_url || undefined}
-                      creator_verified={post.profiles?.is_verified}
+                      creator_verified={false}
                       creator_id={post.user_id}
                     />
                   ))}

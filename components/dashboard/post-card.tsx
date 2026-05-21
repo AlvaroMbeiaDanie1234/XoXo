@@ -63,6 +63,7 @@ export default function PostCard({
   const [isDeleted, setIsDeleted] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isFreePlan, setIsFreePlan] = useState(false)
+  const [hasPurchased, setHasPurchased] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -101,15 +102,14 @@ export default function PostCard({
         const { data: { user } } = await supabase.auth.getUser()
         setCurrentUser(user)
 
-        const [likesRes, commsRes, creatorRes] = await Promise.all([
+        const [likesRes, commsRes] = await Promise.all([
           supabase.from('likes').select('id', { count: 'exact', head: true }).eq('post_id', id),
-          supabase.from('comments').select('id', { count: 'exact', head: true }).eq('post_id', id),
-          creator_id ? supabase.from('profiles').select('is_verified').eq('id', creator_id).single() : Promise.resolve({ data: null })
+          supabase.from('comments').select('id', { count: 'exact', head: true }).eq('post_id', id)
         ])
         
         if (!likesRes.error) setLikesCount(likesRes.count || 0)
         if (!commsRes.error) setCommentsCount(commsRes.count || 0)
-        if (creatorRes.data) setCreatorVerified(creatorRes.data.is_verified)
+        setCreatorVerified(false)
 
         if (user) {
           const [likeDataRes, profileRes] = await Promise.all([
@@ -118,6 +118,9 @@ export default function PostCard({
           ])
           setIsLiked(!!likeDataRes.data)
           setIsFreePlan(!!profileRes.data?.is_free_plan)
+          // Check if user has purchased this content
+          const purchaseRes = await supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('post_id', id).eq('user_id', user.id)
+          setHasPurchased(purchaseRes.count > 0)
         }
       } catch (err) {
         console.error('Error fetching post stats:', err)
@@ -256,7 +259,7 @@ export default function PostCard({
       </div>
 
       {/* Media Content */}
-      <div className="relative aspect-video w-full bg-black overflow-hidden group">
+      <div className="relative w-full h-64 bg-black overflow-hidden group">
         {content_type === 'video' ? (
           <div className="w-full h-full relative cursor-pointer" onClick={handlePlayClick}>
             <video 
@@ -302,22 +305,30 @@ export default function PostCard({
               <Maximize2 size={20} />
             </Link>
           </div>
-        ) : (
-          <Link href={`/dashboard/post/${id}`} className="block w-full h-full relative">
-            <Image
-              src={thumbnail_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80'}
-              alt={title}
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-          </Link>
-        )}
+       ) : (
+  <Link href={`/dashboard/post/${id}`} className="block w-full h-full relative">
+    <div className="relative w-full h-64">
+      <Image
+        src={thumbnail_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80'}
+        alt={title}
+        fill
+        style={{ width: '100%', height: '100%' }}
+        className={`object-cover transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
+      />
+      {!is_free && !hasPurchased && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <Lock size={48} className="text-white" />
+        </div>
+      )}
+    </div>
+  </Link>
+) }
 
         <div className="absolute bottom-4 left-4 flex gap-2">
           <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-black/40 text-white backdrop-blur-md border border-white/20">
             {content_type}
           </span>
-          {!is_free && (
+          {!is_free && !hasPurchased && (
             <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-accent/80 text-white backdrop-blur-md border border-accent/40">
               AOA {price?.toLocaleString()}
             </span>

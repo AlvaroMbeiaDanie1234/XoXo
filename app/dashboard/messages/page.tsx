@@ -35,7 +35,8 @@ function MessagesContent() {
       // Fetch user balance
       const { data: profile } = await supabase.from('profiles').select('balance, free_messages_sent').eq('id', currentUser.id).single()
       if (profile) {
-        setUserBalance(profile.balance || 0);
+        const val = Number(profile.balance);
+        setUserBalance(isNaN(val) ? 0 : val);
         setFreeMessagesSent(profile.free_messages_sent || 0);
       }
 
