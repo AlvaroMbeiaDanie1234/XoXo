@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function LoginForm() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -109,7 +111,7 @@ export default function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition"
-          placeholder="seu@email.com"
+          placeholder={t('login.form.email')}
           required
           disabled={loading}
         />
@@ -124,7 +126,7 @@ export default function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition"
-          placeholder="••••••••"
+          placeholder={t('login.form.password')}
           required
           disabled={loading}
         />
@@ -138,12 +140,12 @@ export default function LoginForm() {
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="inline-block animate-spin">⟳</span>
-            Entrando...
+            {t('login.form.loading')}
           </span>
         ) : success ? (
           'Login realizado!'
         ) : (
-          'Entrar'
+          t('login.form.submit')
         )}
       </button>
     </form>
