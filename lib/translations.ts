@@ -15,7 +15,7 @@ export const translations = {
     "hero.title_part1": "Conteúdo ",
     "hero.title_exclusivo": "Exclusivo",
     "hero.title_part2": " Premium",
-    "hero.desc": "Acesse uma curadoria de excelência com vídeos, artigos e fotos selecionados especialmente para você. Uma plataforma moderna, segura e incrivelmente sedutora.",
+    "hero.desc": "Acesse uma curadoria de excelência com vídeos, artigos e fotos selecionados especialmente para você. Uma plataforma moderna, segura,  incrivelmente irresistível.",
     "hero.secure_chats": "🔒 Chats Criptografados e Seguros",
     "hero.secure_chats_desc": "Comunicação encriptada de ponta a ponta: nem mesmo o XoXo tem acesso às tuas conversas.",
     "hero.secure_chats_quote": "\"Porque o que ninguém sabe, ninguém estraga.\"",
