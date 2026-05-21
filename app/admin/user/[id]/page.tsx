@@ -8,7 +8,7 @@ import {
   Users, Shield, Calendar, Mail, Phone, MapPin, 
   Trash2, Eye, CheckCircle, XCircle, Loader2, ArrowLeft,
   FileText, Video as VideoIcon, Image as ImageIcon, DollarSign, Play,
-  PlusCircle
+  PlusCircle, Star
 } from 'lucide-react'
 
 export default function AdminUserDetailPage() {

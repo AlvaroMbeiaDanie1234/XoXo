@@ -45,27 +45,25 @@ export default function SignupForm() {
         return
       }
 
-      // Criar conta no Supabase
-      const supabase = createClient()
-
-      console.log('[v0] SignupForm: enviando dados para Supabase')
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/auth/callback`,
-          data: {
-            display_name: displayName.trim(),
-          },
+      // Criar conta no Supabase usando nossa API de SMTP customizada
+      console.log('[v0] SignupForm: enviando dados para a API personalizada de SMTP')
+      const res = await fetch('/api/auth/sign-up', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          displayName: displayName.trim(),
+        }),
       })
 
-      console.log('[v0] SignupForm: resposta do Supabase', { data, error })
+      const responseData = await res.json()
+      console.log('[v0] SignupForm: resposta da API personalizada', responseData)
 
-      if (error) {
-        const errorMsg = `Erro: ${error.message}`
+      if (!res.ok) {
+        const errorMsg = responseData.error || 'Erro ao criar conta'
         console.error('[v0] SignupForm: erro ao criar conta', errorMsg)
         setMessage({
           type: 'error',
@@ -75,25 +73,22 @@ export default function SignupForm() {
         return
       }
 
-      if (data?.user) {
-        console.log('[v0] SignupForm: usuário criado com sucesso:', data.user.email)
-        setMessage({
-          type: 'success',
-          text: 'Conta criada com sucesso! Redirecionando para o próximo passo...',
-        })
-        
-        // Limpar formulário
-        setDisplayName('')
-        setEmail('')
-        setPassword('')
+      console.log('[v0] SignupForm: conta criada e e-mail enviado com sucesso!')
+      setMessage({
+        type: 'success',
+        text: 'Conta criada com sucesso! Enviámos um link de ativação para o seu e-mail. Por favor, verifique a sua caixa de entrada e spam para ativar a sua conta.',
+      })
+      
+      // Limpar formulário
+      setDisplayName('')
+      setEmail('')
+      setPassword('')
 
-        // Redirecionar após 2 segundos
-        setTimeout(() => {
-          console.log('[v0] SignupForm: redirecionando para dashboard')
-          // Redirecionar direto para o dashboard ao invés de sign-up-success
-          router.replace('/dashboard')
-        }, 1500)
-      }
+      // Redirecionar após 3.5 segundos para a página de sucesso
+      setTimeout(() => {
+        console.log('[v0] SignupForm: redirecionando para sign-up-success')
+        router.replace('/auth/sign-up-success')
+      }, 3500)
     } catch (err: any) {
       const errorMsg = `Erro inesperado: ${err?.message || 'Tente novamente'}`
       console.error('[v0] SignupForm: erro inesperado', err)
