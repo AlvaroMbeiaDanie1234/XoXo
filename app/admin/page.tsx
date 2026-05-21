@@ -647,12 +647,19 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Deseja realmente excluir este utilizador? Esta ação é irreversível.')) return;
     try {
-      // Delete profile record (cascade will handle related data)
-      const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
-      if (profileError) throw profileError;
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao eliminar');
       // Update UI state
       setUsers(prev => prev.filter(u => u.id !== userId));
-      toast({ title: 'Utilizador eliminado', description: 'O utilizador foi removido com sucesso.' });
+      toast({
+        title: 'Utilizador eliminado',
+        description: data.warning || 'O utilizador foi removido com sucesso.',
+      });
     } catch (err: any) {
       toast({ title: 'Erro ao eliminar utilizador', description: err.message, variant: 'destructive' });
     }

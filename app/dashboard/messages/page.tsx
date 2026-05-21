@@ -155,11 +155,7 @@ function MessagesContent() {
     e.preventDefault()
     // Block sending if no balance and free message limit reached
     if (userBalance <= 0 && freeMessagesSent >= 5) {
-      toast({
-        title: "Limite de mensagens grátis atingido",
-        description: "Carrega a tua carteira para enviar mais mensagens.",
-        variant: "destructive"
-      })
+      alert('Limite de mensagens grátis atingido. Carrega a tua carteira para enviar mais mensagens.')
       return
     }
     if (!newMessage.trim() || !selectedContact || !user) return
@@ -289,33 +285,34 @@ function MessagesContent() {
 
               {/* Message Input */}
               <div className="p-4 bg-white border-t border-border">
-                {userBalance <= 0 ? (
-                  freeMessagesSent < 5 ? (
-                    <div className="p-4 bg-yellow-50 text-yellow-800 rounded-xl text-center text-sm font-medium border border-yellow-200 shadow-sm animate-in fade-in zoom-in duration-300">
-                      Tens {5 - freeMessagesSent} mensagens gratuitas restantes. <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-yellow-900">Carrega a tua carteira</a> para desbloquear mensagens ilimitadas.
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
-                      O teu saldo é insuficiente e já usaste as 5 mensagens gratuitas. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para continuar a conversar.
-                    </div>
-                  )
+                {userBalance <= 0 && freeMessagesSent >= 5 ? (
+                  <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
+                    Já usaste as tuas 5 mensagens gratuitas. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para continuar a conversar.
+                  </div>
                 ) : (
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Escreve uma mensagem..." 
-                      className="flex-1 bg-gray-100 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!newMessage.trim()}
-                      className="w-12 h-12 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:shadow-none"
-                    >
-                      <Send size={20} className="ml-1" />
-                    </button>
-                  </form>
+                  <>
+                    {userBalance <= 0 && freeMessagesSent > 0 && (
+                      <div className="mb-2 px-3 py-1.5 bg-gray-100 rounded-full text-[11px] text-gray-500 font-medium text-center">
+                        {5 - freeMessagesSent} mensagem(ns) gratuita(s) restante(s)
+                      </div>
+                    )}
+                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Escreve uma mensagem..." 
+                        className="flex-1 bg-gray-100 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!newMessage.trim()}
+                        className="w-12 h-12 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:shadow-none"
+                      >
+                        <Send size={20} className="ml-1" />
+                      </button>
+                    </form>
+                  </>
                 )}
               </div>
             </>
