@@ -73,6 +73,11 @@ export default function AdminDashboard() {
   const [linkpagaSecretKey, setLinkpagaSecretKey] = useState('')
   const [linkpagaWebhookSecret, setLinkpagaWebhookSecret] = useState('')
 
+  const [flutterwavePublicKey, setFlutterwavePublicKey] = useState('')
+  const [flutterwaveSecretKey, setFlutterwaveSecretKey] = useState('')
+  const [flutterwaveEncryptionKey, setFlutterwaveEncryptionKey] = useState('')
+  const [flutterwaveWebhookSecret, setFlutterwaveWebhookSecret] = useState('')
+
   const [zegoAppId, setZegoAppId] = useState('')
   const [zegoAppSign, setZegoAppSign] = useState('')
   const [zegoServerSecret, setZegoServerSecret] = useState('')
@@ -83,6 +88,7 @@ export default function AdminDashboard() {
     supabase: false,
     postgres: false,
     linkpaga: false,
+    flutterwave: false,
     zego: false
   })
 
@@ -276,6 +282,11 @@ export default function AdminDashboard() {
         setLinkpagaSecretKey(findVal('LINKPAGA_SECRET_KEY'))
         setLinkpagaWebhookSecret(findVal('LINKPAGA_WEBHOOK_SECRET'))
 
+        setFlutterwavePublicKey(findVal('FLUTTERWAVE_PUBLIC_KEY'))
+        setFlutterwaveSecretKey(findVal('FLUTTERWAVE_SECRET_KEY'))
+        setFlutterwaveEncryptionKey(findVal('FLUTTERWAVE_ENCRYPTION_KEY'))
+        setFlutterwaveWebhookSecret(findVal('FLUTTERWAVE_WEBHOOK_SECRET'))
+
         setZegoAppId(findVal('NEXT_PUBLIC_ZEGO_APP_ID'))
         setZegoAppSign(findVal('NEXT_PUBLIC_ZEGO_APP_SIGN'))
         setZegoServerSecret(findVal('NEXT_PUBLIC_ZEGO_SERVER_SECRET'))
@@ -318,6 +329,11 @@ export default function AdminDashboard() {
         { key: 'LINKPAGA_PUBLIC_KEY', value: linkpagaPublicKey },
         { key: 'LINKPAGA_SECRET_KEY', value: linkpagaSecretKey },
         { key: 'LINKPAGA_WEBHOOK_SECRET', value: linkpagaWebhookSecret },
+
+        { key: 'FLUTTERWAVE_PUBLIC_KEY', value: flutterwavePublicKey },
+        { key: 'FLUTTERWAVE_SECRET_KEY', value: flutterwaveSecretKey },
+        { key: 'FLUTTERWAVE_ENCRYPTION_KEY', value: flutterwaveEncryptionKey },
+        { key: 'FLUTTERWAVE_WEBHOOK_SECRET', value: flutterwaveWebhookSecret },
 
         { key: 'NEXT_PUBLIC_ZEGO_APP_ID', value: zegoAppId },
         { key: 'NEXT_PUBLIC_ZEGO_APP_SIGN', value: zegoAppSign },
@@ -1506,13 +1522,68 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {/* Bloco 5: ZegoCloud Live Streaming Keys */}
+                {/* Bloco 5: Flutterwave Payment Keys */}
+                <div className="border border-border rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <button
+                    onClick={() => toggleSection('flutterwave')}
+                    className="w-full px-6 py-4 bg-gray-50 flex items-center justify-between font-black text-xs uppercase tracking-wider text-gray-800 border-b border-border hover:bg-gray-100/80 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">5. Flutterwave Payment Keys</span>
+                    {openSections.flutterwave ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </button>
+                  {openSections.flutterwave && (
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">FLUTTERWAVE_PUBLIC_KEY</label>
+                        <input
+                          type="text"
+                          value={flutterwavePublicKey}
+                          onChange={(e) => setFlutterwavePublicKey(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl text-xs outline-none focus:border-accent"
+                          placeholder="FLWPUBK_TEST-..."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">FLUTTERWAVE_SECRET_KEY</label>
+                        <input
+                          type="password"
+                          value={flutterwaveSecretKey}
+                          onChange={(e) => setFlutterwaveSecretKey(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl text-xs outline-none focus:border-accent"
+                          placeholder="FLWSECK_TEST-..."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">FLUTTERWAVE_ENCRYPTION_KEY</label>
+                        <input
+                          type="password"
+                          value={flutterwaveEncryptionKey}
+                          onChange={(e) => setFlutterwaveEncryptionKey(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl text-xs outline-none focus:border-accent"
+                          placeholder="FLWSECK_TEST..."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">FLUTTERWAVE_WEBHOOK_SECRET</label>
+                        <input
+                          type="password"
+                          value={flutterwaveWebhookSecret}
+                          onChange={(e) => setFlutterwaveWebhookSecret(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl text-xs outline-none focus:border-accent"
+                          placeholder="Secret hash for webhook verification"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bloco 6: ZegoCloud Live Streaming Keys */}
                 <div className="border border-border rounded-2xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => toggleSection('zego')}
                     className="w-full px-6 py-4 bg-gray-50 flex items-center justify-between font-black text-xs uppercase tracking-wider text-gray-800 border-b border-border hover:bg-gray-100/80 transition-colors"
                   >
-                    <span className="flex items-center gap-2">5. ZegoCloud Live Streaming Configuration</span>
+                    <span className="flex items-center gap-2">6. ZegoCloud Live Streaming Configuration</span>
                     {openSections.zego ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                   {openSections.zego && (
