@@ -644,24 +644,19 @@ export default function AdminDashboard() {
     })
   }
 
-const handleDeleteUser = async (userId: string) => {
-  if (!confirm('Deseja realmente excluir este utilizador? Esta ação é irreversível.')) return;
-  try {
-    // Delete auth user if possible (service role required)
-    const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-    if (authError) {
-      console.warn('Supabase auth delete error:', authError);
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Deseja realmente excluir este utilizador? Esta ação é irreversível.')) return;
+    try {
+      // Delete profile record (cascade will handle related data)
+      const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+      if (profileError) throw profileError;
+      // Update UI state
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      toast({ title: 'Utilizador eliminado', description: 'O utilizador foi removido com sucesso.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao eliminar utilizador', description: err.message, variant: 'destructive' });
     }
-    // Delete profile record
-    const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
-    if (profileError) throw profileError;
-    // Update UI state
-    setUsers(prev => prev.filter(u => u.id !== userId));
-    toast({ title: 'Utilizador eliminado', description: 'O utilizador foi removido com sucesso.' });
-  } catch (err: any) {
-    toast({ title: 'Erro ao eliminar utilizador', description: err.message, variant: 'destructive' });
-  }
-};
+  };
 
   if (loading) return <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center"><p>Carregando painel admin...</p></div>
 
