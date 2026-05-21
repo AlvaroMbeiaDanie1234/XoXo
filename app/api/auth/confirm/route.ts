@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl
+  const { searchParams } = request.nextUrl
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin
   const token = searchParams.get('token')
   const email = searchParams.get('email')
 
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
 
   if (!token || !email) {
     console.error('[API/Confirm] Token ou e-mail em falta na requisição.')
-    return NextResponse.redirect(`${origin}/auth/error?message=Parâmetros de ativação inválidos ou em falta.`)
+    return NextResponse.redirect(`${baseUrl}/auth/error?message=Parâmetros de ativação inválidos ou em falta.`)
   }
 
   try {
@@ -44,20 +45,20 @@ export async function GET(request: NextRequest) {
 
     if (!existingUser) {
       console.error(`[API/Confirm] Utilizador não encontrado para o e-mail: ${email}`)
-      return NextResponse.redirect(`${origin}/auth/error?message=Utilizador não encontrado no sistema.`)
+      return NextResponse.redirect(`${baseUrl}/auth/error?message=Utilizador não encontrado no sistema.`)
     }
 
     // 2. Se já estiver confirmado, redirecionamos para login indicando que já estava ativo
     if (existingUser.email_confirmed_at) {
       console.log(`[API/Confirm] Utilizador ${email} já se encontrava ativado. Redirecionando para login.`)
-      return NextResponse.redirect(`${origin}/auth/login?verified=already`)
+      return NextResponse.redirect(`${baseUrl}/auth/login?verified=already`)
     }
 
     // 3. Validar se o token de metadados bate com o token da URL
     const storedToken = existingUser.user_metadata?.verification_token
     if (!storedToken || storedToken !== token) {
       console.error(`[API/Confirm] Token de ativação inválido. Fornecido: ${token}, Armazenado: ${storedToken}`)
-      return NextResponse.redirect(`${origin}/auth/error?message=O link de ativação é inválido ou já expirou.`)
+      return NextResponse.redirect(`${baseUrl}/auth/error?message=O link de ativação é inválido ou já expirou.`)
     }
 
     // 4. Confirmar o e-mail administrativamente no Supabase e limpar o token de metadados
@@ -72,14 +73,14 @@ export async function GET(request: NextRequest) {
 
     if (updateError) {
       console.error('[API/Confirm] Falha crítica ao atualizar utilizador para verificado:', updateError)
-      return NextResponse.redirect(`${origin}/auth/error?message=Erro no sistema ao ativar a sua conta.`)
+      return NextResponse.redirect(`${baseUrl}/auth/error?message=Erro no sistema ao ativar a sua conta.`)
     }
 
     console.log(`[API/Confirm] Sucesso! Conta confirmada e ativa para: ${email}`)
-    return NextResponse.redirect(`${origin}/auth/login?verified=true`)
+    return NextResponse.redirect(`${baseUrl}/auth/login?verified=true`)
 
   } catch (error: any) {
     console.error('[API/Confirm] Erro inesperado no processamento de ativação:', error)
-    return NextResponse.redirect(`${origin}/auth/error?message=Erro crítico interno no servidor.`)
+    return NextResponse.redirect(`${baseUrl}/auth/error?message=Erro crítico interno no servidor.`)
   }
 }

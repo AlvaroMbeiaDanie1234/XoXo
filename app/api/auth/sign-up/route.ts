@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
     console.log(`[API/Signup] Utilizador criado com ID: ${userId}`)
 
     // 4. Montar o nosso link de confirmação personalizado
-    const origin = request.nextUrl.origin
-    const actionLink = `${origin}/api/auth/confirm?token=${verificationToken}&email=${encodeURIComponent(trimmedEmail)}`
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin
+    const actionLink = `${baseUrl}/api/auth/confirm?token=${verificationToken}&email=${encodeURIComponent(trimmedEmail)}`
     console.log('[API/Signup] Link de ativação customizado gerado:', actionLink)
 
     // 5. Configurar e-mail com nodemailer e SMTP do Gmail
