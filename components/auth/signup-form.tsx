@@ -1,16 +1,22 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export default function SignupForm() {
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [referralCode, setReferralCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) setReferralCode(ref.trim().toUpperCase())
+  }, [])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -56,6 +62,7 @@ export default function SignupForm() {
           email: email.trim(),
           password,
           displayName: displayName.trim(),
+          ...(referralCode ? { referralCode } : {}),
         }),
       })
 
@@ -122,6 +129,12 @@ export default function SignupForm() {
             <p className="font-semibold text-green-900">Sucesso!</p>
             <p className="text-green-700 text-sm">{message.text}</p>
           </div>
+        </div>
+      )}
+
+      {referralCode && (
+        <div className="p-3 rounded-lg bg-accent/10 border border-accent/30 text-sm text-foreground">
+          A convidar-te através de um link de referência. Após ativares a conta, quem te convidou recebe o bónus configurado.
         </div>
       )}
 

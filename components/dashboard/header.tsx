@@ -17,6 +17,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [isDepositOpen, setIsDepositOpen] = useState(false)
+  const [depositRequired, setDepositRequired] = useState(false)
   const [usersPanelOpen, setUsersPanelOpen] = useState(false)
   const [lang, setLang] = useState<'PT' | 'EN'>('PT')
   const [langDropdownOpen, setLangDropdownOpen] = useState(false)
@@ -97,14 +98,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
           .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
-            (payload) => {
-              // If the payload includes an amount, increment balance locally
-              if (payload.new && payload.new.amount !== undefined && payload.new.amount !== null) {
-                const val = Number(payload.new.amount);
-                setBalance((prev) => prev + (isNaN(val) ? 0 : val));
-              } else {
-                loadBalance();
-              }
+            (_payload) => {
+              // Always re-fetch balance from DB to get the authoritative value
+              loadBalance();
               // Refresh notifications list
               loadNotifications();
             },
@@ -298,6 +294,13 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                       <Wallet size={16} />
                       Minha Carteira
                     </button>
+                    <button
+                      onClick={() => { setDepositRequired(false); setIsDepositOpen(true); setDropdownOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-accent rounded-md transition-colors text-left"
+                    >
+                      <DollarSign size={16} />
+                      Depositar (Flutterwave)
+                    </button>
                   </div>
                   <div className="p-2 border-t border-border">
                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors">
@@ -314,9 +317,10 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
       <DepositModal
         isOpen={isDepositOpen}
-        onClose={() => setIsDepositOpen(false)}
+        onClose={() => { setIsDepositOpen(false); setDepositRequired(false) }}
         user={user}
         onSuccess={loadBalance}
+        required={depositRequired}
       />
     </div>
   )

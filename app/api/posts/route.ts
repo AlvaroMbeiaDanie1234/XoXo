@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { assertFreeTierAction } from '@/lib/free-tier'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -43,10 +45,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const supabaseAdmin = createAdminClient()
+    const check = await assertFreeTierAction(supabaseAdmin, user.id, 'post', user.email)
+    if (!check.ok) {
+      return NextResponse.json(
+        { error: check.error, message: check.message, status: check.status },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { title, description, content_type, content_url, thumbnail_url } = body
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('posts')
       .insert({
         user_id: user.id,

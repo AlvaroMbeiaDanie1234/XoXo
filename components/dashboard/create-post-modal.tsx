@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { X, Image as ImageIcon, Video, Calendar, FileText, Settings, DollarSign, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface CreatePostModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+  const router = useRouter()
 
   if (!isOpen) return null
 
@@ -94,18 +96,29 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
         mediaUrl = publicUrlData.publicUrl
       }
 
-      const { error } = await supabase.from('posts').insert({
-        user_id: user.id,
-        title: content.split('\n')[0] || 'Nova Publicação',
-        description: content,
-        content_type: mediaType,
-        thumbnail_url: mediaUrl || 'https://images.unsplash.com/photo-1633356122544-f134ef2944f1?w=600&h=400&fit=crop',
-        content_url: mediaUrl,
-        price: parseFloat(price) || 0,
-        is_free: !isPaid
+      const publishRes = await fetch('/api/posts/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: content.split('\n')[0] || 'Nova Publicação',
+          description: content,
+          content_type: mediaType,
+          thumbnail_url: mediaUrl || 'https://images.unsplash.com/photo-1633356122544-f134ef2944f1?w=600&h=400&fit=crop',
+          content_url: mediaUrl,
+          price: parseFloat(price) || 0,
+          is_free: !isPaid,
+        }),
       })
 
-      if (error) throw error
+      const publishData = await publishRes.json()
+      if (!publishRes.ok) {
+        if (publishData.error === 'DEPOSIT_REQUIRED') {
+          alert(publishData.message)
+          router.push('/dashboard?mode=wallet&view=deposit&required=1')
+          return
+        }
+        throw new Error(publishData.message || publishData.error || 'Erro ao publicar')
+      }
       
       console.log('Published successfully')
       handleClose()

@@ -49,8 +49,8 @@ function DashboardContent() {
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [bankDetails, setBankDetails] = useState('')
-  const [showIframe, setShowIframe] = useState(false)
-  const [paymentUrl, setPaymentUrl] = useState('')
+  const [depositLoading, setDepositLoading] = useState(false)
+  const [depositSuccess, setDepositSuccess] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
   const supabase = createClient()
@@ -80,11 +80,8 @@ function DashboardContent() {
           setUserProfile(profile)
         }
 
-        // Fetch Settings
-        const { data: settings } = await supabase.from('system_settings').select('*').eq('key', 'linkpaga_slug').single()
-        if (settings) {
-          const slug = settings.value
-          setPaymentUrl(`https://linkpaga.com/p/${slug}`)
+        if (searchParams.get('status') === 'success') {
+          setDepositSuccess(true)
         }
 
         // Fetch active announcements
@@ -123,9 +120,26 @@ function DashboardContent() {
     fetchData()
   }, [supabase, router, mode, view])
 
-  const handleStartDeposit = () => {
-    if (!depositAmount || parseFloat(depositAmount) <= 0) return
-    setShowIframe(true)
+  const handleFlutterwaveDeposit = async () => {
+    if (!depositAmount || parseFloat(depositAmount) < 100) {
+      alert('O valor mínimo de depósito é AOA 100')
+      return
+    }
+    setDepositLoading(true)
+    try {
+      const res = await fetch('/api/payments/flutterwave/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: parseFloat(depositAmount) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento')
+      window.location.href = data.link
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao depositar')
+    } finally {
+      setDepositLoading(false)
+    }
   }
 
   const handleWithdraw = async () => {
@@ -152,7 +166,7 @@ function DashboardContent() {
       
       // Fetch the updated balance just in case
       const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
-      if (profile) setBalance(profile.balance || 0)
+      if (profile) setBalance(Number(profile.balance) || 0)
 
       // Send SMS notification (non-blocking)
       fetch('/api/sms', {
@@ -224,59 +238,62 @@ function DashboardContent() {
                 </div>
               ) : view === 'deposit' ? (
                 <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-                  <div className="p-6 border-b border-border flex items-center justify-between">
+                  <div className="p-6 border-b border-border">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                       <PlusCircle className="text-accent" /> Carregar Carteira
                     </h2>
-                    {showIframe && <button onClick={() => setShowIframe(false)} className="text-sm text-red-500 font-bold">Cancelar</button>}
                   </div>
                   
                   <div className="p-8">
-                    {!showIframe ? (
-                      <div className="max-w-md mx-auto space-y-6 text-center">
-                        <img src="https://linkpaga.com/assets/img/logo.png" className="h-10 mx-auto mb-6 opacity-80" alt="linkpaga" />
-                        <div>
-                          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Valor (AOA)</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">AOA</span>
-                            <input
-                              type="number"
-                              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-16 pr-6 outline-none focus:border-accent text-2xl font-black"
-                              value={depositAmount}
-                              onChange={(e) => setDepositAmount(e.target.value)}
-                            />
-                          </div>
+                    <div className="max-w-md mx-auto space-y-6">
+                      {searchParams.get('required') === '1' && (
+                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800 font-medium text-center">
+                          Atingiste o limite gratuito (3 publicações, 3 mensagens, 3 comentários). Realiza um depósito para continuar.
                         </div>
-                        <div className="flex flex-col gap-3">
-                          <button 
-                            onClick={handleStartDeposit}
-                            disabled={!depositAmount}
-                            className="w-full bg-accent text-white py-4 rounded-xl font-bold text-base shadow-lg active:scale-95 transition-all"
+                      )}
+                      {depositSuccess && (
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 font-medium text-center flex items-center justify-center gap-2">
+                          <CheckCircle2 size={18} /> Pagamento recebido! O saldo será atualizado em breve.
+                        </div>
+                      )}
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Pagamento seguro via Flutterwave</p>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">AOA</span>
+                          <input
+                            type="number"
+                            min={100}
+                            placeholder="Mínimo 100"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-16 pr-6 outline-none focus:border-accent text-2xl font-black text-center"
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['1000', '2500', '5000', '10000'].map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setDepositAmount(val)}
+                            className="py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:border-accent hover:text-accent"
                           >
-                            Pagar via Iframe (Nesta Página)
+                            {val}
                           </button>
-                          <a 
-                            href={paymentUrl}
-                            target="_blank"
-                            className="w-full bg-gray-100 text-gray-700 py-4 rounded-xl font-bold text-base hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
-                          >
-                            <ExternalLink size={18} /> Abrir em Nova Aba
-                          </a>
-                        </div>
+                        ))}
                       </div>
-                    ) : (
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between mb-2">
-                           <p className="text-xs text-gray-500 italic">Dica: Insira o email da sua conta na página de pagamento para garantir o crédito automático. Se a página não carregar abaixo, clique em "Abrir em Nova Aba".</p>
-                           <a href={paymentUrl} target="_blank" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
-                             <ExternalLink size={14} /> Abrir em Nova Aba
-                           </a>
-                        </div>
-                        <div className="w-full aspect-[4/6] bg-white rounded-2xl border border-border relative overflow-hidden shadow-2xl">
-                          <iframe src={paymentUrl} className="w-full h-full border-none" />
-                        </div>
-                      </div>
-                    )}
+                      <button 
+                        onClick={handleFlutterwaveDeposit}
+                        disabled={depositLoading || !depositAmount}
+                        className="w-full bg-accent text-white py-4 rounded-xl font-bold text-base shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {depositLoading ? <Loader2 className="animate-spin" size={20} /> : <ExternalLink size={18} />}
+                        Pagar com Flutterwave
+                      </button>
+                      <p className="text-[10px] text-center text-gray-400">
+                        Aceita Multicaixa, cartão e outros métodos disponíveis na Flutterwave.
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : view === 'withdraw' ? (
