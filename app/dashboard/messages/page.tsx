@@ -15,7 +15,12 @@ function MessagesContent() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [userBalance, setUserBalance] = useState<number>(0);
-  const [freeMessagesSent, setFreeMessagesSent] = useState<number>(0)
+  const [freeTierStatus, setFreeTierStatus] = useState<{
+    hasDeposited: boolean
+    messagesRemaining: number
+    messagesUsed: number
+    limit: number
+  } | null>(null)
   const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>({})
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -33,11 +38,16 @@ function MessagesContent() {
       setUser(currentUser)
 
       // Fetch user balance
-      const { data: profile } = await supabase.from('profiles').select('balance, free_messages_sent').eq('id', currentUser.id).single()
+      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', currentUser.id).single()
       if (profile) {
         const val = Number(profile.balance);
         setUserBalance(isNaN(val) ? 0 : val);
-        setFreeMessagesSent(profile.free_messages_sent || 0);
+      }
+
+      const tierRes = await fetch('/api/free-tier/status')
+      if (tierRes.ok) {
+        const tier = await tierRes.json()
+        setFreeTierStatus(tier)
       }
 
       // Fetch contacts (people you follow or who follow you)
@@ -154,11 +164,6 @@ function MessagesContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Block sending if no balance and free message limit reached
-    if (userBalance <= 0 && freeMessagesSent >= 5) {
-      alert('Limite de mensagens grátis atingido. Carrega a tua carteira para enviar mais mensagens.')
-      return
-    }
     if (!newMessage.trim() || !selectedContact || !user) return
 
     const messageObj = {
@@ -167,22 +172,28 @@ function MessagesContent() {
       content: newMessage.trim(),
     }
 
-    // Optimistic update
     setMessages([...messages, { ...messageObj, created_at: new Date().toISOString(), id: 'temp' }])
+    const contentToSend = newMessage.trim()
     setNewMessage('')
 
-    const { error } = await supabase.from('messages').insert(messageObj)
-    if (error) {
-      alert('Erro ao enviar mensagem')
-      fetchMessages() // Rollback
-    } else {
-      // If user has no balance, increment free message count
-      if (userBalance <= 0) {
-        const { error: updError } = await supabase.from('profiles').update({ free_messages_sent: freeMessagesSent + 1 }).eq('id', user.id)
-        if (!updError) {
-          setFreeMessagesSent(prev => prev + 1)
-        }
+    const res = await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiver_id: selectedContact.id,
+        content: contentToSend,
+      }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      if (data.error === 'DEPOSIT_REQUIRED') {
+        alert(data.message)
+        router.push('/dashboard?mode=wallet&view=deposit&required=1')
+      } else {
+        alert(data.message || 'Erro ao enviar mensagem')
       }
+      fetchMessages()
     }
   }
 
@@ -286,15 +297,19 @@ function MessagesContent() {
 
               {/* Message Input */}
               <div className="p-4 bg-white border-t border-border">
-                {userBalance <= 0 && freeMessagesSent >= 5 ? (
+                {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining <= 0 ? (
                   <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
-                    Já usaste as tuas 5 mensagens gratuitas. Por favor, <a href="/dashboard?mode=wallet&view=deposit" className="underline font-bold hover:text-red-700">carrega a tua carteira</a> para continuar a conversar.
+                    Atingiste o limite de {freeTierStatus.limit} mensagens gratuitas.{' '}
+                    <a href="/dashboard?mode=wallet&view=deposit&required=1" className="underline font-bold hover:text-red-700">
+                      Realiza um depósito
+                    </a>{' '}
+                    para continuar a conversar.
                   </div>
                 ) : (
                   <>
-                    {userBalance <= 0 && freeMessagesSent > 0 && (
+                    {freeTierStatus && !freeTierStatus.hasDeposited && (
                       <div className="mb-2 px-3 py-1.5 bg-gray-100 rounded-full text-[11px] text-gray-500 font-medium text-center">
-                        {5 - freeMessagesSent} mensagem(ns) gratuita(s) restante(s)
+                        {freeTierStatus.messagesRemaining} mensagem(ns) gratuita(s) restante(s) de {freeTierStatus.limit}
                       </div>
                     )}
                     <form onSubmit={handleSendMessage} className="flex items-center gap-2">

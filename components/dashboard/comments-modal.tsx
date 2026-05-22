@@ -88,14 +88,25 @@ export default function CommentsModal({ isOpen, onClose, postId, user, content_u
     
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('comments').insert({
-        post_id: postId,
-        user_id: user.id,
-        content: newComment,
-        parent_id: replyTo?.id || null
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          content: newComment,
+          parent_id: replyTo?.id || null,
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.error === 'DEPOSIT_REQUIRED') {
+          alert(data.message)
+          window.location.href = '/dashboard?mode=wallet&view=deposit&required=1'
+          return
+        }
+        throw new Error(data.message || data.error)
+      }
       setNewComment('')
       setReplyTo(null)
       fetchComments()

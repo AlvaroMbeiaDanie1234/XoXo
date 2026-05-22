@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import { getFlutterwaveKeys, verifyFlutterwaveTransaction } from '@/lib/flutterwave'
+import { markUserHasDeposited } from '@/lib/free-tier'
 
 export async function POST(req: Request) {
   try {
@@ -11,125 +12,98 @@ export async function POST(req: Request) {
     let serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
     const defaultSupabase = createClient(supabaseUrl, serviceRoleKey)
 
-    let webhookSecret = process.env.FLUTTERWAVE_WEBHOOK_SECRET
-    let secretKey = process.env.FLUTTERWAVE_SECRET_KEY
-
-    try {
-      const { data: dbSettings } = await defaultSupabase
-        .from('system_settings')
-        .select('*')
-        .in('key', [
-          'FLUTTERWAVE_WEBHOOK_SECRET',
-          'FLUTTERWAVE_SECRET_KEY',
-          'NEXT_PUBLIC_SUPABASE_URL',
-          'SUPABASE_SERVICE_ROLE_KEY'
-        ])
-
-      if (dbSettings) {
-        const dbWebhookSecret = dbSettings.find(s => s.key === 'FLUTTERWAVE_WEBHOOK_SECRET')?.value
-        const dbSecretKey = dbSettings.find(s => s.key === 'FLUTTERWAVE_SECRET_KEY')?.value
-        const dbUrl = dbSettings.find(s => s.key === 'NEXT_PUBLIC_SUPABASE_URL')?.value
-        const dbSvcKey = dbSettings.find(s => s.key === 'SUPABASE_SERVICE_ROLE_KEY')?.value
-
-        if (dbWebhookSecret) webhookSecret = dbWebhookSecret
-        if (dbSecretKey) secretKey = dbSecretKey
-        if (dbUrl) supabaseUrl = dbUrl
-        if (dbSvcKey) serviceRoleKey = dbSvcKey
-      }
-    } catch (dbErr) {
-      console.warn('Could not load settings from DB in webhook, using fallback env:', dbErr)
+    const keys = await getFlutterwaveKeys(defaultSupabase)
+    if (!keys) {
+      console.error('[Flutterwave Webhook] Missing API keys')
+      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
     }
 
-    // Verify webhook signature
-    if (webhookSecret && signature !== webhookSecret) {
-      console.error('Invalid Flutterwave webhook signature')
+    if (!signature || signature !== keys.webhookHash) {
+      console.error('[Flutterwave Webhook] Invalid verif-hash')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     const event = JSON.parse(rawBody)
-    console.log('🔔 Webhook Flutterwave Recebido:', event.event)
+    console.log('[Flutterwave Webhook] Event:', event.event)
 
-    if (event.event !== 'charge.completed' || event.data?.status !== 'successful') {
-      return NextResponse.json({ message: 'Event acknowledged' }, { status: 200 })
-    }
+    const { data: dbSettings } = await defaultSupabase
+      .from('system_settings')
+      .select('key, value')
+      .in('key', ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'])
 
-    if (!secretKey) {
-      console.error('Missing Flutterwave Secret Key for verification')
-      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-    }
-
-    const transactionId = event.data.id
-    const txRef = event.data.tx_ref
-
-    // Verify the transaction with Flutterwave API
-    const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${secretKey}`,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    const verifyData = await verifyRes.json()
-
-    if (verifyData.status !== 'success' || verifyData.data?.status !== 'successful') {
-      console.error('Flutterwave webhook verification failed:', verifyData)
-      return NextResponse.json({ error: 'Verification failed' }, { status: 400 })
-    }
-
-    const paymentData = verifyData.data
-    const amount = paymentData.amount
-    const customerEmail = paymentData.customer?.email
-
-    if (!customerEmail || !amount) {
-      console.error('Missing email or amount in webhook data:', paymentData)
-      return NextResponse.json({ error: 'Missing data' }, { status: 400 })
+    if (dbSettings) {
+      const dbUrl = dbSettings.find((s) => s.key === 'NEXT_PUBLIC_SUPABASE_URL')?.value
+      const dbSvc = dbSettings.find((s) => s.key === 'SUPABASE_SERVICE_ROLE_KEY')?.value
+      if (dbUrl) supabaseUrl = dbUrl
+      if (dbSvc) serviceRoleKey = dbSvc
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    // Find user by email
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', customerEmail)
-      .single()
+    if (event.event === 'charge.completed') {
+      const flwData = event.data
+      const transactionId = flwData?.id
+      const customerEmail = flwData?.customer?.email
 
-    if (profileError || !profile) {
-      console.error(`User not found for email ${customerEmail}`)
-      return NextResponse.json({ message: 'User not found, acknowledged' }, { status: 200 })
+      if (!transactionId) {
+        return NextResponse.json({ error: 'Missing transaction id' }, { status: 400 })
+      }
+
+      const verified = await verifyFlutterwaveTransaction(transactionId, keys.secretKey)
+      if (!verified.success) {
+        console.error('[Flutterwave Webhook] Verification failed for tx', transactionId)
+        return NextResponse.json({ error: 'Verification failed' }, { status: 400 })
+      }
+
+      const txRef = verified.txRef || flwData?.tx_ref
+      const description = `Depósito Flutterwave: ${txRef || transactionId}`
+
+      const { data: existingTx } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('description', description)
+        .maybeSingle()
+
+      if (existingTx) {
+        return NextResponse.json({ message: 'Already processed' }, { status: 200 })
+      }
+
+      let userId = flwData?.meta?.user_id as string | undefined
+
+      if (!userId && customerEmail) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', customerEmail.toLowerCase())
+          .maybeSingle()
+        userId = profile?.id
+      }
+
+      if (!userId) {
+        console.error('[Flutterwave Webhook] User not found for', customerEmail)
+        return NextResponse.json({ message: 'User not found' }, { status: 200 })
+      }
+
+      const { error: insertError } = await supabase.from('transactions').insert({
+        user_id: userId,
+        amount: verified.amount,
+        type: 'deposit',
+        description,
+        status: 'completed',
+      })
+
+      if (insertError) {
+        console.error('[Flutterwave Webhook] Insert error:', insertError)
+        return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      }
+
+      await markUserHasDeposited(supabase, userId)
+      console.log(`[Flutterwave Webhook] Credited AOA ${verified.amount} to ${userId}`)
     }
 
-    // Check if already processed
-    const { data: existingTx } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('description', `Depósito Flutterwave: ${transactionId}`)
-      .single()
-
-    if (existingTx) {
-      return NextResponse.json({ message: 'Already processed' }, { status: 200 })
-    }
-
-    // Insert transaction
-    const { error: insertError } = await supabase.from('transactions').insert({
-      user_id: profile.id,
-      amount: amount,
-      type: 'deposit',
-      description: `Depósito Flutterwave: ${transactionId}`,
-      status: 'completed'
-    })
-
-    if (insertError) {
-      console.error('Error inserting deposit transaction:', insertError)
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
-    }
-
-    console.log(`Flutterwave webhook: Credited ${amount} to user ${customerEmail} (ID: ${profile.id})`)
-
-    return NextResponse.json({ message: 'Webhook processed successfully' }, { status: 200 })
-  } catch (error: any) {
-    console.error('Flutterwave webhook error:', error)
+    return NextResponse.json({ message: 'OK' }, { status: 200 })
+  } catch (error) {
+    console.error('[Flutterwave Webhook] Error:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

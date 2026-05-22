@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveReferrerId } from '@/lib/referrals'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
 
@@ -8,7 +9,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { email, password, displayName } = body
+    const { email, password, displayName, referralCode } = body
 
     if (!email || !password || !displayName) {
       return NextResponse.json(
@@ -21,6 +22,14 @@ export async function POST(request: NextRequest) {
     const trimmedName = displayName.trim()
 
     const supabaseAdmin = createAdminClient()
+
+    let referredById: string | null = null
+    if (referralCode) {
+      referredById = await resolveReferrerId(supabaseAdmin, referralCode)
+      if (!referredById) {
+        console.log(`[API/Signup] Código de referência inválido: ${referralCode}`)
+      }
+    }
 
     // 1. Verificar se o utilizador já existe no Supabase de forma paginada e segura
     console.log(`[API/Signup] Verificando existência do utilizador: ${trimmedEmail}`)
@@ -81,6 +90,7 @@ export async function POST(request: NextRequest) {
       user_metadata: {
         display_name: trimmedName,
         verification_token: verificationToken,
+        ...(referredById ? { referred_by_id: referredById } : {}),
       },
     })
 

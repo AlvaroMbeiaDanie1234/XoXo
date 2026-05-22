@@ -271,14 +271,29 @@ export default function PostDetailsPage() {
     
     setIsSubmittingComment(true)
     try {
-      const { error } = await supabase.from('comments').insert({
-        post_id: id,
-        user_id: user.id,
-        content: newComment,
-        parent_id: replyTo?.id || null
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: id,
+          content: newComment,
+          parent_id: replyTo?.id || null,
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.error === 'DEPOSIT_REQUIRED') {
+          toast({
+            title: 'Depósito necessário',
+            description: data.message,
+            variant: 'destructive',
+          })
+          router.push('/dashboard?mode=wallet&view=deposit&required=1')
+          return
+        }
+        throw new Error(data.message || data.error)
+      }
       setNewComment('')
       setReplyTo(null)
       fetchComments()

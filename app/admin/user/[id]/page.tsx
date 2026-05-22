@@ -102,8 +102,17 @@ export default function AdminUserDetailPage() {
 
         if (txnError) throw txnError
 
-        // Update user balance atomically using current state
-        const newBalance = (profile?.balance || 0) + amount
+        // Fetch the CURRENT balance from DB to avoid race conditions / string concatenation bugs
+        const { data: freshProfile, error: fetchErr } = await supabase
+          .from('profiles')
+          .select('balance')
+          .eq('id', id)
+          .single()
+        if (fetchErr) throw fetchErr
+
+        const currentBalance = Number(freshProfile?.balance) || 0
+        const newBalance = currentBalance + amount
+
         const { error: balError } = await supabase
           .from('profiles')
           .update({ balance: newBalance })

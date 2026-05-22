@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [linkpagaSlug, setLinkpagaSlug] = useState('')
   const [vipBadgePrice, setVipBadgePrice] = useState('15000') // Default 15000 AOA
   const [transactionFeePercent, setTransactionFeePercent] = useState('10') // Default 10%
+  const [referralBonusAmount, setReferralBonusAmount] = useState('5000') // Default 5000 AOA
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
 
@@ -76,7 +77,7 @@ export default function AdminDashboard() {
   const [flutterwavePublicKey, setFlutterwavePublicKey] = useState('')
   const [flutterwaveSecretKey, setFlutterwaveSecretKey] = useState('')
   const [flutterwaveEncryptionKey, setFlutterwaveEncryptionKey] = useState('')
-  const [flutterwaveWebhookSecret, setFlutterwaveWebhookSecret] = useState('')
+  const [flutterwaveWebhookHash, setFlutterwaveWebhookHash] = useState('')
 
   const [zegoAppId, setZegoAppId] = useState('')
   const [zegoAppSign, setZegoAppSign] = useState('')
@@ -258,6 +259,9 @@ export default function AdminDashboard() {
         const feeSetting = settings.find(s => s.key === 'transaction_fee_percent')
         if (feeSetting) setTransactionFeePercent(feeSetting.value)
 
+        const referralSetting = settings.find(s => s.key === 'referral_bonus_amount')
+        if (referralSetting) setReferralBonusAmount(referralSetting.value)
+
         // Load Connectivity variables
         const findVal = (k: string) => settings.find(s => s.key === k)?.value || ''
         setSupabaseUrl(findVal('NEXT_PUBLIC_SUPABASE_URL'))
@@ -285,7 +289,7 @@ export default function AdminDashboard() {
         setFlutterwavePublicKey(findVal('FLUTTERWAVE_PUBLIC_KEY'))
         setFlutterwaveSecretKey(findVal('FLUTTERWAVE_SECRET_KEY'))
         setFlutterwaveEncryptionKey(findVal('FLUTTERWAVE_ENCRYPTION_KEY'))
-        setFlutterwaveWebhookSecret(findVal('FLUTTERWAVE_WEBHOOK_SECRET'))
+        setFlutterwaveWebhookHash(findVal('FLUTTERWAVE_WEBHOOK_HASH'))
 
         setZegoAppId(findVal('NEXT_PUBLIC_ZEGO_APP_ID'))
         setZegoAppSign(findVal('NEXT_PUBLIC_ZEGO_APP_SIGN'))
@@ -307,6 +311,7 @@ export default function AdminDashboard() {
         { key: 'linkpaga_slug', value: linkpagaSlug },
         { key: 'vip_badge_price', value: vipBadgePrice },
         { key: 'transaction_fee_percent', value: transactionFeePercent },
+        { key: 'referral_bonus_amount', value: referralBonusAmount },
         
         { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
         { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
@@ -333,7 +338,7 @@ export default function AdminDashboard() {
         { key: 'FLUTTERWAVE_PUBLIC_KEY', value: flutterwavePublicKey },
         { key: 'FLUTTERWAVE_SECRET_KEY', value: flutterwaveSecretKey },
         { key: 'FLUTTERWAVE_ENCRYPTION_KEY', value: flutterwaveEncryptionKey },
-        { key: 'FLUTTERWAVE_WEBHOOK_SECRET', value: flutterwaveWebhookSecret },
+        { key: 'FLUTTERWAVE_WEBHOOK_HASH', value: flutterwaveWebhookHash },
 
         { key: 'NEXT_PUBLIC_ZEGO_APP_ID', value: zegoAppId },
         { key: 'NEXT_PUBLIC_ZEGO_APP_SIGN', value: zegoAppSign },
@@ -1268,7 +1273,7 @@ export default function AdminDashboard() {
                     {openSections.general ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                   {openSections.general && (
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                       {/* Card 1: LinkPaga */}
                       <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Slug de Pagamento LinkPaga</label>
@@ -1303,6 +1308,21 @@ export default function AdminDashboard() {
                           min="0"
                           max="100"
                         />
+                      </div>
+                      {/* Card 4: Bónus de Referência */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Bónus por Referência (AOA)</label>
+                        <input
+                          type="number"
+                          value={referralBonusAmount}
+                          onChange={(e) => setReferralBonusAmount(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="5000"
+                          min="0"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Valor creditado ao indicador quando o convidado ativa a conta.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1543,13 +1563,13 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {/* Bloco 5: Flutterwave Payment Keys */}
+                {/* Bloco 5: Flutterwave */}
                 <div className="border border-border rounded-2xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => toggleSection('flutterwave')}
                     className="w-full px-6 py-4 bg-gray-50 flex items-center justify-between font-black text-xs uppercase tracking-wider text-gray-800 border-b border-border hover:bg-gray-100/80 transition-colors"
                   >
-                    <span className="flex items-center gap-2">5. Flutterwave Payment Keys</span>
+                    <span className="flex items-center gap-2">5. Flutterwave (Depósitos)</span>
                     {openSections.flutterwave ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                   {openSections.flutterwave && (
@@ -1581,18 +1601,18 @@ export default function AdminDashboard() {
                           value={flutterwaveEncryptionKey}
                           onChange={(e) => setFlutterwaveEncryptionKey(e.target.value)}
                           className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl text-xs outline-none focus:border-accent"
-                          placeholder="FLWSECK_TEST..."
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">FLUTTERWAVE_WEBHOOK_SECRET</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">FLUTTERWAVE_WEBHOOK_HASH (verif-hash)</label>
                         <input
                           type="password"
-                          value={flutterwaveWebhookSecret}
-                          onChange={(e) => setFlutterwaveWebhookSecret(e.target.value)}
+                          value={flutterwaveWebhookHash}
+                          onChange={(e) => setFlutterwaveWebhookHash(e.target.value)}
                           className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl text-xs outline-none focus:border-accent"
-                          placeholder="Secret hash for webhook verification"
+                          placeholder="Secret hash do dashboard Flutterwave"
                         />
+                        <p className="text-[9px] text-gray-400 mt-1">Webhook URL: /api/webhooks/flutterwave</p>
                       </div>
                     </div>
                   )}

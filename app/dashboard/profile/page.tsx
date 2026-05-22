@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star } from 'lucide-react'
+import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users } from 'lucide-react'
+import { buildReferralCode } from '@/lib/referrals'
 
 export default function EditProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -16,6 +17,10 @@ export default function EditProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [requestingBadge, setRequestingBadge] = useState(false)
   const [vipBadgePrice, setVipBadgePrice] = useState('15000') // Default
+  const [referralBonusAmount, setReferralBonusAmount] = useState('5000')
+  const [referralCount, setReferralCount] = useState(0)
+  const [referralLink, setReferralLink] = useState('')
+  const [copiedReferral, setCopiedReferral] = useState(false)
   const [balance, setBalance] = useState(0)
   
   // Form fields
@@ -49,7 +54,12 @@ export default function EditProfilePage() {
         // Create default profile if missing
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert({ id: user.id, display_name: user.email?.split('@')[0], email: user.email })
+          .insert({
+            id: user.id,
+            display_name: user.email?.split('@')[0],
+            email: user.email,
+            referral_code: buildReferralCode(user.id),
+          })
           .select()
           .single()
         
@@ -57,6 +67,13 @@ export default function EditProfilePage() {
       }
 
       if (profileData) {
+        let code = profileData.referral_code
+        if (!code) {
+          code = buildReferralCode(user.id)
+          await supabase.from('profiles').update({ referral_code: code }).eq('id', user.id)
+          profileData = { ...profileData, referral_code: code }
+        }
+
         setProfile(profileData)
         setBalance(profileData.balance || 0)
         setDisplayName(profileData.display_name || '')
@@ -64,12 +81,28 @@ export default function EditProfilePage() {
         setPhone(profileData.phone || '')
         setSmsEnabled(profileData.sms_notifications_enabled !== false) // default true
         setAvatarPreview(profileData.avatar_url || null)
+
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        setReferralLink(`${origin}/auth/sign-up?ref=${code}`)
+
+        const { count } = await supabase
+          .from('referrals')
+          .select('*', { count: 'exact', head: true })
+          .eq('referrer_id', user.id)
+        setReferralCount(count ?? 0)
       }
 
-      // Fetch VIP badge price from settings
-      const { data: settings } = await supabase.from('system_settings').select('*').eq('key', 'vip_badge_price').single()
-      if (settings) {
-        setVipBadgePrice(settings.value)
+      const { data: settingsRows } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', ['vip_badge_price', 'referral_bonus_amount'])
+
+      if (settingsRows) {
+        const badgeSetting = settingsRows.find(s => s.key === 'vip_badge_price')
+        if (badgeSetting) setVipBadgePrice(badgeSetting.value)
+
+        const referralSetting = settingsRows.find(s => s.key === 'referral_bonus_amount')
+        if (referralSetting) setReferralBonusAmount(referralSetting.value)
       }
       
       setLoading(false)
@@ -77,6 +110,17 @@ export default function EditProfilePage() {
     
     loadProfile()
   }, [supabase, router])
+
+  const handleCopyReferralLink = async () => {
+    if (!referralLink) return
+    try {
+      await navigator.clipboard.writeText(referralLink)
+      setCopiedReferral(true)
+      setTimeout(() => setCopiedReferral(false), 2000)
+    } catch {
+      alert('Não foi possível copiar o link. Copia manualmente: ' + referralLink)
+    }
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -261,6 +305,36 @@ export default function EditProfilePage() {
                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
                      {profile?.bio || <span className="text-gray-400 italic">Sem biografia. Adiciona uma descrição para que as pessoas te conheçam melhor.</span>}
                    </p>
+                </div>
+
+                {/* Referral Link Card */}
+                <div className="mt-4 p-4 rounded-xl border border-accent/20 bg-gradient-to-br from-accent/5 to-purple-50 text-left">
+                  <p className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-2">
+                    <Link2 size={15} className="text-accent" /> Link de Referência
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Partilha este link. Quando alguém se registar e ativar a conta, recebes{' '}
+                    <strong className="text-accent">AOA {Number(referralBonusAmount).toLocaleString()}</strong> no teu saldo.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={referralLink}
+                      className="flex-1 px-3 py-2 text-xs bg-white border border-border rounded-lg font-mono text-gray-600 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyReferralLink}
+                      className="px-3 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 flex-shrink-0 transition-colors"
+                    >
+                      <Copy size={14} />
+                      {copiedReferral ? 'Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                    <Users size={12} /> {referralCount} {referralCount === 1 ? 'pessoa referida' : 'pessoas referidas'}
+                  </p>
                 </div>
 
                 {/* SMS Status Card */}

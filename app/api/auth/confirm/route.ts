@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { processReferralBonus } from '@/lib/referrals'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -74,6 +75,24 @@ export async function GET(request: NextRequest) {
     if (updateError) {
       console.error('[API/Confirm] Falha crítica ao atualizar utilizador para verificado:', updateError)
       return NextResponse.redirect(`${baseUrl}/auth/error?message=Erro no sistema ao ativar a sua conta.`)
+    }
+
+    const referredById = existingUser.user_metadata?.referred_by_id as string | undefined
+    if (referredById) {
+      try {
+        const result = await processReferralBonus(
+          supabaseAdmin,
+          existingUser.id,
+          referredById,
+          email,
+          existingUser.user_metadata?.display_name as string | undefined
+        )
+        if (result.credited) {
+          console.log(`[API/Confirm] Bónus de referência creditado: AOA ${result.amount}`)
+        }
+      } catch (referralErr) {
+        console.error('[API/Confirm] Erro ao processar bónus de referência:', referralErr)
+      }
     }
 
     console.log(`[API/Confirm] Sucesso! Conta confirmada e ativa para: ${email}`)
