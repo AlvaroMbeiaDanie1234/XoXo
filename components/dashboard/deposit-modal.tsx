@@ -1,8 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { X, CreditCard, Loader2, ArrowRight, Wallet, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, CreditCard, Loader2, ArrowRight, Wallet } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import {
+  getCurrencyOption,
+  getDepositPresets,
+  minDepositForCurrency,
+  resolveProfileCurrency,
+  type CurrencyCode,
+} from '@/lib/wallet'
 
 interface DepositModalProps {
   isOpen: boolean
@@ -15,12 +23,31 @@ interface DepositModalProps {
 export default function DepositModal({ isOpen, onClose, user, onSuccess, required }: DepositModalProps) {
   const [amount, setAmount] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [currency, setCurrency] = useState<CurrencyCode>('AOA')
   const router = useRouter()
+  const supabase = createClient()
+
+  const currencyOpt = getCurrencyOption(currency)
+  const minDeposit = minDepositForCurrency(currency)
+  const presets = getDepositPresets(currency)
+
+  useEffect(() => {
+    if (!isOpen || !user?.id) return
+    supabase
+      .from('profiles')
+      .select('preferred_currency, withdrawal_country')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setCurrency(resolveProfileCurrency(data))
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, user?.id])
 
   const handleDeposit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !amount || parseFloat(amount) < 100) {
-      alert('O valor mínimo de depósito é AOA 100')
+    if (!user || !amount || parseFloat(amount) < minDeposit) {
+      alert(`O valor mínimo de depósito é ${currencyOpt.symbol} ${minDeposit}`)
       return
     }
 
@@ -29,7 +56,7 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess, require
       const res = await fetch('/api/payments/flutterwave/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
+        body: JSON.stringify({ amount: parseFloat(amount), currency }),
       })
 
       const data = await res.json()
@@ -74,23 +101,32 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess, require
         <div className="p-8">
           <form onSubmit={handleDeposit} className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Valor a Depositar (AOA)</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                Valor a Depositar ({currency})
+              </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">AOA</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">{currencyOpt.symbol}</span>
                 <input
                   type="number"
-                  placeholder="Ex: 5000"
+                  placeholder={`Mín. ${minDeposit}`}
                   required
-                  min={100}
+                  min={minDeposit}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-14 pr-4 outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all text-xl font-bold"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard?mode=wallet&view=payment-settings')}
+                className="text-[10px] text-gray-400 mt-2 hover:text-accent font-medium"
+              >
+                Alterar país/moeda em Moeda e Banco →
+              </button>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              {['1000', '2000', '5000'].map((val) => (
+              {presets.slice(0, 3).map((val) => (
                 <button
                   key={val}
                   type="button"
@@ -118,13 +154,9 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess, require
                 onClick={() => router.push('/dashboard?mode=wallet&view=deposit')}
                 className="w-full text-xs text-gray-500 hover:text-accent font-medium"
               >
-                Ver opções na carteira
+                Abrir página completa de depósito
               </button>
             )}
-
-            <p className="text-[10px] text-center text-gray-400 px-4">
-              Serás redirecionado para o checkout seguro da Flutterwave. O saldo é creditado automaticamente após confirmação.
-            </p>
           </form>
         </div>
       </div>

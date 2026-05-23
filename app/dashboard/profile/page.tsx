@@ -243,6 +243,7 @@ export default function EditProfilePage() {
       setProfile(updatedProfile)
       setIsEditing(false)
       alert('Perfil atualizado com sucesso!')
+      window.dispatchEvent(new Event('profileUpdated'))
       router.refresh()
       
     } catch (err: any) {

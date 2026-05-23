@@ -6,8 +6,9 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, AlertTriangle
 } from 'lucide-react'
+import { isSuperAdminEmail } from '@/lib/admin-emails'
 import Header from '@/components/dashboard/header'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
@@ -25,8 +26,11 @@ export default function AdminDashboard() {
   const [vipBadgePrice, setVipBadgePrice] = useState('15000') // Default 15000 AOA
   const [transactionFeePercent, setTransactionFeePercent] = useState('10') // Default 10%
   const [referralBonusAmount, setReferralBonusAmount] = useState('5000') // Default 5000 AOA
+  const [welcomeBonusAmount, setWelcomeBonusAmount] = useState('1500') // Default 1500 AOA
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [financialResetPhrase, setFinancialResetPhrase] = useState('')
+  const [resettingFinancials, setResettingFinancials] = useState(false)
 
   // Credit Modal States
   const [showCreditModal, setShowCreditModal] = useState(false)
@@ -262,6 +266,9 @@ export default function AdminDashboard() {
         const referralSetting = settings.find(s => s.key === 'referral_bonus_amount')
         if (referralSetting) setReferralBonusAmount(referralSetting.value)
 
+        const welcomeSetting = settings.find(s => s.key === 'welcome_bonus_amount')
+        if (welcomeSetting) setWelcomeBonusAmount(welcomeSetting.value)
+
         // Load Connectivity variables
         const findVal = (k: string) => settings.find(s => s.key === k)?.value || ''
         setSupabaseUrl(findVal('NEXT_PUBLIC_SUPABASE_URL'))
@@ -312,6 +319,7 @@ export default function AdminDashboard() {
         { key: 'vip_badge_price', value: vipBadgePrice },
         { key: 'transaction_fee_percent', value: transactionFeePercent },
         { key: 'referral_bonus_amount', value: referralBonusAmount },
+        { key: 'welcome_bonus_amount', value: welcomeBonusAmount },
         
         { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
         { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
@@ -362,6 +370,54 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleResetFinancials = async () => {
+    if (financialResetPhrase !== 'APAGAR TUDO') {
+      toast({
+        title: 'Confirmação incorreta',
+        description: 'Escreve exatamente APAGAR TUDO para confirmar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (
+      !confirm(
+        'ATENÇÃO: Isto apaga TODAS as transações, zera TODOS os saldos dos utilizadores e reinicia lucros/comissões/taxas calculadas no painel. Esta ação é irreversível. Continuar?'
+      )
+    ) {
+      return
+    }
+
+    setResettingFinancials(true)
+    try {
+      const res = await fetch('/api/admin/reset-financials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmPhrase: financialResetPhrase }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao resetar')
+
+      setTransactions([])
+      setUsers((prev) => prev.map((u) => ({ ...u, balance: 0 })))
+      setTotalBalance(0)
+      setFinancialResetPhrase('')
+
+      toast({
+        title: 'Dados financeiros resetados',
+        description: `${data.deletedTransactions ?? 0} transações removidas. Saldos e métricas zerados.`,
+      })
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao resetar',
+        description: err instanceof Error ? err.message : 'Falha na operação',
+        variant: 'destructive',
+      })
+    } finally {
+      setResettingFinancials(false)
+    }
+  }
+
   const handleAdminCredit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedUserForCredit || !adminCreditAmount || parseFloat(adminCreditAmount) <= 0) return
@@ -369,26 +425,32 @@ export default function AdminDashboard() {
     setLoadingCredit(true)
     const amount = parseFloat(adminCreditAmount)
     try {
-      const { error } = await supabase.from('transactions').insert({
-        user_id: selectedUserForCredit.id,
-        amount: amount,
-        type: 'deposit',
-        status: 'completed',
-        description: adminCreditReason || 'Carregamento administrativo de saldo'
+      const res = await fetch('/api/admin/credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUserForCredit.id,
+          amount,
+          description: adminCreditReason || 'Carregamento administrativo de saldo',
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar saldo')
 
-      // Update the user's balance locally in state
+      const newBalance = Number(data.balance) || 0
+
       setUsers(prev => prev.map(u => {
         if (u.id === selectedUserForCredit.id) {
-          return { ...u, balance: (u.balance || 0) + amount }
+          return { ...u, balance: newBalance }
         }
         return u
       }))
 
-      // Update total balance card
-      setTotalBalance(prev => prev + amount)
+      setTotalBalance(prev => {
+        const oldBal = Number(selectedUserForCredit.balance) || 0
+        return prev - oldBal + newBalance
+      })
 
       toast({
         title: "Saldo Carregado! 💰✨",
@@ -1273,7 +1335,7 @@ export default function AdminDashboard() {
                     {openSections.general ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                   {openSections.general && (
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                       {/* Card 1: LinkPaga */}
                       <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Slug de Pagamento LinkPaga</label>
@@ -1322,6 +1384,21 @@ export default function AdminDashboard() {
                         />
                         <p className="text-[9px] text-gray-400 mt-2 leading-snug">
                           Valor creditado ao indicador quando o convidado ativa a conta.
+                        </p>
+                      </div>
+                      {/* Card 5: Bónus de Boas-vindas */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Bónus de Registo (AOA)</label>
+                        <input
+                          type="number"
+                          value={welcomeBonusAmount}
+                          onChange={(e) => setWelcomeBonusAmount(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="1500"
+                          min="0"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Saldo inicial creditado quando o utilizador confirma o e-mail (primeira vez).
                         </p>
                       </div>
                     </div>
@@ -1662,6 +1739,58 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
+
+                {/* Superadmin: reset financeiro total */}
+                {isSuperAdminEmail(currentUser?.email) && (
+                  <div className="border-2 border-red-300 rounded-2xl overflow-hidden bg-red-50/50">
+                    <div className="px-6 py-4 bg-red-100/80 border-b border-red-200 flex items-center gap-3">
+                      <AlertTriangle size={20} className="text-red-700 flex-shrink-0" />
+                      <div>
+                        <h3 className="text-sm font-black text-red-900 uppercase tracking-wide">
+                          Zona crítica — Superadmin
+                        </h3>
+                        <p className="text-xs text-red-800/90 mt-0.5">
+                          Apaga todo o histórico de transações, zera saldos dos utilizadores, lucros, comissões e
+                          métricas financeiras do painel.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <ul className="text-xs text-red-900/80 space-y-1 list-disc list-inside">
+                        <li>Todas as transações (depósitos, compras, ganhos, levantamentos, taxas)</li>
+                        <li>Saldo disponível de todos os utilizadores → AOA 0</li>
+                        <li>Lucros da plataforma, cofre e relatórios financeiros → zerados</li>
+                      </ul>
+                      <div>
+                        <label className="text-[10px] font-bold text-red-700 uppercase tracking-widest block mb-2">
+                          Escreve APAGAR TUDO para confirmar
+                        </label>
+                        <input
+                          type="text"
+                          value={financialResetPhrase}
+                          onChange={(e) => setFinancialResetPhrase(e.target.value)}
+                          placeholder="APAGAR TUDO"
+                          className="w-full max-w-md px-4 py-2.5 bg-white border border-red-300 rounded-xl text-sm font-mono outline-none focus:border-red-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleResetFinancials}
+                        disabled={resettingFinancials || financialResetPhrase !== 'APAGAR TUDO'}
+                        className="bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center gap-2 transition-colors"
+                      >
+                        {resettingFinancials ? (
+                          <>A processar...</>
+                        ) : (
+                          <>
+                            <Trash2 size={18} />
+                            Apagar histórico e zerar saldos
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Save button at bottom of settings */}
                 <div className="flex justify-end pt-4 border-t border-border">

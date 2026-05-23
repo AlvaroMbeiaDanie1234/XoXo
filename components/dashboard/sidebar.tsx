@@ -115,6 +115,7 @@ function SidebarContent() {
   const walletItems = [
     { label: 'Início', href: '/dashboard', icon: ArrowLeft },
     { label: 'Saldo', href: '/dashboard?mode=wallet&view=balance', icon: Wallet },
+    { label: 'Moeda e Banco', href: '/dashboard?mode=wallet&view=payment-settings', icon: DollarSign },
     { label: 'Depósito', href: '/dashboard?mode=wallet&view=deposit', icon: PlusCircle },
     { label: 'Levantamento', href: '/dashboard?mode=wallet&view=withdraw', icon: ArrowUpRight },
     { label: 'Transações', href: '/dashboard?mode=wallet&view=transactions', icon: List },

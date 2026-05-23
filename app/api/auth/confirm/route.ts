@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { processReferralBonus } from '@/lib/referrals'
+import { processWelcomeBonus } from '@/lib/welcome-bonus'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -75,6 +76,20 @@ export async function GET(request: NextRequest) {
     if (updateError) {
       console.error('[API/Confirm] Falha crítica ao atualizar utilizador para verificado:', updateError)
       return NextResponse.redirect(`${baseUrl}/auth/error?message=Erro no sistema ao ativar a sua conta.`)
+    }
+
+    try {
+      const welcomeResult = await processWelcomeBonus(
+        supabaseAdmin,
+        existingUser.id,
+        email,
+        existingUser.user_metadata?.display_name as string | undefined
+      )
+      if (welcomeResult.credited) {
+        console.log(`[API/Confirm] Bónus de boas-vindas: AOA ${welcomeResult.amount}`)
+      }
+    } catch (welcomeErr) {
+      console.error('[API/Confirm] Erro ao processar bónus de boas-vindas:', welcomeErr)
     }
 
     const referredById = existingUser.user_metadata?.referred_by_id as string | undefined

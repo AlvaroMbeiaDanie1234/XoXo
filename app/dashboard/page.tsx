@@ -14,6 +14,20 @@ import {
   Banknote, Building2, Send, Megaphone, X
 } from 'lucide-react'
 import { Suspense } from 'react'
+import WalletPreferences from '@/components/dashboard/wallet-preferences'
+import {
+  formatMoney,
+  bankDetailsFromProfile,
+  buildWithdrawalDescription,
+  isBankDetailsComplete,
+  getCurrencyOption,
+  minDepositForCurrency,
+  getDepositPresets,
+  formatBankSummary,
+  getCountryByCode,
+  resolveProfileCurrency,
+  type WithdrawalCountryCode,
+} from '@/lib/wallet'
 
 interface Post {
   id: string
@@ -48,7 +62,6 @@ function DashboardContent() {
   // Wallet states
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
-  const [bankDetails, setBankDetails] = useState('')
   const [depositLoading, setDepositLoading] = useState(false)
   const [depositSuccess, setDepositSuccess] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -58,6 +71,22 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const mode = searchParams.get('mode')
   const view = searchParams.get('view')
+
+  const preferredCurrency = resolveProfileCurrency(userProfile)
+  const withdrawalCountry = (userProfile?.withdrawal_country || 'AO') as WithdrawalCountryCode
+  const bankDetails = bankDetailsFromProfile(userProfile)
+  const currencyOpt = getCurrencyOption(preferredCurrency)
+  const bankComplete = isBankDetailsComplete(withdrawalCountry, bankDetails)
+  const depositPresets = getDepositPresets(preferredCurrency)
+  const minDeposit = minDepositForCurrency(preferredCurrency)
+
+  const reloadProfile = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    if (data) {
+      setUserProfile(data)
+      setBalance(Number(data.balance) || 0)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -121,8 +150,9 @@ function DashboardContent() {
   }, [supabase, router, mode, view])
 
   const handleFlutterwaveDeposit = async () => {
-    if (!depositAmount || parseFloat(depositAmount) < 100) {
-      alert('O valor mínimo de depósito é AOA 100')
+    const minDep = minDepositForCurrency(preferredCurrency)
+    if (!depositAmount || parseFloat(depositAmount) < minDep) {
+      alert(`O valor mínimo de depósito é ${formatMoney(minDep, preferredCurrency)}`)
       return
     }
     setDepositLoading(true)
@@ -130,7 +160,10 @@ function DashboardContent() {
       const res = await fetch('/api/payments/flutterwave/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseFloat(depositAmount) }),
+        body: JSON.stringify({
+          amount: parseFloat(depositAmount),
+          currency: preferredCurrency,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento')
@@ -143,43 +176,54 @@ function DashboardContent() {
   }
 
   const handleWithdraw = async () => {
-    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0 || !bankDetails) return
-    const amount = parseFloat(withdrawAmount)
-    
-    // Calculate withdrawable balance
-    const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0);
-    const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0);
-    const unspentDeposits = Math.max(0, totalDeposits - totalPurchases);
-    const withdrawable = Math.max(0, balance - unspentDeposits);
+    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) return
 
-    if (amount > withdrawable) return alert('Saldo insuficiente para levantamento! Apenas ganhos podem ser levantados.')
+    if (!isBankDetailsComplete(withdrawalCountry, bankDetails)) {
+      alert('Completa os teus dados bancários em Moeda e Banco antes de solicitar levantamento.')
+      router.push('/dashboard?mode=wallet&view=payment-settings')
+      return
+    }
+
+    const amount = parseFloat(withdrawAmount)
+
+    const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
+    const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
+    const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
+    const withdrawable = Math.max(0, balance - unspentDeposits)
+
+    if (amount > withdrawable) {
+      return alert('Saldo insuficiente para levantamento! Apenas ganhos podem ser levantados.')
+    }
 
     setIsProcessing(true)
     try {
+      const description = buildWithdrawalDescription(
+        withdrawalCountry,
+        bankDetails,
+        preferredCurrency
+      )
+
       await supabase.from('transactions').insert({
         user_id: user.id,
         amount: amount,
         type: 'withdraw',
-        description: `Levantamento para: ${bankDetails}`,
-        status: 'pending' // Note: trigger won't deduct until status is completed, or should we deduct immediately? Let's keep it pending, the admin handles it.
+        description,
+        status: 'pending',
       })
-      
-      // Fetch the updated balance just in case
+
       const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
       if (profile) setBalance(Number(profile.balance) || 0)
 
-      // Send SMS notification (non-blocking)
       fetch('/api/sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          body: `O seu pedido de levantamento de AOA ${amount.toLocaleString()} foi submetido com sucesso e está pendente de aprovação. Receberá outro SMS quando for processado.`
-        })
+          body: `O seu pedido de levantamento de ${formatMoney(amount, preferredCurrency)} foi submetido e está pendente de aprovação.`,
+        }),
       }).catch(console.warn)
 
       setWithdrawAmount('')
-      setBankDetails('')
       alert('Pedido de levantamento enviado com sucesso! Será processado em breve.')
       router.push('/dashboard?mode=wallet&view=transactions')
     } catch (err: any) {
@@ -207,7 +251,7 @@ function DashboardContent() {
                     <h2 className="text-xl font-bold flex items-center gap-2 mb-3">
                       <Wallet /> Saldo Disponível (Para Compras)
                     </h2>
-                    <p className="text-5xl font-black tracking-tighter">AOA {balance.toLocaleString()}</p>
+                    <p className="text-5xl font-black tracking-tighter">{formatMoney(balance, preferredCurrency)}</p>
                   </div>
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="p-6 bg-green-50 rounded-2xl border border-green-100">
@@ -216,15 +260,15 @@ function DashboardContent() {
                         <p className="text-xs font-bold uppercase tracking-widest">Ganhos (A Levantar)</p>
                       </div>
                       <p className="text-2xl font-black text-green-700">
-                        AOA {
+                        {formatMoney(
                           (() => {
-                            const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0);
-                            const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0);
-                            const unspentDeposits = Math.max(0, totalDeposits - totalPurchases);
-                            const withdrawable = Math.max(0, balance - unspentDeposits);
-                            return withdrawable.toLocaleString();
-                          })()
-                        }
+                            const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
+                            const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
+                            const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
+                            return Math.max(0, balance - unspentDeposits)
+                          })(),
+                          preferredCurrency
+                        )}
                       </p>
                     </div>
                     <div className="p-6 bg-red-50 rounded-2xl border border-red-100">
@@ -232,10 +276,23 @@ function DashboardContent() {
                         <ArrowUpRight size={20} />
                         <p className="text-xs font-bold uppercase tracking-widest">Despesas</p>
                       </div>
-                      <p className="text-2xl font-black text-red-700">AOA {transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0).toLocaleString()}</p>
+                      <p className="text-2xl font-black text-red-700">
+                        {formatMoney(
+                          transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0),
+                          preferredCurrency
+                        )}
+                      </p>
                     </div>
                   </div>
                 </div>
+              ) : view === 'payment-settings' ? (
+                user && (
+                  <WalletPreferences
+                    profile={userProfile}
+                    userId={user.id}
+                    onSaved={() => reloadProfile(user.id)}
+                  />
+                )
               ) : view === 'deposit' ? (
                 <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
                   <div className="p-6 border-b border-border">
@@ -259,19 +316,32 @@ function DashboardContent() {
                       <div className="text-center">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Pagamento seguro via Flutterwave</p>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">AOA</span>
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">
+                            {currencyOpt.symbol}
+                          </span>
                           <input
                             type="number"
-                            min={100}
-                            placeholder="Mínimo 100"
+                            min={minDeposit}
+                            placeholder={`Mín. ${minDeposit}`}
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-16 pr-6 outline-none focus:border-accent text-2xl font-black text-center"
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
                           />
                         </div>
+                        <p className="text-[10px] text-gray-400 mt-2">
+                          Moeda: <strong>{preferredCurrency}</strong> (definida pelo país em{' '}
+                          <button
+                            type="button"
+                            onClick={() => router.push('/dashboard?mode=wallet&view=payment-settings')}
+                            className="text-accent font-bold hover:underline"
+                          >
+                            Moeda e Banco
+                          </button>
+                          )
+                        </p>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['1000', '2500', '5000', '10000'].map((val) => (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {depositPresets.map((val) => (
                           <button
                             key={val}
                             type="button"
@@ -302,44 +372,80 @@ function DashboardContent() {
                     <h2 className="text-xl font-bold flex items-center gap-2">
                       <Banknote className="text-orange-600" /> Levantamento de Dinheiro
                     </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Saques para Angola, Brasil e Moçambique ({preferredCurrency}). O valor será
+                      creditado na conta bancária configurada em Moeda e Banco.
+                    </p>
                   </div>
                   <div className="p-8">
                     <div className="max-w-md mx-auto space-y-6">
                       <div className="bg-gray-50 p-4 rounded-xl border border-border flex justify-between items-center">
                         <span className="text-sm text-gray-500">Saldo Disponível</span>
-                        <span className="font-bold text-gray-900">AOA {balance.toLocaleString()}</span>
+                        <span className="font-bold text-gray-900">{formatMoney(balance, preferredCurrency)}</span>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Valor a Levantar</label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          className="w-full bg-gray-50 border border-border rounded-xl py-3 px-4 outline-none focus:border-accent font-bold"
-                          value={withdrawAmount}
-                          onChange={(e) => setWithdrawAmount(e.target.value)}
-                        />
-                      </div>
+                      {!bankComplete ? (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
+                          <p className="font-bold mb-1">Dados bancários em falta</p>
+                          <p className="text-xs mb-3">
+                            Guarda o teu nome, banco e IBAN/conta em Moeda e Banco antes de solicitar levantamento.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => router.push('/dashboard?mode=wallet&view=payment-settings')}
+                            className="text-xs font-bold text-accent hover:underline"
+                          >
+                            Configurar agora →
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-white border border-border rounded-xl space-y-1">
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <Building2 size={14} /> Conta de recebimento
+                          </p>
+                          {formatBankSummary(withdrawalCountry, bankDetails).map((line) => (
+                            <p key={line} className="text-sm text-gray-800">{line}</p>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => router.push('/dashboard?mode=wallet&view=payment-settings')}
+                            className="text-xs font-bold text-accent mt-2 hover:underline"
+                          >
+                            Editar dados bancários
+                          </button>
+                        </div>
+                      )}
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">IBAN / Coordenadas Multicaixa Express</label>
-                        <textarea
-                          placeholder="Insira os dados da conta para recepção do valor..."
-                          className="w-full bg-gray-50 border border-border rounded-xl py-3 px-4 outline-none focus:border-accent text-sm min-h-[100px]"
-                          value={bankDetails}
-                          onChange={(e) => setBankDetails(e.target.value)}
-                        />
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                          Valor a levantar ({preferredCurrency})
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
+                            {currencyOpt.symbol}
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            min={0}
+                            className="w-full bg-gray-50 border border-border rounded-xl py-3 pl-14 pr-4 outline-none focus:border-accent font-bold"
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                          />
+                        </div>
                       </div>
 
                       <button 
                         onClick={handleWithdraw}
-                        disabled={isProcessing || !withdrawAmount || !bankDetails}
-                        className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+                        disabled={isProcessing || !withdrawAmount || !bankComplete}
+                        className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-orange-100 flex items-center justify-center gap-2 disabled:opacity-40"
                       >
                         {isProcessing ? <Loader2 className="animate-spin" /> : <Send size={18} />}
                         Solicitar Levantamento
                       </button>
-                      <p className="text-[10px] text-center text-gray-400">O processamento do levantamento pode levar até 24h úteis.</p>
+                      <p className="text-[10px] text-center text-gray-400">
+                        Processamento em até 24h úteis. País: {getCountryByCode(withdrawalCountry)?.name}.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -367,7 +473,8 @@ function DashboardContent() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className={`font-bold text-sm ${t.type === 'deposit' || t.type === 'earnings' ? 'text-green-600' : 'text-red-600'}`}>
-                              {t.type === 'deposit' || t.type === 'earnings' ? '+' : '-'} AOA {t.amount.toLocaleString()}
+                              {t.type === 'deposit' || t.type === 'earnings' ? '+' : '-'}{' '}
+                              {formatMoney(Number(t.amount), preferredCurrency)}
                             </p>
                             <p className="text-[9px] uppercase font-black text-gray-400 tracking-tighter">{t.status}</p>
                           </div>

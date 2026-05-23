@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { markUserHasDeposited } from '@/lib/free-tier'
+import { syncProfileBalance } from '@/lib/sync-balance'
 
 function verifyLinkPagaWebhook(rawBody: string, headerSignature: string | null, headerTimestamp: string | null, secret: string) {
   if (!headerSignature || !headerTimestamp) return false;
@@ -142,6 +143,7 @@ export async function POST(req: Request) {
       }
 
       await markUserHasDeposited(supabase, profile.id)
+      await syncProfileBalance(supabase, profile.id)
 
       console.log(`Successfully credited ${amount} to user ${clientEmail} (ID: ${profile.id}) from tx ${transactionId}`);
       

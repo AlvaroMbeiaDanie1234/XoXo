@@ -77,7 +77,7 @@ export async function initializeFlutterwavePayment(params: {
       },
       customizations: {
         title: 'XoXo — Carregar Carteira',
-        description: `Depósito de ${params.amount.toLocaleString()} AOA`,
+        description: `Depósito de ${params.amount.toLocaleString()} ${params.currency || 'AOA'}`,
         logo: '',
       },
       meta: {

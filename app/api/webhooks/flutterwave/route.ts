@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getFlutterwaveKeys, verifyFlutterwaveTransaction } from '@/lib/flutterwave'
 import { markUserHasDeposited } from '@/lib/free-tier'
+import { syncProfileBalance } from '@/lib/sync-balance'
 
 export async function POST(req: Request) {
   try {
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
       }
 
       await markUserHasDeposited(supabase, userId)
+      await syncProfileBalance(supabase, userId)
       console.log(`[Flutterwave Webhook] Credited AOA ${verified.amount} to ${userId}`)
     }
 

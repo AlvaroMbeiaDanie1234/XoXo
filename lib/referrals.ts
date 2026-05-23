@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { syncProfileBalance } from '@/lib/sync-balance'
 
 export function buildReferralCode(userId: string): string {
   return userId.replace(/-/g, '').slice(0, 10).toUpperCase()
@@ -147,6 +148,8 @@ export async function processReferralBonus(
     console.error('[Referrals] Erro ao creditar bónus:', txError)
     throw txError
   }
+
+  await syncProfileBalance(supabaseAdmin, referredById)
 
   const { error: refError } = await supabaseAdmin.from('referrals').insert({
     referrer_id: referredById,

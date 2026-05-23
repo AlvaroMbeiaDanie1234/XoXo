@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getFlutterwaveKeys, initializeFlutterwavePayment } from '@/lib/flutterwave'
+import { flutterwaveCurrency, minDepositForCurrency, resolveProfileCurrency } from '@/lib/wallet'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,17 +15,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
 
-    const { amount } = await request.json()
+    const { amount, currency: bodyCurrency } = await request.json()
     const depositAmount = Number(amount)
 
-    if (!depositAmount || depositAmount < 100) {
+    const supabaseAdmin = createAdminClient()
+
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('display_name, email, preferred_currency')
+      .eq('id', user.id)
+      .single()
+
+    const currency = flutterwaveCurrency(
+      bodyCurrency || resolveProfileCurrency(profile)
+    )
+    const minDeposit = minDepositForCurrency(currency)
+
+    if (!depositAmount || depositAmount < minDeposit) {
       return NextResponse.json(
-        { error: 'O valor mínimo de depósito é AOA 100' },
+        { error: `O valor mínimo de depósito é ${minDeposit} ${currency}` },
         { status: 400 }
       )
     }
 
-    const supabaseAdmin = createAdminClient()
     const keys = await getFlutterwaveKeys(supabaseAdmin)
 
     if (!keys) {
@@ -34,12 +47,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('display_name, email')
-      .eq('id', user.id)
-      .single()
-
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin
     const txRef = `xoxo-${user.id.slice(0, 8)}-${Date.now()}`
 
@@ -47,6 +54,7 @@ export async function POST(request: NextRequest) {
       secretKey: keys.secretKey,
       txRef,
       amount: depositAmount,
+      currency,
       email: profile?.email || user.email || '',
       name: profile?.display_name || user.email?.split('@')[0] || 'Utilizador',
       redirectUrl: `${baseUrl}/dashboard?mode=wallet&view=deposit&status=success`,

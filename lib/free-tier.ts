@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const FREE_TIER_LIMIT = 3
 
-const ADMIN_EMAILS = ['admin.xoxo@gmail.com', 'superadmin.xoxo@gmail.com']
+import { isAdminEmail } from '@/lib/admin-emails'
 
 export type FreeTierAction = 'post' | 'message' | 'comment'
 
@@ -15,10 +15,6 @@ export interface FreeTierStatus {
   messagesRemaining: number
   commentsRemaining: number
   limit: number
-}
-
-export function isAdminEmail(email?: string | null): boolean {
-  return !!email && ADMIN_EMAILS.includes(email.toLowerCase())
 }
 
 export async function userHasDeposited(

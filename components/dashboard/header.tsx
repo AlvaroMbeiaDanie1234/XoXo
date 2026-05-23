@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import DepositModal from './deposit-modal'
 import UsersPanel from './users-panel'
+import ProfileSetupBanner from './profile-setup-banner'
+import { isAdminEmail } from '@/lib/admin-emails'
+import { formatMoney, resolveProfileCurrency } from '@/lib/wallet'
 
 interface HeaderProps {
   user: any
@@ -32,13 +35,16 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const supabase = createClient()
 
   const [displayName, setDisplayName] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [phone, setPhone] = useState<string | null>(null)
+  const [preferredCurrency, setPreferredCurrency] = useState('AOA')
 
   
 
   const loadBalance = async () => {
     if (!user) return
     try {
-      const { data, error } = await supabase.from('profiles').select('balance, display_name').eq('id', user.id).single()
+      const { data, error } = await supabase.from('profiles').select('balance, display_name, avatar_url, phone, preferred_currency, withdrawal_country').eq('id', user.id).single()
       if (error) {
         console.error("XoXo Header: Error loading balance from profiles:", error)
       }
@@ -46,6 +52,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
         const val = Number(data.balance);
         setBalance(isNaN(val) ? 0 : val)
         setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+        setAvatarUrl(data.avatar_url || null)
+        setPhone(data.phone || null)
+        setPreferredCurrency(resolveProfileCurrency(data))
       }
     } catch (err) {
       console.error("XoXo Header: Exception loading balance:", err)
@@ -125,10 +134,12 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     }
 
     window.addEventListener('balanceUpdated', handleBalanceUpdate)
+    window.addEventListener('profileUpdated', loadBalance)
     document.addEventListener('mousedown', handleClickOutside)
 
     return () => {
       window.removeEventListener('balanceUpdated', handleBalanceUpdate)
+      window.removeEventListener('profileUpdated', loadBalance)
       document.removeEventListener('mousedown', handleClickOutside)
       supabase.removeChannel(profileChannel)
       supabase.removeChannel(txnChannel)
@@ -155,7 +166,13 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     alert(newLang === 'PT' ? 'Idioma alterado para Português!' : 'Language changed to English!')
   }
 
+  const showProfileSetup =
+    user &&
+    !isAdminEmail(user.email) &&
+    (!avatarUrl?.trim() || !phone?.trim())
+
   return (
+    <>
     <div className="sticky top-0 z-40 bg-white border-b border-border shadow-sm w-full">
       <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -269,7 +286,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               >
                 <div className="hidden sm:block text-right">
                   <p className="text-xs font-bold text-foreground">{displayName}</p>
-                  <p className="text-[10px] font-bold text-accent">AOA {balance.toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-accent">{formatMoney(balance, preferredCurrency)}</p>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs shadow-md">
                   {displayName.charAt(0).toUpperCase()}
@@ -283,7 +300,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                     <p className="text-[10px] text-muted-foreground truncate mb-2">{user.email}</p>
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Saldo Disponível</p>
-                      <p className="text-sm font-black text-accent">AOA {balance.toLocaleString()}</p>
+                      <p className="text-sm font-black text-accent">{formatMoney(balance, preferredCurrency)}</p>
                     </div>
                   </div>
                   <div className="p-2">
@@ -323,5 +340,12 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
         required={depositRequired}
       />
     </div>
+    {showProfileSetup && (
+      <ProfileSetupBanner
+        missingAvatar={!avatarUrl?.trim()}
+        missingPhone={!phone?.trim()}
+      />
+    )}
+    </>
   )
 }

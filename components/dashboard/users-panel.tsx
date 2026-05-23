@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Search, CheckCircle, Users, X, ArrowRight, Loader2 } from 'lucide-react'
+import { isAdminEmail } from '@/lib/admin-emails'
 
 interface UserProfile {
   id: string
@@ -38,13 +39,14 @@ export default function UsersPanel({ isOpen, onClose }: UsersPanelProps) {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, display_name, email, avatar_url, bio')
-          .not('email', 'in', '("admin.xoxo@gmail.com","superadmin.xoxo@gmail.com")')
-          .limit(20)
+          .select('id, display_name, email, avatar_url, bio, is_verified')
+          .order('created_at', { ascending: false })
+          .limit(80)
 
         if (!error && data) {
-          setUsers(data)
-          setFilteredUsers(data)
+          const filtered = data.filter((p) => !isAdminEmail(p.email))
+          setUsers(filtered)
+          setFilteredUsers(filtered)
         }
       } catch (err) {
         console.error('Erro ao carregar utilizadores:', err)

@@ -91,35 +91,21 @@ export default function AdminUserDetailPage() {
     setCrediting(true)
     try {
         const amount = parseFloat(creditAmount)
-        // Insert deposit transaction
-        const { error: txnError, data: insertedTxn } = await supabase.from('transactions').insert({
-          user_id: id,
-          amount: amount,
-          type: 'deposit',
-          status: 'completed',
-          description: creditDescription || 'Carregamento administrativo de saldo',
-        }).select('id')
 
-        if (txnError) throw txnError
+        const res = await fetch('/api/admin/credit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: id,
+            amount,
+            description: creditDescription || 'Carregamento administrativo de saldo',
+          }),
+        })
 
-        // Fetch the CURRENT balance from DB to avoid race conditions / string concatenation bugs
-        const { data: freshProfile, error: fetchErr } = await supabase
-          .from('profiles')
-          .select('balance')
-          .eq('id', id)
-          .single()
-        if (fetchErr) throw fetchErr
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Erro ao creditar')
 
-        const currentBalance = Number(freshProfile?.balance) || 0
-        const newBalance = currentBalance + amount
-
-        const { error: balError } = await supabase
-          .from('profiles')
-          .update({ balance: newBalance })
-          .eq('id', id)
-        if (balError) throw balError
-
-        // Update local state
+        const newBalance = Number(data.balance) || 0
         setProfile((prev: any) => ({ ...prev, balance: newBalance }))
 
         // Load notifications (real‑time subscription will also catch the insert)
