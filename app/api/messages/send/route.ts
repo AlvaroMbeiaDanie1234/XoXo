@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { receiver_id, content } = await request.json()
+    const { receiver_id, content, file_url, file_name, file_type } = await request.json()
 
-    if (!receiver_id || !content?.trim()) {
+    if (!receiver_id || (!content?.trim() && !file_url)) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
     }
 
@@ -35,11 +35,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabaseAdmin.from('messages').insert({
+    const insertData: Record<string, string> = {
       sender_id: user.id,
       receiver_id,
-      content: content.trim(),
-    }).select().single()
+      content: (content || '').trim(),
+    }
+    if (file_url) insertData.file_url = file_url
+    if (file_name) insertData.file_name = file_name
+    if (file_type) insertData.file_type = file_type
+
+    const { data, error } = await supabaseAdmin.from('messages').insert(insertData).select().single()
 
     if (error) throw error
 

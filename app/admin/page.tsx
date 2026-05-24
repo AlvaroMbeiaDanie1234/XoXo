@@ -56,6 +56,13 @@ export default function AdminDashboard() {
   // SMS global suspension state
   const [smsSuspendedGlobal, setSmsSuspendedGlobal] = useState(false)
 
+  // SMS Marketing states
+  const [smsMessage, setSmsMessage] = useState('')
+  const [smsTargetMode, setSmsTargetMode] = useState<'all' | 'selected'>('all')
+  const [smsSelectedUsers, setSmsSelectedUsers] = useState<string[]>([])
+  const [sendingSms, setSendingSms] = useState(false)
+  const [smsResults, setSmsResults] = useState<{ sent: number; failed: number; total: number } | null>(null)
+
   // Dynamic Env Variables States
   const [supabaseUrl, setSupabaseUrl] = useState('')
   const [supabaseAnonKey, setSupabaseAnonKey] = useState('')
@@ -562,6 +569,47 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleSendBulkSms = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!smsMessage.trim()) {
+      toast({ title: 'Mensagem vazia', description: 'Escreve a mensagem SMS.', variant: 'destructive' })
+      return
+    }
+    setSendingSms(true)
+    setSmsResults(null)
+    try {
+      const payload: { message: string; userIds?: string[] } = { message: smsMessage.trim() }
+      if (smsTargetMode === 'selected' && smsSelectedUsers.length > 0) {
+        payload.userIds = smsSelectedUsers
+      }
+      const res = await fetch('/api/sms/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar SMS')
+      setSmsResults({ sent: data.sent, failed: data.failed, total: data.total })
+      toast({
+        title: 'SMS Enviados',
+        description: `${data.sent} enviados, ${data.failed} falhados de ${data.total} total.`,
+      })
+      setSmsMessage('')
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar SMS', description: err.message, variant: 'destructive' })
+    } finally {
+      setSendingSms(false)
+    }
+  }
+
+  const usersWithPhone = users.filter(u => u.phone?.trim())
+
+  const toggleSmsUser = (userId: string) => {
+    setSmsSelectedUsers(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    )
+  }
+
   const handleWithdrawProfit = async (e: React.FormEvent) => {
     e.preventDefault()
     const amount = Number(withdrawProfitAmount)
@@ -980,6 +1028,8 @@ export default function AdminDashboard() {
                     <tr>
                       <th className="px-6 py-4 font-bold">Utilizador</th>
                       <th className="px-6 py-4 font-bold">Email</th>
+                      <th className="px-6 py-4 font-bold">Telefone</th>
+                      <th className="px-6 py-4 font-bold">Registo</th>
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
@@ -997,6 +1047,8 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-500">{u.email}</td>
+                        <td className="px-6 py-4 text-gray-500 text-xs">{u.phone || <span className="text-gray-300">—</span>}</td>
+                        <td className="px-6 py-4 text-gray-500 text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                         <td className="px-6 py-4 font-black text-accent text-lg">AOA {u.balance?.toLocaleString() || 0}</td>
                         <td className="px-6 py-4">
                           <button
@@ -1294,6 +1346,85 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+              </div>
+
+              {/* SMS Marketing Section */}
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden p-6">
+                <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2 text-accent">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12 19.79 19.79 0 0 1 1.21 3.15 2 2 0 0 1 3.22 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
+                  SMS Marketing em Massa
+                </h3>
+                <p className="text-xs text-gray-400 mb-4">Enviar SMS para utilizadores com número de telefone registado ({usersWithPhone.length} utilizadores elegíveis).</p>
+
+                <form onSubmit={handleSendBulkSms} className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Destinatários</label>
+                    <select
+                      value={smsTargetMode}
+                      onChange={(e) => {
+                        setSmsTargetMode(e.target.value as 'all' | 'selected')
+                        if (e.target.value === 'all') setSmsSelectedUsers([])
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl font-medium outline-none focus:border-accent text-sm"
+                    >
+                      <option value="all">Todos com telefone ({usersWithPhone.length})</option>
+                      <option value="selected">Seleccionar utilizadores</option>
+                    </select>
+                  </div>
+
+                  {smsTargetMode === 'selected' && (
+                    <div className="max-h-48 overflow-y-auto border border-border rounded-xl divide-y divide-gray-50">
+                      {usersWithPhone.length === 0 ? (
+                        <p className="p-4 text-xs text-gray-400 text-center">Nenhum utilizador com telefone.</p>
+                      ) : (
+                        usersWithPhone.map(u => (
+                          <label key={u.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={smsSelectedUsers.includes(u.id)}
+                              onChange={() => toggleSmsUser(u.id)}
+                              className="rounded border-gray-300 text-accent focus:ring-accent"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 truncate">{u.display_name || u.email}</p>
+                              <p className="text-[10px] text-gray-400">{u.phone}</p>
+                            </div>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Mensagem SMS</label>
+                    <textarea
+                      rows={3}
+                      value={smsMessage}
+                      onChange={(e) => setSmsMessage(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl font-medium outline-none focus:border-accent text-sm"
+                      placeholder="Escreve a mensagem SMS..."
+                      maxLength={160}
+                    />
+                    <p className="text-[9px] text-gray-400 mt-1">{smsMessage.length}/160 caracteres</p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={sendingSms || !smsMessage.trim() || (smsTargetMode === 'selected' && smsSelectedUsers.length === 0)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    {sendingSms ? 'A enviar...' : `Enviar SMS${smsTargetMode === 'selected' ? ` (${smsSelectedUsers.length})` : ` para todos (${usersWithPhone.length})`}`}
+                  </button>
+
+                  {smsResults && (
+                    <div className="p-3 bg-gray-50 border border-border rounded-xl text-xs space-y-1">
+                      <p className="font-bold text-gray-700">Resultado do envio:</p>
+                      <p className="text-green-600">Enviados: {smsResults.sent}</p>
+                      <p className="text-red-500">Falhados: {smsResults.failed}</p>
+                      <p className="text-gray-500">Total: {smsResults.total}</p>
+                    </div>
+                  )}
+                </form>
               </div>
             </div>
           )}
