@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   const [transactionFeePercent, setTransactionFeePercent] = useState('10') // Default 10%
   const [referralBonusAmount, setReferralBonusAmount] = useState('5000') // Default 5000 AOA
   const [welcomeBonusAmount, setWelcomeBonusAmount] = useState('1500') // Default 1500 AOA
+  const [freeTierMessageLimit, setFreeTierMessageLimit] = useState('3') // Default 3
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [financialResetPhrase, setFinancialResetPhrase] = useState('')
@@ -269,6 +270,9 @@ export default function AdminDashboard() {
         const welcomeSetting = settings.find(s => s.key === 'welcome_bonus_amount')
         if (welcomeSetting) setWelcomeBonusAmount(welcomeSetting.value)
 
+        const freeTierSetting = settings.find(s => s.key === 'free_tier_message_limit')
+        if (freeTierSetting) setFreeTierMessageLimit(freeTierSetting.value)
+
         // Load Connectivity variables
         const findVal = (k: string) => settings.find(s => s.key === k)?.value || ''
         setSupabaseUrl(findVal('NEXT_PUBLIC_SUPABASE_URL'))
@@ -320,6 +324,7 @@ export default function AdminDashboard() {
         { key: 'transaction_fee_percent', value: transactionFeePercent },
         { key: 'referral_bonus_amount', value: referralBonusAmount },
         { key: 'welcome_bonus_amount', value: welcomeBonusAmount },
+        { key: 'free_tier_message_limit', value: freeTierMessageLimit },
         
         { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
         { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
@@ -1398,7 +1403,22 @@ export default function AdminDashboard() {
                           min="0"
                         />
                         <p className="text-[9px] text-gray-400 mt-2 leading-snug">
-                          Saldo inicial creditado quando o utilizador confirma o e-mail (primeira vez).
+                          Saldo inicial creditado quando o utilizador confirma o e-mail (primeira vez). Pode ser usado para qualquer actividade quando as mensagens grátis terminam.
+                        </p>
+                      </div>
+                      {/* Card 6: Limite de Mensagens Grátis */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Mensagens Grátis (Limite)</label>
+                        <input
+                          type="number"
+                          value={freeTierMessageLimit}
+                          onChange={(e) => setFreeTierMessageLimit(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="3"
+                          min="1"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Número de mensagens/posts/comentários grátis para utilizadores que ainda não fizeram depósito.
                         </p>
                       </div>
                     </div>

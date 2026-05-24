@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export const FREE_TIER_LIMIT = 3
-
 import { isAdminEmail } from '@/lib/admin-emails'
+
+const DEFAULT_FREE_TIER_LIMIT = 3
 
 export type FreeTierAction = 'post' | 'message' | 'comment'
 
@@ -15,6 +15,21 @@ export interface FreeTierStatus {
   messagesRemaining: number
   commentsRemaining: number
   limit: number
+  balance: number
+  canUseBonusCredit: boolean
+}
+
+export async function getFreeTierLimit(
+  supabaseAdmin: SupabaseClient
+): Promise<number> {
+  const { data } = await supabaseAdmin
+    .from('system_settings')
+    .select('value')
+    .eq('key', 'free_tier_message_limit')
+    .maybeSingle()
+
+  const limit = Number(data?.value ?? DEFAULT_FREE_TIER_LIMIT)
+  return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_FREE_TIER_LIMIT
 }
 
 export async function userHasDeposited(
@@ -41,6 +56,20 @@ export async function userHasDeposited(
     .or('description.ilike.Depósito Flutterwave%,description.ilike.Depósito LinkPaga%')
 
   return (count ?? 0) > 0
+}
+
+export async function getUserBalance(
+  supabaseAdmin: SupabaseClient,
+  userId: string
+): Promise<number> {
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('balance')
+    .eq('id', userId)
+    .maybeSingle()
+
+  const balance = Number(profile?.balance ?? 0)
+  return Number.isFinite(balance) ? balance : 0
 }
 
 export async function getFreeTierUsage(
@@ -74,11 +103,20 @@ export async function getFreeTierStatus(
   userId: string,
   userEmail?: string | null
 ): Promise<FreeTierStatus> {
-  const hasDeposited = await userHasDeposited(supabaseAdmin, userId, userEmail)
-  const usage = await getFreeTierUsage(supabaseAdmin, userId)
+  const [hasDeposited, usage, limit, balance] = await Promise.all([
+    userHasDeposited(supabaseAdmin, userId, userEmail),
+    getFreeTierUsage(supabaseAdmin, userId),
+    getFreeTierLimit(supabaseAdmin),
+    getUserBalance(supabaseAdmin, userId),
+  ])
 
   const remaining = (used: number) =>
-    hasDeposited ? FREE_TIER_LIMIT : Math.max(0, FREE_TIER_LIMIT - used)
+    hasDeposited ? limit : Math.max(0, limit - used)
+
+  const freeExhausted = !hasDeposited && (
+    usage.posts >= limit || usage.messages >= limit || usage.comments >= limit
+  )
+  const canUseBonusCredit = freeExhausted && balance > 0
 
   return {
     hasDeposited,
@@ -88,7 +126,9 @@ export async function getFreeTierStatus(
     postsRemaining: remaining(usage.posts),
     messagesRemaining: remaining(usage.messages),
     commentsRemaining: remaining(usage.comments),
-    limit: FREE_TIER_LIMIT,
+    limit,
+    balance,
+    canUseBonusCredit,
   }
 }
 
@@ -104,7 +144,7 @@ export async function assertFreeTierAction(
   const status = await getFreeTierStatus(supabaseAdmin, userId, userEmail)
 
   if (status.hasDeposited) {
-    return { ok: true, remaining: FREE_TIER_LIMIT }
+    return { ok: true, remaining: status.limit }
   }
 
   const used =
@@ -114,7 +154,11 @@ export async function assertFreeTierAction(
         ? status.messagesUsed
         : status.commentsUsed
 
-  if (used >= FREE_TIER_LIMIT) {
+  if (used >= status.limit) {
+    if (status.balance > 0) {
+      return { ok: true, remaining: 0 }
+    }
+
     const labels = {
       post: 'publicações',
       message: 'mensagens',
@@ -123,12 +167,12 @@ export async function assertFreeTierAction(
     return {
       ok: false,
       error: 'DEPOSIT_REQUIRED',
-      message: `Atingiste o limite de ${FREE_TIER_LIMIT} ${labels[action]} gratuitas. Realiza um depósito para continuar.`,
+      message: `Atingiste o limite de ${status.limit} ${labels[action]} gratuitas. Realiza um depósito para continuar.`,
       status,
     }
   }
 
-  return { ok: true, remaining: FREE_TIER_LIMIT - used - 1 }
+  return { ok: true, remaining: status.limit - used - 1 }
 }
 
 export async function markUserHasDeposited(
