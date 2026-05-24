@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Search, CheckCircle, Users, X, ArrowRight, Loader2 } from 'lucide-react'
 import { isAdminEmail } from '@/lib/admin-emails'
+import { useOnlinePresence } from '@/hooks/use-online-presence'
 
 interface UserProfile {
   id: string
@@ -18,9 +19,10 @@ interface UserProfile {
 interface UsersPanelProps {
   isOpen: boolean
   onClose: () => void
+  currentUserId?: string | null
 }
 
-export default function UsersPanel({ isOpen, onClose }: UsersPanelProps) {
+export default function UsersPanel({ isOpen, onClose, currentUserId }: UsersPanelProps) {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -29,6 +31,7 @@ export default function UsersPanel({ isOpen, onClose }: UsersPanelProps) {
   const supabase = createClient()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null);
+  const { isOnline } = useOnlinePresence(currentUserId ?? null)
 
   // Fetch all users on open
   useEffect(() => {
@@ -162,8 +165,9 @@ export default function UsersPanel({ isOpen, onClose }: UsersPanelProps) {
                       />
                     </div>
                   )}
-                  {/* Online indicator (decorative) */}
-                  <div className="absolute top-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+                  {isOnline(user.id) && (
+                    <div className="absolute top-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+                  )}
                 </div>
 
                 {/* Info */}

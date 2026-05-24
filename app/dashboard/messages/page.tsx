@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck } from 'lucide-react'
+import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react'
+import { useOnlinePresence } from '@/hooks/use-online-presence'
 
 function MessagesContent() {
   const [contacts, setContacts] = useState<any[]>([])
@@ -29,6 +30,10 @@ function MessagesContent() {
   const targetUserId = searchParams.get('user')
   const supabase = createClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const { isOnline } = useOnlinePresence(user?.id ?? null)
 
   useEffect(() => {
     async function loadData() {
@@ -164,18 +169,59 @@ function MessagesContent() {
     if (data) setMessages(data)
   }
 
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const ext = file.name.split('.').pop() || 'bin'
+    const filePath = `messages/${user.id}/${Date.now()}.${ext}`
+
+    const urlRes = await fetch('/api/storage/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath }),
+    })
+    if (!urlRes.ok) return null
+    const { data: urlData } = await urlRes.json()
+
+    const { error: uploadError } = await supabase.storage
+      .from('media')
+      .uploadToSignedUrl(filePath, urlData.token, file)
+    if (uploadError) return null
+
+    const { data: publicUrlData } = supabase.storage.from('media').getPublicUrl(filePath)
+    return publicUrlData.publicUrl
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMessage.trim() || !selectedContact || !user) return
+    if ((!newMessage.trim() && !selectedFile) || !selectedContact || !user) return
 
+    let fileUrl: string | null = null
+    let fileName: string | null = null
+    let fileType: string | null = null
+
+    if (selectedFile) {
+      setUploadingFile(true)
+      fileUrl = await uploadFile(selectedFile)
+      fileName = selectedFile.name
+      fileType = selectedFile.type
+      setUploadingFile(false)
+      if (!fileUrl) {
+        alert('Erro ao enviar ficheiro. Tenta novamente.')
+        return
+      }
+      setSelectedFile(null)
+    }
+
+    const contentToSend = newMessage.trim()
     const messageObj = {
       sender_id: user.id,
       receiver_id: selectedContact.id,
-      content: newMessage.trim(),
+      content: contentToSend || (fileName ? `[Ficheiro: ${fileName}]` : ''),
+      file_url: fileUrl,
+      file_name: fileName,
+      file_type: fileType,
     }
 
     setMessages([...messages, { ...messageObj, created_at: new Date().toISOString(), id: 'temp' }])
-    const contentToSend = newMessage.trim()
     setNewMessage('')
 
     const res = await fetch('/api/messages/send', {
@@ -183,7 +229,10 @@ function MessagesContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         receiver_id: selectedContact.id,
-        content: contentToSend,
+        content: contentToSend || (fileName ? `[Ficheiro: ${fileName}]` : ''),
+        file_url: fileUrl,
+        file_name: fileName,
+        file_type: fileType,
       }),
     })
 
@@ -238,8 +287,13 @@ function MessagesContent() {
                   onClick={() => setSelectedContact(contact)}
                   className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 ${selectedContact?.id === contact.id ? 'bg-accent/5 border-l-4 border-l-accent' : ''}`}
                 >
-                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden shadow-sm">
-                    {contact.avatar_url ? <img src={contact.avatar_url} className="w-full h-full object-cover" /> : contact.display_name?.charAt(0)}
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden shadow-sm">
+                      {contact.avatar_url ? <img src={contact.avatar_url} className="w-full h-full object-cover" /> : contact.display_name?.charAt(0)}
+                    </div>
+                    {isOnline(contact.id) && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+                    )}
                   </div>
                   <div className="text-left overflow-hidden flex-1">
                     <p className="font-bold text-gray-900 truncate">{contact.display_name}</p>
@@ -269,7 +323,7 @@ function MessagesContent() {
                   </div>
                   <div>
                     <p className="font-bold text-gray-900">{selectedContact.display_name}</p>
-                    <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Online agora</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isOnline(selectedContact.id) ? 'text-green-500' : 'text-gray-400'}`}>{isOnline(selectedContact.id) ? 'Online agora' : 'Offline'}</p>
                   </div>
                 </div>
               </div>
@@ -285,7 +339,28 @@ function MessagesContent() {
                           ? 'bg-accent text-white rounded-tr-none' 
                           : 'bg-white text-gray-900 rounded-tl-none border border-gray-100'
                       }`}>
-                        <p className="leading-relaxed">{msg.content}</p>
+                        {msg.file_url && (
+                          <div className="mb-1">
+                            {msg.file_type?.startsWith('image/') ? (
+                              <a href={msg.file_url} target="_blank" rel="noopener noreferrer">
+                                <img src={msg.file_url} alt={msg.file_name || 'Imagem'} className="max-w-full rounded-lg max-h-48 object-cover" />
+                              </a>
+                            ) : (
+                              <a
+                                href={msg.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${isMine ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-100 hover:bg-gray-200'}`}
+                              >
+                                <FileText size={16} />
+                                {msg.file_name || 'Ficheiro'}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        {msg.content && !msg.content.startsWith('[Ficheiro:') && (
+                          <p className="leading-relaxed">{msg.content}</p>
+                        )}
                         <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {isMine && (msg.is_read ? <CheckCheck size={12} /> : <Check size={12} />)}
@@ -319,7 +394,32 @@ function MessagesContent() {
                         {freeTierStatus.messagesRemaining} mensagem(ns) gratuita(s) restante(s) de {freeTierStatus.limit}
                       </div>
                     )}
+                    {selectedFile && (
+                      <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-xl">
+                        {selectedFile.type.startsWith('image/') ? <ImageIcon size={16} className="text-accent" /> : <FileText size={16} className="text-accent" />}
+                        <span className="text-xs text-gray-600 truncate flex-1">{selectedFile.name}</span>
+                        <button type="button" onClick={() => setSelectedFile(null)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                      </div>
+                    )}
                     <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) setSelectedFile(file)
+                          e.target.value = ''
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:text-accent hover:bg-gray-100 transition-colors"
+                        title="Anexar ficheiro"
+                      >
+                        <Paperclip size={20} />
+                      </button>
                       <input 
                         type="text" 
                         value={newMessage}
@@ -329,10 +429,10 @@ function MessagesContent() {
                       />
                       <button 
                         type="submit"
-                        disabled={!newMessage.trim()}
+                        disabled={(!newMessage.trim() && !selectedFile) || uploadingFile}
                         className="w-12 h-12 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:shadow-none"
                       >
-                        <Send size={20} className="ml-1" />
+                        {uploadingFile ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
                       </button>
                     </form>
                   </>
