@@ -20,6 +20,8 @@ function MessagesContent() {
     messagesRemaining: number
     messagesUsed: number
     limit: number
+    balance: number
+    canUseBonusCredit: boolean
   } | null>(null)
   const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>({})
   const searchParams = useSearchParams()
@@ -297,7 +299,7 @@ function MessagesContent() {
 
               {/* Message Input */}
               <div className="p-4 bg-white border-t border-border">
-                {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining <= 0 ? (
+                {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining <= 0 && !freeTierStatus.canUseBonusCredit ? (
                   <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
                     Atingiste o limite de {freeTierStatus.limit} mensagens gratuitas.{' '}
                     <a href="/dashboard?mode=wallet&view=deposit&required=1" className="underline font-bold hover:text-red-700">
@@ -307,7 +309,12 @@ function MessagesContent() {
                   </div>
                 ) : (
                   <>
-                    {freeTierStatus && !freeTierStatus.hasDeposited && (
+                    {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining <= 0 && freeTierStatus.canUseBonusCredit && (
+                      <div className="mb-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-[11px] text-amber-700 font-medium text-center">
+                        Mensagens gratuitas esgotadas — a utilizar saldo de bónus ({freeTierStatus.balance.toLocaleString()} AOA)
+                      </div>
+                    )}
+                    {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining > 0 && (
                       <div className="mb-2 px-3 py-1.5 bg-gray-100 rounded-full text-[11px] text-gray-500 font-medium text-center">
                         {freeTierStatus.messagesRemaining} mensagem(ns) gratuita(s) restante(s) de {freeTierStatus.limit}
                       </div>
