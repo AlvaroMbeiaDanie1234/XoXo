@@ -10,6 +10,7 @@ export default function SignupForm() {
   const [referralCode, setReferralCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -45,6 +46,14 @@ export default function SignupForm() {
 
       if (password.length < 6) {
         const msg = 'A senha deve ter no mínimo 6 caracteres'
+        console.log('[v0] SignupForm: validação falhou -', msg)
+        setMessage({ type: 'error', text: msg })
+        setLoading(false)
+        return
+      }
+
+      if (!acceptedTerms) {
+        const msg = 'Por favor, aceite os Termos de Uso e Política de Privacidade'
         console.log('[v0] SignupForm: validação falhou -', msg)
         setMessage({ type: 'error', text: msg })
         setLoading(false)
@@ -189,6 +198,22 @@ export default function SignupForm() {
           className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
         />
         <p className="text-xs text-muted-foreground mt-1">Mínimo 6 caracteres</p>
+      </div>
+
+      {/* Aceitação de Termos */}
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          id="acceptTerms"
+          checked={acceptedTerms}
+          onChange={(e) => setAcceptedTerms(e.target.checked)}
+          required
+          disabled={loading}
+          className="mt-1 w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+        />
+        <label htmlFor="acceptTerms" className="text-sm text-muted-foreground leading-tight">
+          Li e aceito os <a href="#" className="text-accent hover:underline">Termos de Uso</a> e a <a href="#" className="text-accent hover:underline">Política de Privacidade</a>
+        </label>
       </div>
 
       {/* Botão Criar Conta */}

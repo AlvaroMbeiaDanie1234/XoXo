@@ -7,6 +7,7 @@ import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users } from 'lucide-react'
 import { buildReferralCode } from '@/lib/referrals'
+import { useTheme } from 'next-themes'
 
 export default function EditProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -22,7 +23,7 @@ export default function EditProfilePage() {
   const [referralLink, setReferralLink] = useState('')
   const [copiedReferral, setCopiedReferral] = useState(false)
   const [balance, setBalance] = useState(0)
-  
+
   // Form fields
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
@@ -32,6 +33,7 @@ export default function EditProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const router = useRouter()
+  const { theme } = useTheme()
 
   const [isEditing, setIsEditing] = useState(false)
 
@@ -256,7 +258,7 @@ export default function EditProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-background'}`}>
         <Header user={user} />
         <div className="flex items-center justify-center pt-32">
           <Loader2 className="animate-spin text-accent" size={32} />
@@ -266,7 +268,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f2ef] pb-12">
+    <div className={`min-h-screen pb-12 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-[#f3f2ef]'}`}>
       <Header user={user} />
 
       <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4">
@@ -277,7 +279,7 @@ export default function EditProfilePage() {
 
         {/* Main Content (Center) */}
         <div className="flex-1 max-w-[550px] w-full">
-          <div className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
+          <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
             {/* Header / Cover */}
             <div className="h-32 bg-gradient-to-r from-accent to-purple-600 relative" />
             
@@ -294,26 +296,26 @@ export default function EditProfilePage() {
                   </div>
                 </div>
                 
-                <h1 className="text-2xl font-black text-gray-900 flex items-center justify-center gap-2">
+                <h1 className={`text-2xl font-black flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   {profile?.display_name || user?.email?.split('@')[0]}
                   {profile?.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500" />}
                 </h1>
-                
-                <p className="text-sm text-gray-500 mt-1">{user?.email}</p>
-                {profile?.phone && <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1"><Phone size={12}/> {profile.phone}</p>}
-                
-                <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100 text-left">
-                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                     {profile?.bio || <span className="text-gray-400 italic">Sem biografia. Adiciona uma descrição para que as pessoas te conheçam melhor.</span>}
+
+                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{user?.email}</p>
+                {profile?.phone && <p className={`text-xs mt-1 flex items-center justify-center gap-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}><Phone size={12}/> {profile.phone}</p>}
+
+                <div className={`mt-6 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
+                   <p className={`text-sm whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                     {profile?.bio || <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>Sem biografia. Adiciona uma descrição para que as pessoas te conheçam melhor.</span>}
                    </p>
                 </div>
 
                 {/* Referral Link Card */}
-                <div className="mt-4 p-4 rounded-xl border border-accent/20 bg-gradient-to-br from-accent/5 to-purple-50 text-left">
-                  <p className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-2">
+                <div className={`mt-4 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'border-accent/20 bg-gradient-to-br from-accent/5 to-purple-50'}`}>
+                  <p className={`text-sm font-bold flex items-center gap-2 mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                     <Link2 size={15} className="text-accent" /> Link de Referência
                   </p>
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className={`text-xs mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                     Partilha este link. Quando alguém se registar e ativar a conta, recebes{' '}
                     <strong className="text-accent">AOA {Number(referralBonusAmount).toLocaleString()}</strong> no teu saldo.
                   </p>
@@ -322,7 +324,7 @@ export default function EditProfilePage() {
                       type="text"
                       readOnly
                       value={referralLink}
-                      className="flex-1 px-3 py-2 text-xs bg-white border border-border rounded-lg font-mono text-gray-600 truncate"
+                      className={`flex-1 px-3 py-2 text-xs border rounded-lg font-mono truncate ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-gray-400' : 'bg-white border-border text-gray-600'}`}
                     />
                     <button
                       type="button"
@@ -333,16 +335,16 @@ export default function EditProfilePage() {
                       {copiedReferral ? 'Copiado!' : 'Copiar'}
                     </button>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                  <p className={`text-[10px] mt-2 flex items-center gap-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
                     <Users size={12} /> {referralCount} {referralCount === 1 ? 'pessoa referida' : 'pessoas referidas'}
                   </p>
                 </div>
 
                 {/* SMS Status Card */}
-                <div className="mt-4 p-4 rounded-xl border border-border bg-gray-50 text-left">
+                <div className={`mt-4 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      <p className={`text-sm font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                         <Phone size={15} className="text-accent" /> Notificações SMS
                       </p>
                       {!profile?.phone ? (
@@ -350,14 +352,14 @@ export default function EditProfilePage() {
                           ⚠️ Sem número de telefone. Edita o teu perfil para receber SMS.
                         </p>
                       ) : (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                           {profile?.sms_notifications_enabled !== false
                             ? `SMS ativos para ${profile.phone}`
                             : 'Notificações SMS desativadas por si.'}
                         </p>
                       )}
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${profile?.sms_notifications_enabled !== false && profile?.phone ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${profile?.sms_notifications_enabled !== false && profile?.phone ? 'bg-green-100 text-green-700' : theme === 'dark' ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>
                       {profile?.sms_notifications_enabled !== false && profile?.phone ? 'Ativo' : 'Inativo'}
                     </span>
                   </div>
@@ -401,8 +403,8 @@ export default function EditProfilePage() {
                 {/* Form Fields */}
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
-                      <UserIcon size={16} className="text-gray-400" /> 
+                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <UserIcon size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
                       Nome de Exibição
                     </label>
                     <input
@@ -411,13 +413,13 @@ export default function EditProfilePage() {
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="O teu nome ou pseudónimo"
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
+                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
-                      <Phone size={16} className="text-gray-400" /> 
+                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <Phone size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
                       Número de Telefone
                     </label>
                     <input
@@ -425,13 +427,13 @@ export default function EditProfilePage() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+244 923 000 000"
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
+                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
-                      <FileText size={16} className="text-gray-400" /> 
+                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <FileText size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
                       Descrição / Bio
                     </label>
                     <textarea
@@ -439,18 +441,18 @@ export default function EditProfilePage() {
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       placeholder="Ex: Fodedor, Safado, Criador Premium..."
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none"
+                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
                     />
                   </div>
 
                   {/* SMS Opt-in Toggle */}
-                  <div className="p-4 rounded-xl border border-border bg-gray-50">
+                  <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <p className={`text-sm font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                           <Phone size={15} className="text-accent" /> Notificações SMS
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                           {phone
                             ? 'Receba SMS sobre compras, levantamentos e pagamentos.'
                             : '⚠️ Adicione um número de telefone acima para ativar SMS.'}
@@ -460,7 +462,7 @@ export default function EditProfilePage() {
                         type="button"
                         onClick={() => setSmsEnabled(prev => !prev)}
                         disabled={!phone}
-                        className={`relative w-12 h-6 rounded-full transition-all duration-300 disabled:opacity-40 ${smsEnabled && phone ? 'bg-accent' : 'bg-gray-300'}`}
+                        className={`relative w-12 h-6 rounded-full transition-all duration-300 disabled:opacity-40 ${smsEnabled && phone ? 'bg-accent' : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}
                       >
                         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${smsEnabled && phone ? 'translate-x-6' : 'translate-x-0'}`} />
                       </button>
@@ -481,7 +483,7 @@ export default function EditProfilePage() {
                       setAvatarPreview(profile?.avatar_url || null)
                     }}
                     disabled={saving}
-                    className="px-6 py-3 rounded-full font-bold text-gray-600 hover:bg-gray-100 transition-colors w-full sm:w-auto"
+                    className={`px-6 py-3 rounded-full font-bold transition-colors w-full sm:w-auto ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     Cancelar
                   </button>

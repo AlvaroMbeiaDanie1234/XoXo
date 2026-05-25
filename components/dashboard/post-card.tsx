@@ -4,12 +4,12 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { 
-  Heart, 
-  MessageCircle, 
-  Send, 
-  Bookmark, 
-  MoreHorizontal, 
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  Bookmark,
+  MoreHorizontal,
   CheckCircle2,
   Share2,
   MessageSquare,
@@ -21,6 +21,7 @@ import {
   Loader2
 } from 'lucide-react'
 import CommentsModal from './comments-modal'
+import { useTheme } from 'next-themes'
 
 interface PostCardProps {
   id: string
@@ -67,6 +68,7 @@ export default function PostCard({
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const { theme } = useTheme()
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -212,7 +214,7 @@ export default function PostCard({
   if (isDeleted) return null
 
   return (
-    <div ref={containerRef} className="bg-white border border-border rounded-xl mb-6 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 w-full">
+    <div ref={containerRef} className={`rounded-xl mb-6 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 w-full ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
@@ -232,29 +234,29 @@ export default function PostCard({
               </div>
             )}
           </Link>
-          
+
           <div>
-            <Link href={`/dashboard/creator/${creator_id}`} className="font-bold text-sm text-foreground hover:text-accent transition-colors flex items-center gap-1">
+            <Link href={`/dashboard/creator/${creator_id}`} className={`font-bold text-sm hover:text-accent transition-colors flex items-center gap-1 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
               {creator_name}
               {creatorVerified && <span className="text-blue-500 text-[10px] font-bold bg-blue-50 px-1.5 py-0.5 rounded uppercase">Verificado</span>}
             </Link>
-            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
+            <p className={`text-[11px] font-medium uppercase tracking-wider mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>
               Criador de Conteúdo • Agora
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           {currentUser && currentUser.id === creator_id && (
-            <button 
+            <button
               onClick={handleDeleteClick}
               disabled={isDeleting}
-              className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-colors flex items-center justify-center flex-shrink-0 disabled:opacity-50"
+              className={`text-red-500 hover:text-red-700 p-2 rounded-full transition-colors flex items-center justify-center flex-shrink-0 disabled:opacity-50 ${theme === 'dark' ? 'hover:bg-red-900/30' : 'hover:bg-red-50'}`}
               title="Eliminar Publicação"
             >
               {isDeleting ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 size={18} />}
             </button>
           )}
-          <button className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-gray-100"><MoreHorizontal size={20} /></button>
+          <button className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-muted-foreground hover:text-foreground hover:bg-gray-100'}`}><MoreHorizontal size={20} /></button>
         </div>
       </div>
 
@@ -356,17 +358,17 @@ export default function PostCard({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-5">
             <button onClick={handleLike} className="hover:scale-110 transition-transform">
-              <Heart size={26} className={isLiked ? 'fill-red-500 text-red-500 scale-110' : 'text-foreground'} />
+              <Heart size={26} className={isLiked ? 'fill-red-500 text-red-500 scale-110' : theme === 'dark' ? 'text-gray-400' : 'text-foreground'} />
             </button>
-            <button 
+            <button
               onClick={() => setIsCommentsOpen(true)}
               className="hover:scale-110 transition-transform"
             >
-              <MessageCircle size={26} className="text-foreground" />
+              <MessageCircle size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} />
             </button>
-            <button className="hover:scale-110 transition-transform"><Send size={26} className="text-foreground" /></button>
+            <button className="hover:scale-110 transition-transform"><Send size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} /></button>
           </div>
-          <button className="hover:scale-110 transition-transform"><Bookmark size={26} className="text-foreground" /></button>
+          <button className="hover:scale-110 transition-transform"><Bookmark size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} /></button>
         </div>
 
         <div className="flex items-center gap-2 mb-3">
@@ -377,18 +379,18 @@ export default function PostCard({
               </div>
             ))}
           </div>
-          <span className="text-sm font-bold text-foreground">
+          <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
             {likesCount > 0 ? `${likesCount.toLocaleString()} curtidas` : 'Sê o primeiro a curtir'}
           </span>
         </div>
 
         <Link href={`/dashboard/post/${id}`}>
-          <h3 className="font-bold text-[15px] leading-snug hover:text-accent transition-colors mb-1">{title}</h3>
+          <h3 className={`font-bold text-[15px] leading-snug hover:text-accent transition-colors mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>{title}</h3>
         </Link>
-        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed mb-4">{description}</p>
+        <p className={`text-sm line-clamp-2 leading-relaxed mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{description}</p>
 
-        <div className="pt-4 border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase">
-          <button 
+        <div className={`pt-4 border-t flex items-center justify-between text-[10px] font-bold uppercase ${theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-50 text-gray-400'}`}>
+          <button
             onClick={() => setIsCommentsOpen(true)}
             className="hover:text-accent flex items-center gap-1"
           >
@@ -400,22 +402,22 @@ export default function PostCard({
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-          <div className="bg-white border border-border rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+          <div className={`border rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`} onClick={(e) => e.stopPropagation()}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border ${theme === 'dark' ? 'bg-red-900/30 text-red-400 border-red-800' : 'bg-red-50 text-red-500 border-red-100'}`}>
               <Trash2 size={28} className="animate-bounce" />
             </div>
-            <h4 className="text-lg font-extrabold text-gray-900 mb-2">Eliminar Publicação?</h4>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            <h4 className={`text-lg font-extrabold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Eliminar Publicação?</h4>
+            <p className={`text-sm mb-6 leading-relaxed ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               Tem a certeza que deseja eliminar esta publicação permanentemente? Esta ação não pode ser desfeita.
             </p>
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl text-sm transition-all"
+                className={`flex-1 font-bold py-3 rounded-xl text-sm transition-all ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={confirmDeletePost}
                 disabled={isDeleting}
                 className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-accent/10 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"

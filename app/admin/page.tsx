@@ -6,7 +6,7 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle
+  ChevronDown, ChevronRight, AlertTriangle, FileText
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
 import Header from '@/components/dashboard/header'
@@ -62,6 +62,11 @@ export default function AdminDashboard() {
   const [smsSelectedUsers, setSmsSelectedUsers] = useState<string[]>([])
   const [sendingSms, setSendingSms] = useState(false)
   const [smsResults, setSmsResults] = useState<{ sent: number; failed: number; total: number } | null>(null)
+
+  // Terms and Privacy states
+  const [termsOfUse, setTermsOfUse] = useState('')
+  const [privacyPolicy, setPrivacyPolicy] = useState('')
+  const [savingTerms, setSavingTerms] = useState(false)
 
   // Dynamic Env Variables States
   const [supabaseUrl, setSupabaseUrl] = useState('')
@@ -279,6 +284,13 @@ export default function AdminDashboard() {
 
         const freeTierSetting = settings.find(s => s.key === 'free_tier_message_limit')
         if (freeTierSetting) setFreeTierMessageLimit(freeTierSetting.value)
+
+        // Load Terms and Privacy
+        const termsSetting = settings.find(s => s.key === 'terms_of_use')
+        if (termsSetting) setTermsOfUse(termsSetting.value)
+
+        const privacySetting = settings.find(s => s.key === 'privacy_policy')
+        if (privacySetting) setPrivacyPolicy(privacySetting.value)
 
         // Load Connectivity variables
         const findVal = (k: string) => settings.find(s => s.key === k)?.value || ''
@@ -719,6 +731,38 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleSaveTerms = async () => {
+    setSavingTerms(true)
+    try {
+      // Save or update terms of use
+      const { error: termsError } = await supabase
+        .from('system_settings')
+        .upsert({ key: 'terms_of_use', value: termsOfUse }, { onConflict: 'key' })
+
+      if (termsError) throw termsError
+
+      // Save or update privacy policy
+      const { error: privacyError } = await supabase
+        .from('system_settings')
+        .upsert({ key: 'privacy_policy', value: privacyPolicy }, { onConflict: 'key' })
+
+      if (privacyError) throw privacyError
+
+      toast({
+        title: "Termos salvos com sucesso",
+        description: "Termos de Uso e Política de Privacidade foram atualizados.",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro ao salvar termos",
+        description: err.message,
+        variant: "destructive"
+      })
+    } finally {
+      setSavingTerms(false)
+    }
+  }
+
   const handleProcessWithdrawal = async (txId: string, userId: string, amount: number) => {
     toast({
       title: "Confirmar Levantamento?",
@@ -826,8 +870,11 @@ export default function AdminDashboard() {
   const lucroRetirado = transactions.filter(t => t.type === 'admin_withdraw').reduce((s, t) => s + Number(t.amount), 0)
   const netDeposits = Math.max(0, totalDeposits - lucroTotalEarned)
 
-  // Available Profit
-  const lucroDisponivel = lucroTotalEarned - lucroRetirado
+  // Available Profit - ensure it's never negative
+  const lucroDisponivel = Math.max(0, lucroTotalEarned - lucroRetirado)
+
+  // Debug log
+  console.log('Debug lucro:', { lucroVIP, lucroComissoes, lucroTotalEarned, lucroRetirado, lucroDisponivel, transactionsCount: transactions.length, sampleTransactions: transactions.slice(0, 5) })
 
   // Saldo Restante (Intocável) - the sum of all profile balances
   const saldoRestanteNaoLucro = totalBalance
@@ -863,6 +910,9 @@ export default function AdminDashboard() {
               </button>
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <ShieldCheck size={20} /> Definições
+              </button>
+              <button onClick={() => setActiveTab('terms')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'terms' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <FileText size={20} /> Termos e Política
               </button>
             </nav>
           </div>
@@ -1955,6 +2005,68 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* Terms and Privacy Tab */}
+          {activeTab === 'terms' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-border">
+                  <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                    <FileText size={24} className="text-accent" />
+                    Termos de Uso e Política de Privacidade
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Configure os termos de uso e política de privacidade que serão mostrados aos utilizadores durante o registro.
+                  </p>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Termos de Uso
+                    </label>
+                    <textarea
+                      value={termsOfUse}
+                      onChange={(e) => setTermsOfUse(e.target.value)}
+                      rows={10}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm text-gray-900 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none"
+                      placeholder="Digite os termos de uso da plataforma..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Política de Privacidade
+                    </label>
+                    <textarea
+                      value={privacyPolicy}
+                      onChange={(e) => setPrivacyPolicy(e.target.value)}
+                      rows={10}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm text-gray-900 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none"
+                      placeholder="Digite a política de privacidade da plataforma..."
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t border-border">
+                    <button
+                      onClick={handleSaveTerms}
+                      disabled={savingTerms}
+                      className="bg-accent text-white px-8 py-3.5 rounded-xl font-bold hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20 flex items-center gap-2 text-xs disabled:opacity-50"
+                    >
+                      {savingTerms ? (
+                        <>A guardar...</>
+                      ) : (
+                        <>
+                          <CheckCircle size={16} /> Salvar Termos
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Admin Credit Modal */}
           {showCreditModal && selectedUserForCredit && (
             <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
