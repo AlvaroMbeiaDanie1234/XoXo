@@ -39,10 +39,13 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (!user) {
+      console.error('Comment creation failed: Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { post_id, content, parent_id } = await request.json()
+
+    console.log('Comment creation request:', { user_id: user.id, post_id, content, parent_id })
 
     const supabaseAdmin = createAdminClient()
     const check = await assertFreeTierAction(
@@ -52,13 +55,17 @@ export async function POST(request: NextRequest) {
       user.email
     )
 
+    console.log('Free tier check result:', check)
+
     if (!check.ok) {
+      console.error('Comment creation failed: Free tier limit reached', check)
       return NextResponse.json(
         { error: check.error, message: check.message, status: check.status },
         { status: 403 }
       )
     }
 
+    console.log('Attempting to insert comment into database')
     const { data, error } = await supabaseAdmin
       .from('comments')
       .insert({
@@ -67,13 +74,14 @@ export async function POST(request: NextRequest) {
         content,
         parent_id: parent_id || null,
       })
-      .select(`
-        *,
-        profiles:user_id(display_name, avatar_url)
-      `)
+      .select()
 
-    if (error) throw error
+    if (error) {
+      console.error('Database error inserting comment:', error)
+      throw error
+    }
 
+    console.log('Comment created successfully:', data)
     return NextResponse.json(data[0], { status: 201 })
   } catch (error) {
     console.error('Error creating comment:', error)

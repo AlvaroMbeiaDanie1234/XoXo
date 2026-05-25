@@ -55,6 +55,8 @@ export default function PostCard({
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [commentsCount, setCommentsCount] = useState(0)
+  const [viewsCount, setViewsCount] = useState(0)
+  const [createdAt, setCreatedAt] = useState<Date | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [creatorVerified, setCreatorVerified] = useState(creator_verified || false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -78,9 +80,29 @@ export default function PostCard({
             if (entry.isIntersecting) {
               const playPromise = videoRef.current.play()
               if (playPromise !== undefined) {
-                playPromise.catch(() => {})
+                playPromise
+                  .then(() => {
+                    setIsPlaying(true)
+                    // Increment view count when video starts playing automatically
+                    if (currentUser && content_type === 'video') {
+                      // Check if user already viewed this post
+                      supabase.from('post_views').select('id').eq('post_id', id).eq('user_id', currentUser.id).maybeSingle().then(({ data: existingView }) => {
+                        if (!existingView) {
+                          // Only insert if user hasn't viewed this post yet
+                          supabase.from('post_views').insert({
+                            post_id: id,
+                            user_id: currentUser.id
+                          }).then(({ error }) => {
+                            if (!error) {
+                              setViewsCount(prev => prev + 1)
+                            }
+                          })
+                        }
+                      })
+                    }
+                  })
+                  .catch(() => {})
               }
-              setIsPlaying(true)
             } else {
               videoRef.current.pause()
               setIsPlaying(false)
@@ -96,7 +118,7 @@ export default function PostCard({
     }
 
     return () => observer.disconnect()
-  }, [showCardPaywall])
+  }, [showCardPaywall, currentUser, id, content_type, supabase])
 
   useEffect(() => {
     async function fetchPostStats() {
@@ -104,13 +126,17 @@ export default function PostCard({
         const { data: { user } } = await supabase.auth.getUser()
         setCurrentUser(user)
 
-        const [likesRes, commsRes] = await Promise.all([
+        const [likesRes, commsRes, viewsRes, postRes] = await Promise.all([
           supabase.from('likes').select('id', { count: 'exact', head: true }).eq('post_id', id),
-          supabase.from('comments').select('id', { count: 'exact', head: true }).eq('post_id', id)
+          supabase.from('comments').select('id', { count: 'exact', head: true }).eq('post_id', id),
+          supabase.from('post_views').select('id', { count: 'exact', head: true }).eq('post_id', id),
+          supabase.from('posts').select('created_at').eq('id', id).maybeSingle()
         ])
-        
+
         if (!likesRes.error) setLikesCount(likesRes.count || 0)
         if (!commsRes.error) setCommentsCount(commsRes.count || 0)
+        if (!viewsRes.error) setViewsCount(viewsRes.count || 0)
+        if (postRes.data) setCreatedAt(new Date(postRes.data.created_at))
         setCreatorVerified(false)
 
         if (user) {
@@ -143,7 +169,25 @@ export default function PostCard({
   const handlePlayClick = (e: React.MouseEvent) => {
     e.preventDefault()
     if (showCardPaywall) return
-    
+
+    // Increment view count when video is played
+    if (currentUser && content_type === 'video') {
+      // Check if user already viewed this post
+      supabase.from('post_views').select('id').eq('post_id', id).eq('user_id', currentUser.id).maybeSingle().then(({ data: existingView }) => {
+        if (!existingView) {
+          // Only insert if user hasn't viewed this post yet
+          supabase.from('post_views').insert({
+            post_id: id,
+            user_id: currentUser.id
+          }).then(({ error }) => {
+            if (!error) {
+              setViewsCount(prev => prev + 1)
+            }
+          })
+        }
+      })
+    }
+
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause()
@@ -372,13 +416,11 @@ export default function PostCard({
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <div className="flex -space-x-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="w-5 h-5 rounded-full border-2 border-white bg-gray-200 overflow-hidden">
-                <img src={`https://i.pravatar.cc/100?u=${i}`} alt="user" className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
+          {content_type === 'video' && (
+            <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+              {viewsCount > 0 ? `${viewsCount.toLocaleString()} visualizações` : '0 visualizações'}
+            </span>
+          )}
           <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
             {likesCount > 0 ? `${likesCount.toLocaleString()} curtidas` : 'Sê o primeiro a curtir'}
           </span>
@@ -396,7 +438,13 @@ export default function PostCard({
           >
             <MessageSquare size={14} /> {commentsCount > 0 ? `${commentsCount} comentários` : 'Comentar'}
           </button>
-          <span>2 horas atrás</span>
+          <span>{createdAt ? createdAt.toLocaleString('pt-PT', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : 'Agora'}</span>
         </div>
       </div>
 
