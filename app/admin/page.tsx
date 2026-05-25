@@ -853,28 +853,30 @@ export default function AdminDashboard() {
   const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
   const totalUserCompletedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
 
+  // Calculate VIP profit - match any purchase with VIP in description
   const lucroVIP = transactions
-    .filter(t => t.type === 'purchase' && t.description === 'Compra de Selo VIP Oficial')
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter(t => t.type === 'purchase' && (t.description?.toLowerCase().includes('vip') || t.description?.toLowerCase().includes('selo')))
+    .reduce((s, t) => s + Number(t.amount || 0), 0)
 
+  // Calculate content purchases - match any purchase with content in description
   const totalContentPurchases = transactions
-    .filter(t => t.type === 'purchase' && t.description.startsWith('Compra de conteúdo:'))
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter(t => t.type === 'purchase' && (t.description?.toLowerCase().includes('conteúdo') || t.description?.toLowerCase().includes('content')))
+    .reduce((s, t) => s + Number(t.amount || 0), 0)
 
+  // Calculate content earnings - match any earnings with purchase in description
   const totalContentEarnings = transactions
-    .filter(t => t.type === 'earnings' && t.description.includes('comprou o teu conteúdo:'))
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter(t => t.type === 'earnings' && (t.description?.toLowerCase().includes('comprou') || t.description?.toLowerCase().includes('purchase')))
+    .reduce((s, t) => s + Number(t.amount || 0), 0)
 
-  const lucroComissoes = Math.max(0, totalContentPurchases - totalContentEarnings)
+  // Calculate platform fee/commission from earnings (using existing state)
+  const lucroComissoes = Math.round(totalContentEarnings * (Number(transactionFeePercent) / 100))
+
   const lucroTotalEarned = lucroVIP + lucroComissoes
-  const lucroRetirado = transactions.filter(t => t.type === 'admin_withdraw').reduce((s, t) => s + Number(t.amount), 0)
+  const lucroRetirado = transactions.filter(t => t.type === 'admin_withdraw').reduce((s, t) => s + Number(t.amount || 0), 0)
   const netDeposits = Math.max(0, totalDeposits - lucroTotalEarned)
 
   // Available Profit - ensure it's never negative
   const lucroDisponivel = Math.max(0, lucroTotalEarned - lucroRetirado)
-
-  // Debug log
-  console.log('Debug lucro:', { lucroVIP, lucroComissoes, lucroTotalEarned, lucroRetirado, lucroDisponivel, transactionsCount: transactions.length, sampleTransactions: transactions.slice(0, 5) })
 
   // Saldo Restante (Intocável) - the sum of all profile balances
   const saldoRestanteNaoLucro = totalBalance
@@ -1034,6 +1036,41 @@ export default function AdminDashboard() {
                   <div className="p-3 bg-purple-50 text-purple-600 rounded-xl w-12 h-12 flex items-center justify-center mb-4"><Activity size={24} /></div>
                   <p className="text-xs font-bold text-gray-400 uppercase">Total de Transações</p>
                   <h3 className="text-3xl font-black mt-1">{transactions.length}</h3>
+                </div>
+              </div>
+
+              {/* Debug Section - Transaction Analysis */}
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-yellow-800 mb-4 flex items-center gap-2">
+                  <AlertTriangle size={20} />
+                  Análise de Transações (Debug)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="font-bold text-gray-700">Total de Transações: {transactions.length}</p>
+                    <p className="font-bold text-gray-700">Lucro VIP: AOA {lucroVIP.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Compras de Conteúdo: AOA {totalContentPurchases.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Ganhos de Conteúdo: AOA {totalContentEarnings.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Lucro Comissões: AOA {lucroComissoes.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Lucro Total Ganho: AOA {lucroTotalEarned.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Lucro Retirado: AOA {lucroRetirado.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Lucro Disponível: AOA {lucroDisponivel.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-700 mb-2">Transações por Tipo:</p>
+                    {Object.entries(transactions.reduce((acc, t) => {
+                      acc[t.type] = (acc[t.type] || 0) + 1
+                      return acc
+                    }, {} as Record<string, number>)).map(([type, count]) => (
+                      <p key={type} className="text-gray-600">{type}: {count}</p>
+                    ))}
+                    <p className="font-bold text-gray-700 mt-4 mb-2">Amostra de Transações (primeiras 5):</p>
+                    {transactions.slice(0, 5).map((t, i) => (
+                      <p key={i} className="text-gray-600 text-xs">
+                        {t.type} - {t.description} - AOA {Number(t.amount).toLocaleString()}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               </div>
 

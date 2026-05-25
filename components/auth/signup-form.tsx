@@ -212,7 +212,7 @@ export default function SignupForm() {
           className="mt-1 w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
         />
         <label htmlFor="acceptTerms" className="text-sm text-muted-foreground leading-tight">
-          Li e aceito os <a href="#" className="text-accent hover:underline">Termos de Uso</a> e a <a href="#" className="text-accent hover:underline">Política de Privacidade</a>
+          Li e aceito os <a href="/auth/terms" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Termos de Uso</a> e a <a href="/auth/privacy" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Política de Privacidade</a>
         </label>
       </div>
 

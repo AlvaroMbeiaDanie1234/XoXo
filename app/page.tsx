@@ -23,7 +23,45 @@ export default function HomePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden relative selection:bg-accent/30">
+    <>
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "XoXo",
+            "alternateName": "OPrivado",
+            "url": "https://xoxo.com",
+            "description": "XoXo é a plataforma de conteúdo premium mais exclusiva. Acesse vídeos, fotos e artigos exclusivos dos melhores criadores. Junte-se ao OPrivado agora!",
+            "keywords": "xoxo, oprivado, conteúdo premium, vídeos exclusivos, fotos exclusivas, criadores de conteúdo, plataforma de conteúdo",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://xoxo.com/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          })
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "XoXo",
+            "url": "https://xoxo.com",
+            "logo": "https://xoxo.com/icon.svg",
+            "description": "Plataforma de conteúdo premium exclusiva",
+            "sameAs": [
+              "https://twitter.com/xoxo",
+              "https://instagram.com/xoxo"
+            ]
+          })
+        }}
+      />
+      <div className="min-h-screen bg-background text-foreground overflow-hidden relative selection:bg-accent/30">
       {/* Background Effects */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-accent/10 blur-[120px]" />
@@ -310,5 +348,6 @@ export default function HomePage() {
         </p>
       </footer>
     </div>
+    </>
   )
 }

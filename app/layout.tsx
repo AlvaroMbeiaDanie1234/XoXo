@@ -15,8 +15,46 @@ const _poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'XoXo - Plataforma de Conteúdo Premium',
-  description: 'Acesse conteúdXoXo de vídeos, artigos e fotos em uma plataforma moderna e segura.',
+  title: 'XoXo - Plataforma de Conteúdo Premium | OPrivado',
+  description: 'XoXo é a plataforma de conteúdo premium mais exclusiva. Acesse vídeos, fotos e artigos exclusivos dos melhores criadores. Junte-se ao OPrivado agora!',
+  keywords: 'xoxo, oprivado, conteúdo premium, vídeos exclusivos, fotos exclusivas, criadores de conteúdo, plataforma de conteúdo, conteúdo adulto, assinatura premium',
+  authors: [{ name: 'XoXo' }],
+  creator: 'XoXo',
+  publisher: 'XoXo',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    url: 'https://xoxo.com',
+    title: 'XoXo - Plataforma de Conteúdo Premium | OPrivado',
+    description: 'XoXo é a plataforma de conteúdo premium mais exclusiva. Acesse vídeos, fotos e artigos exclusivos dos melhores criadores.',
+    siteName: 'XoXo',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'XoXo - Plataforma de Conteúdo Premium',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'XoXo - Plataforma de Conteúdo Premium | OPrivado',
+    description: 'XoXo é a plataforma de conteúdo premium mais exclusiva. Acesse vídeos, fotos e artigos exclusivos dos melhores criadores.',
+    images: ['/og-image.png'],
+    creator: '@xoxo',
+  },
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,6 +73,7 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+  manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {
