@@ -8,13 +8,14 @@ import PostCard from '@/components/dashboard/post-card'
 import Header from '@/components/dashboard/header'
 import CreatePostModal from '@/components/dashboard/create-post-modal'
 import SuggestedCreators from '@/components/dashboard/suggested-creators'
-import { 
-  Search, Wallet, PlusCircle, List, ArrowLeft, Loader2, 
+import {
+  Search, Wallet, PlusCircle, List, ArrowLeft, Loader2,
   CheckCircle2, ExternalLink, ArrowUpRight, ArrowDownLeft,
   Banknote, Building2, Send, Megaphone, X
 } from 'lucide-react'
 import { Suspense } from 'react'
 import WalletPreferences from '@/components/dashboard/wallet-preferences'
+import { useTheme } from 'next-themes'
 import {
   formatMoney,
   bankDetailsFromProfile,
@@ -58,6 +59,7 @@ function DashboardContent() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const { theme } = useTheme()
   
   // Wallet states
   const [depositAmount, setDepositAmount] = useState('')
@@ -234,7 +236,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-background'}`}>
       <Header user={user} />
       
       <div className={`max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4 ${mode === 'wallet' ? 'flex-col lg:flex-row' : ''}`}>
@@ -246,7 +248,7 @@ function DashboardContent() {
           {mode === 'wallet' ? (
             <div className="space-y-6">
               {view === 'balance' || !view ? (
-                <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
+                <div className={`rounded-xl border overflow-hidden shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                   <div className="bg-accent p-10 text-white">
                     <h2 className="text-xl font-bold flex items-center gap-2 mb-3">
                       <Wallet /> Saldo Disponível (Para Compras)
@@ -254,12 +256,12 @@ function DashboardContent() {
                     <p className="text-5xl font-black tracking-tighter">{formatMoney(balance, preferredCurrency)}</p>
                   </div>
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-6 bg-green-50 rounded-2xl border border-green-100">
+                    <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-100'}`}>
                       <div className="flex items-center gap-3 mb-2 text-green-600">
                         <ArrowDownLeft size={20} />
                         <p className="text-xs font-bold uppercase tracking-widest">Ganhos (A Levantar)</p>
                       </div>
-                      <p className="text-2xl font-black text-green-700">
+                      <p className={`text-2xl font-black ${theme === 'dark' ? 'text-green-400' : 'text-green-700'}`}>
                         {formatMoney(
                           (() => {
                             const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
@@ -271,12 +273,12 @@ function DashboardContent() {
                         )}
                       </p>
                     </div>
-                    <div className="p-6 bg-red-50 rounded-2xl border border-red-100">
+                    <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-100'}`}>
                       <div className="flex items-center gap-3 mb-2 text-red-600">
                         <ArrowUpRight size={20} />
                         <p className="text-xs font-bold uppercase tracking-widest">Despesas</p>
                       </div>
-                      <p className="text-2xl font-black text-red-700">
+                      <p className={`text-2xl font-black ${theme === 'dark' ? 'text-red-400' : 'text-red-700'}`}>
                         {formatMoney(
                           transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0),
                           preferredCurrency
@@ -493,20 +495,20 @@ function DashboardContent() {
               {dashboardAnnouncements
                 .filter(a => a.type === 'comunicado' && !dismissedAnns.includes(a.id))
                 .map((a) => (
-                  <div key={a.id} className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-4 shadow-sm relative flex gap-4 animate-in fade-in duration-300">
-                    <div className="p-3 bg-blue-100 text-blue-600 rounded-xl w-12 h-12 flex items-center justify-center flex-shrink-0">
+                  <div key={a.id} className={`rounded-xl p-5 mb-4 shadow-sm relative flex gap-4 animate-in fade-in duration-300 ${theme === 'dark' ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+                    <div className={`p-3 rounded-xl w-12 h-12 flex items-center justify-center flex-shrink-0 ${theme === 'dark' ? 'bg-blue-800 text-blue-300' : 'bg-blue-100 text-blue-600'}`}>
                        <Megaphone size={22} />
                     </div>
                     <div className="flex-1 pr-6">
-                      <h4 className="font-extrabold text-blue-900 text-base mb-1">{a.title}</h4>
-                      <p className="text-xs text-blue-800 leading-relaxed whitespace-pre-wrap">{a.content}</p>
+                      <h4 className={`font-extrabold text-base mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-900'}`}>{a.title}</h4>
+                      <p className={`text-xs leading-relaxed whitespace-pre-wrap ${theme === 'dark' ? 'text-blue-300' : 'text-blue-800'}`}>{a.content}</p>
                       {a.image_url && (
                         <img src={a.image_url} alt="anuncio" className="max-h-48 rounded-xl object-cover mt-3 border border-blue-100" />
                       )}
                     </div>
-                    <button 
+                    <button
                       onClick={() => setDismissedAnns([...dismissedAnns, a.id])}
-                      className="absolute top-4 right-4 text-blue-400 hover:text-blue-600 transition-colors"
+                      className={`absolute top-4 right-4 transition-colors ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-400 hover:text-blue-600'}`}
                     >
                       <X size={16} />
                     </button>
@@ -514,7 +516,7 @@ function DashboardContent() {
                 ))}
 
               {/* Feed Logic Same as Before */}
-              <div className="bg-white border border-border rounded-md p-4 mb-4 shadow-sm w-full">
+              <div className={`rounded-md p-4 mb-4 shadow-sm w-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                 <div className="flex gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] shadow-sm flex-shrink-0">
                     <div className="w-full h-full rounded-full border border-white overflow-hidden bg-muted flex items-center justify-center text-white font-bold text-lg">
@@ -525,9 +527,9 @@ function DashboardContent() {
                       )}
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex-1 text-left bg-[#f3f2ef] hover:bg-gray-200 transition-colors rounded-full px-5 py-3 text-sm text-gray-600 font-medium border border-border"
+                    className={`flex-1 text-left transition-colors rounded-full px-5 py-3 text-sm font-medium border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600' : 'bg-[#f3f2ef] text-gray-600 hover:bg-gray-200 border-border'}`}
                   >
                     O que vais publicar hoje, {userProfile?.display_name || user?.email?.split('@')[0]}?
                   </button>
@@ -560,26 +562,26 @@ function DashboardContent() {
 
         {mode !== 'wallet' && (
           <div className="hidden xl:block w-[300px] flex-shrink-0 space-y-6">
-            
+
             {/* Anúncios / Publicidade (Ads) */}
             {dashboardAnnouncements
               .filter(a => a.type === 'anuncio')
               .map((a) => (
-                <div key={a.id} className="bg-white border border-border rounded-2xl shadow-md p-5 overflow-hidden flex flex-col justify-between hover:shadow-lg transition-shadow">
+                <div key={a.id} className={`rounded-2xl shadow-md p-5 overflow-hidden flex flex-col justify-between hover:shadow-lg transition-shadow ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                   <div>
-                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-600 border border-purple-100">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${theme === 'dark' ? 'bg-purple-900/30 text-purple-300 border-purple-800' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
                       Publicidade / Anúncio
                     </span>
-                    <h4 className="font-extrabold text-gray-900 text-sm mt-3 mb-1">{a.title}</h4>
-                    <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">{a.content}</p>
+                    <h4 className={`font-extrabold text-sm mt-3 mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{a.title}</h4>
+                    <p className={`text-xs leading-relaxed whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{a.content}</p>
                     {a.image_url && (
                       <img src={a.image_url} alt="ads" className="w-full h-32 rounded-xl object-cover mt-3 border border-gray-100 shadow-sm" />
                     )}
                   </div>
                   {a.link_url && (
-                    <a 
-                      href={a.link_url} 
-                      target="_blank" 
+                    <a
+                      href={a.link_url}
+                      target="_blank"
                       rel="noreferrer"
                       className="w-full text-center bg-gray-900 hover:bg-black text-white font-bold py-2 rounded-xl text-xs transition-colors mt-4 block"
                     >

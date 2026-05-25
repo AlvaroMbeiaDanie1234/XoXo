@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react'
@@ -34,6 +35,10 @@ function MessagesContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const { isOnline } = useOnlinePresence(user?.id ?? null)
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     async function loadData() {
@@ -173,21 +178,32 @@ function MessagesContent() {
     const ext = file.name.split('.').pop() || 'bin'
     const filePath = `messages/${user.id}/${Date.now()}.${ext}`
 
-    const urlRes = await fetch('/api/storage/upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath }),
-    })
-    if (!urlRes.ok) return null
-    const { data: urlData } = await urlRes.json()
+    try {
+      const urlRes = await fetch('/api/storage/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath }),
+      })
+      if (!urlRes.ok) {
+        console.error('Erro ao obter URL de upload:', await urlRes.text())
+        return null
+      }
+      const { data: urlData } = await urlRes.json()
 
-    const { error: uploadError } = await supabase.storage
-      .from('media')
-      .uploadToSignedUrl(filePath, urlData.token, file)
-    if (uploadError) return null
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .uploadToSignedUrl(filePath, urlData.token, file)
+      if (uploadError) {
+        console.error('Erro no upload do arquivo:', uploadError)
+        return null
+      }
 
-    const { data: publicUrlData } = supabase.storage.from('media').getPublicUrl(filePath)
-    return publicUrlData.publicUrl
+      const { data: publicUrlData } = supabase.storage.from('media').getPublicUrl(filePath)
+      return publicUrlData.publicUrl
+    } catch (error) {
+      console.error('Erro no upload:', error)
+      return null
+    }
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -208,7 +224,6 @@ function MessagesContent() {
         alert('Erro ao enviar ficheiro. Tenta novamente.')
         return
       }
-      setSelectedFile(null)
     }
 
     const contentToSend = newMessage.trim()
@@ -245,11 +260,16 @@ function MessagesContent() {
         alert(data.message || 'Erro ao enviar mensagem')
       }
       fetchMessages()
+    } else {
+      // Só limpa o arquivo se a mensagem foi enviada com sucesso
+      if (selectedFile) {
+        setSelectedFile(null)
+      }
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-[#f0f2f5]'}`}>
       <Header user={user} />
       
       <div className="max-w-[1200px] mx-auto flex h-[calc(100vh-64px)] p-4 gap-4">
@@ -259,15 +279,17 @@ function MessagesContent() {
         </div>
 
         {/* Contacts Sidebar */}
-        <div className={`w-full md:w-[360px] bg-white rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-4 border-b border-border bg-white sticky top-0 z-10">
-            <h2 className="text-xl font-bold mb-4">Mensagens</h2>
+        <div className={`w-full md:w-[360px] rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`p-4 border-b border-border sticky top-0 z-10 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : ''}`}>Mensagens</h2>
+            </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} size={18} />
               <input 
                 type="text" 
                 placeholder="Pesquisar conversas" 
-                className="w-full bg-gray-100 border-none rounded-full py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-accent/20"
+                className={`w-full border-none rounded-full py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-colors ${theme === 'dark' ? 'bg-gray-700 text-white placeholder-gray-400' : 'bg-gray-100'}`}
               />
             </div>
           </div>
@@ -285,7 +307,7 @@ function MessagesContent() {
                 <button
                   key={contact.id}
                   onClick={() => setSelectedContact(contact)}
-                  className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 ${selectedContact?.id === contact.id ? 'bg-accent/5 border-l-4 border-l-accent' : ''}`}
+                  className={`w-full p-4 flex items-center gap-3 transition-colors border-b ${theme === 'dark' ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gray-50 border-gray-50'} ${selectedContact?.id === contact.id ? 'bg-accent/5 border-l-4 border-l-accent' : ''}`}
                 >
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden shadow-sm">
@@ -296,8 +318,8 @@ function MessagesContent() {
                     )}
                   </div>
                   <div className="text-left overflow-hidden flex-1">
-                    <p className="font-bold text-gray-900 truncate">{contact.display_name}</p>
-                    <p className="text-xs text-gray-500 truncate">Clique para iniciar conversa</p>
+                    <p className={`font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{contact.display_name}</p>
+                    <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Clique para iniciar conversa</p>
                   </div>
                   {unreadCounts[contact.id] > 0 && (
                     <span className="bg-accent text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in duration-300 flex-shrink-0 ml-auto">
@@ -311,33 +333,33 @@ function MessagesContent() {
         </div>
 
         {/* Chat Window */}
-        <div className={`flex-1 bg-white rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden relative ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex-1 rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden relative transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
           {selectedContact ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
+              <div className={`p-4 border-b border-border flex items-center justify-between backdrop-blur-md sticky top-0 z-10 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80'}`}>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setSelectedContact(null)} className="md:hidden p-2 -ml-2 text-gray-500 hover:text-accent"><ArrowLeft size={20} /></button>
+                  <button onClick={() => setSelectedContact(null)} className={`md:hidden p-2 -ml-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-accent'}`}><ArrowLeft size={20} /></button>
                   <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold overflow-hidden shadow-sm">
                     {selectedContact.avatar_url ? <img src={selectedContact.avatar_url} className="w-full h-full object-cover" /> : selectedContact.display_name?.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900">{selectedContact.display_name}</p>
-                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isOnline(selectedContact.id) ? 'text-green-500' : 'text-gray-400'}`}>{isOnline(selectedContact.id) ? 'Online agora' : 'Offline'}</p>
+                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{selectedContact.display_name}</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isOnline(selectedContact.id) ? 'text-green-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>{isOnline(selectedContact.id) ? 'Online agora' : 'Offline'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f0f2f5]/50">
+              <div className={`flex-1 overflow-y-auto p-6 space-y-4 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-[#f0f2f5]/50'}`}>
                 {messages.map((msg, idx) => {
                   const isMine = msg.sender_id === user.id
                   return (
                     <div key={idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                       <div className={`max-w-[70%] p-3 rounded-2xl text-sm shadow-sm ${
-                        isMine 
-                          ? 'bg-accent text-white rounded-tr-none' 
-                          : 'bg-white text-gray-900 rounded-tl-none border border-gray-100'
+                        isMine
+                          ? 'bg-accent text-white rounded-tr-none'
+                          : `${theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} rounded-tl-none border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-100'}`
                       }`}>
                         {msg.file_url && (
                           <div className="mb-1">
@@ -350,7 +372,7 @@ function MessagesContent() {
                                 href={msg.file_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${isMine ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${isMine ? 'bg-white/20 hover:bg-white/30' : theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-100 hover:bg-gray-200'}`}
                               >
                                 <FileText size={16} />
                                 {msg.file_name || 'Ficheiro'}
@@ -361,7 +383,7 @@ function MessagesContent() {
                         {msg.content && !msg.content.startsWith('[Ficheiro:') && (
                           <p className="leading-relaxed">{msg.content}</p>
                         )}
-                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isMine ? 'text-white/70' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {isMine && (msg.is_read ? <CheckCheck size={12} /> : <Check size={12} />)}
                         </div>
@@ -373,7 +395,7 @@ function MessagesContent() {
               </div>
 
               {/* Message Input */}
-              <div className="p-4 bg-white border-t border-border">
+              <div className={`p-4 border-t border-border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
                 {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining <= 0 && !freeTierStatus.canUseBonusCredit ? (
                   <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
                     Atingiste o limite de {freeTierStatus.limit} mensagens gratuitas.{' '}
@@ -395,10 +417,10 @@ function MessagesContent() {
                       </div>
                     )}
                     {selectedFile && (
-                      <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-xl">
+                      <div className={`mb-2 flex items-center gap-2 px-3 py-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
                         {selectedFile.type.startsWith('image/') ? <ImageIcon size={16} className="text-accent" /> : <FileText size={16} className="text-accent" />}
-                        <span className="text-xs text-gray-600 truncate flex-1">{selectedFile.name}</span>
-                        <button type="button" onClick={() => setSelectedFile(null)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                        <span className={`text-xs truncate flex-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{selectedFile.name}</span>
+                        <button type="button" onClick={() => setSelectedFile(null)} className={`hover:text-red-500 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}><X size={14} /></button>
                       </div>
                     )}
                     <form onSubmit={handleSendMessage} className="flex items-center gap-2">
@@ -415,17 +437,17 @@ function MessagesContent() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:text-accent hover:bg-gray-100 transition-colors"
+                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
                         title="Anexar ficheiro"
                       >
                         <Paperclip size={20} />
                       </button>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Escreve uma mensagem..." 
-                        className="flex-1 bg-gray-100 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                        placeholder="Escreve uma mensagem..."
+                        className={`flex-1 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all ${theme === 'dark' ? 'bg-gray-700 text-white placeholder-gray-400' : 'bg-gray-100'}`}
                       />
                       <button 
                         type="submit"
@@ -440,12 +462,12 @@ function MessagesContent() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-[#f8f9fa]">
-              <div className="w-24 h-24 bg-accent/5 rounded-full flex items-center justify-center mb-6">
-                <Send size={40} className="text-accent opacity-20 rotate-12" />
+            <div className={`flex-1 flex flex-col items-center justify-center text-center p-12 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-[#f8f9fa]'}`}>
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-accent/5'}`}>
+                <Send size={40} className={`text-accent opacity-20 rotate-12`} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">As tuas mensagens</h3>
-              <p className="text-gray-500 max-w-xs">Seleciona uma conversa ou subscreve a um criador para iniciares um chat privado.</p>
+              <h3 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>As tuas mensagens</h3>
+              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Seleciona uma conversa ou subscreve a um criador para iniciares um chat privado.</p>
             </div>
           )}
         </div>

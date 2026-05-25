@@ -7,6 +7,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
+import { useTheme } from 'next-themes'
 
 function SidebarContent() {
   const [isOpen, setIsOpen] = useState(false)
@@ -15,6 +16,7 @@ function SidebarContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const mode = searchParams.get('mode')
+  const { theme } = useTheme()
 
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -128,17 +130,17 @@ function SidebarContent() {
       {/* Sidebar Content (Desktop only) */}
       <div className="hidden lg:block sticky top-24">
         {/* Profile Card / Main Nav Card */}
-        <div className="bg-white border border-border rounded-md overflow-hidden shadow-sm">
+        <div className={`border rounded-md overflow-hidden shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
           {/* Logo Section */}
-          <div className="px-4 py-5 border-b border-border flex flex-col items-center gap-3">
+          <div className={`px-4 py-5 border-b flex flex-col items-center gap-3 transition-colors duration-300 ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>
              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] shadow-lg">
                 <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-muted flex items-center justify-center text-white font-bold text-xl">
                    {profile?.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : (profile?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U')}
                 </div>
              </div>
              <div className="text-center">
-                <h3 className="font-bold text-sm text-foreground truncate max-w-[180px]">{profile?.display_name || user?.email?.split('@')[0]}</h3>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Membro Premium</p>
+                <h3 className={`font-bold text-sm truncate max-w-[180px] ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{profile?.display_name || user?.email?.split('@')[0]}</h3>
+                <p className={`text-[10px] font-bold uppercase tracking-tighter ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>Membro Premium</p>
              </div>
           </div>
 
@@ -154,7 +156,7 @@ function SidebarContent() {
                   className={`flex items-center gap-3 px-4 py-3 transition-colors ${
                     isActive
                       ? 'border-l-2 border-accent bg-accent/5 text-accent font-semibold'
-                      : 'border-l-2 border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                      : `border-l-2 border-transparent ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`
                   }`}
                 >
                   <Icon size={18} className="flex-shrink-0" />
@@ -176,12 +178,12 @@ function SidebarContent() {
           </nav>
 
           {/* Divider */}
-          <div className="h-px bg-border my-1" />
+          <div className={`h-px my-1 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-700' : 'bg-border'}`} />
 
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors w-full text-sm font-medium"
+            className={`flex items-center gap-3 px-4 py-3 transition-colors w-full text-sm font-medium ${theme === 'dark' ? 'text-gray-400 hover:text-red-400 hover:bg-red-900/30' : 'text-muted-foreground hover:text-destructive hover:bg-destructive/5'}`}
           >
             <LogOut size={18} />
             <span>Sair</span>
@@ -191,7 +193,7 @@ function SidebarContent() {
 
       {/* Sleek Fixed Bottom Navigation Bar for Mobile (WhatsApp-style) - Rendered via React Portal */}
       {mounted && typeof document !== 'undefined' && createPortal(
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border shadow-[0_-4px_12px_rgba(0,0,0,0.06)] px-1 py-1.5 flex items-center justify-around h-16 pb-safe animate-in slide-in-from-bottom duration-300">
+        <div className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t shadow-[0_-4px_12px_rgba(0,0,0,0.06)] px-1 py-1.5 flex items-center justify-around h-16 pb-safe animate-in slide-in-from-bottom duration-300 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-border'}`}>
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -202,11 +204,11 @@ function SidebarContent() {
                 className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
                   isActive
                     ? 'text-accent font-bold scale-105'
-                    : 'text-muted-foreground active:scale-95 hover:text-foreground'
+                    : `${theme === 'dark' ? 'text-gray-400 active:scale-95 hover:text-white' : 'text-muted-foreground active:scale-95 hover:text-foreground'}`
                 }`}
               >
                 <div className="relative">
-                  <Icon size={20} className={isActive ? 'text-accent' : 'text-muted-foreground'} />
+                  <Icon size={20} className={isActive ? 'text-accent' : theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'} />
                   {item.label === 'Chat' && unreadGlobalCount > 0 && (
                     <span className="absolute -top-1.5 -right-2 bg-accent text-white text-[8px] font-black min-w-[14px] h-[14px] px-1 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in duration-300">
                       {unreadGlobalCount}
@@ -228,7 +230,7 @@ function SidebarContent() {
           {mode !== 'wallet' && (
             <button
               onClick={handleLogout}
-              className="flex flex-col items-center justify-center flex-1 py-1 text-muted-foreground hover:text-destructive active:scale-95 transition-all"
+              className={`flex flex-col items-center justify-center flex-1 py-1 active:scale-95 transition-all ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-muted-foreground hover:text-destructive'}`}
             >
               <LogOut size={20} />
               <span className="text-[10px] mt-1 font-semibold tracking-tight">Sair</span>

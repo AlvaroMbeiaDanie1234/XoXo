@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Poppins } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import SecurityProvider from '@/components/SecurityProvider'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -52,10 +53,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="bg-background" suppressHydrationWarning>
       <body className={`font-sans antialiased ${_poppins.variable}`}>
-        <SecurityProvider />
-        {children}
-        <Toaster />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <SecurityProvider />
+          {children}
+          <Toaster />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </ThemeProvider>
       </body>
     </html>
   )

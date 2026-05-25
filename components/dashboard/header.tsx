@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe, Users } from 'lucide-react'
+import { Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe, Users, Moon, Sun } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import DepositModal from './deposit-modal'
 import UsersPanel from './users-panel'
 import ProfileSetupBanner from './profile-setup-banner'
@@ -24,6 +25,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const [usersPanelOpen, setUsersPanelOpen] = useState(false)
   const [lang, setLang] = useState<'PT' | 'EN'>('PT')
   const [langDropdownOpen, setLangDropdownOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
   const usersPanelRef = useRef<HTMLDivElement>(null)
   const [balance, setBalance] = useState(0)
@@ -33,6 +35,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const notifRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const supabase = createClient()
+  const { theme, setTheme } = useTheme()
+
+  useEffect(() => setMounted(true), [])
 
   const [displayName, setDisplayName] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -173,7 +178,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   return (
     <>
-    <div className="sticky top-0 z-40 bg-white border-b border-border shadow-sm w-full">
+    <div className={`sticky top-0 z-40 border-b border-border shadow-sm w-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white'}`}>
       <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-xl font-bold text-accent">XoXo</Link>
@@ -187,7 +192,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={langRef}>
               <button
                 onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className="flex items-center gap-1 p-2 text-gray-500 hover:text-accent hover:bg-gray-100 rounded-full transition-colors font-bold text-xs"
+                className={`flex items-center gap-1 p-2 rounded-full transition-colors font-bold text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
                 title="Mudar Idioma / Change Language"
               >
                 <Globe size={18} />
@@ -195,18 +200,18 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {langDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className={`absolute right-0 mt-2 w-36 rounded-xl shadow-lg border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                   <div className="p-1">
                     <button
                       onClick={() => handleLangChange('PT')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/10 text-accent' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/10 text-accent' : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
                     >
                       <span className="text-sm">🇵🇹</span>
                       Português (PT)
                     </button>
                     <button
                       onClick={() => handleLangChange('EN')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/10 text-accent' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/10 text-accent' : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
                     >
                       <span className="text-sm">🇬🇧</span>
                       English (EN)
@@ -220,18 +225,29 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={usersPanelRef}>
   <button
     onClick={() => router.push('/dashboard/explore')}
-    className="relative p-2 rounded-full text-gray-500 hover:text-accent hover:bg-gray-100"
+    className={`relative p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
     title="Utilizadores"
   >
     <Users size={20} />
   </button>
 </div>
 
+            {/* Theme Toggle */}
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
+                title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+              >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+            )}
+
             {/* Notifications */}
             <div className="relative" ref={notifRef}>
               <button
                 onClick={toggleNotif}
-                className="relative p-2 text-gray-500 hover:text-accent hover:bg-gray-100 rounded-full transition-colors"
+                className={`relative p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
@@ -240,28 +256,28 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg border border-border overflow-hidden z-50">
-                  <div className="p-3 border-b border-border bg-gray-50 flex justify-between items-center">
-                    <p className="font-bold text-sm text-foreground">Notificações</p>
+                <div className={`absolute right-0 mt-2 w-80 rounded-md shadow-lg border overflow-hidden z-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                  <div className={`p-3 border-b flex justify-between items-center ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-border'}`}>
+                    <p className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>Notificações</p>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
                     {notifications.length > 0 ? (
                       notifications.map(notif => (
-                        <div key={notif.id} className="p-3 border-b border-gray-50 hover:bg-gray-50 flex gap-3 items-start transition-colors">
+                        <div key={notif.id} className={`p-3 border-b flex gap-3 items-start transition-colors ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'}`}>
                           <div className="mt-1 flex-shrink-0 text-accent">
                             <DollarSign size={16} className="bg-accent/10 rounded-full p-0.5" />
                           </div>
                           <div>
-                            <p className="text-sm text-gray-800">{notif.description}</p>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
                             <div className="flex justify-between items-center mt-1">
                               <span className="text-xs font-bold text-accent">+ AOA {notif.amount?.toLocaleString()}</span>
-                              <span className="text-[10px] text-gray-400">{new Date(notif.created_at).toLocaleDateString()}</span>
+                              <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{new Date(notif.created_at).toLocaleDateString()}</span>
                             </div>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="p-4 text-center text-sm text-gray-500">
+                      <div className={`p-4 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         Nenhuma notificação no momento.
                       </div>
                     )}
@@ -282,10 +298,10 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-3 hover:bg-gray-50 p-1 pr-2 rounded-full transition-colors border border-transparent focus:border-border"
+                className={`flex items-center gap-3 p-1 pr-2 rounded-full transition-colors border ${theme === 'dark' ? 'hover:bg-gray-800 border-transparent' : 'hover:bg-gray-50 border-transparent'}`}
               >
                 <div className="hidden sm:block text-right">
-                  <p className="text-xs font-bold text-foreground">{displayName}</p>
+                  <p className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{displayName}</p>
                   <p className="text-[10px] font-bold text-accent">{formatMoney(balance, preferredCurrency)}</p>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs shadow-md">
@@ -294,33 +310,33 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg border border-border overflow-hidden z-50">
-                  <div className="p-4 border-b border-border bg-gray-50">
-                    <p className="font-bold text-sm text-foreground truncate">{displayName}</p>
-                    <p className="text-[10px] text-muted-foreground truncate mb-2">{user.email}</p>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Saldo Disponível</p>
+                <div className={`absolute right-0 mt-2 w-64 rounded-md shadow-lg border overflow-hidden z-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                  <div className={`p-4 border-b ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-border'}`}>
+                    <p className={`font-bold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{displayName}</p>
+                    <p className={`text-[10px] truncate mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>{user.email}</p>
+                    <div className={`flex items-center justify-between mt-2 pt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
+                      <p className={`text-[10px] uppercase font-bold tracking-tighter ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>Saldo Disponível</p>
                       <p className="text-sm font-black text-accent">{formatMoney(balance, preferredCurrency)}</p>
                     </div>
                   </div>
                   <div className="p-2">
                     <button
                       onClick={() => { router.push('/dashboard?mode=wallet'); setDropdownOpen(false); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-accent rounded-md transition-colors text-left"
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-accent' : 'text-gray-700 hover:bg-gray-50 hover:text-accent'}`}
                     >
                       <Wallet size={16} />
                       Minha Carteira
                     </button>
                     <button
                       onClick={() => { setDepositRequired(false); setIsDepositOpen(true); setDropdownOpen(false); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-accent rounded-md transition-colors text-left"
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-accent' : 'text-gray-700 hover:bg-gray-50 hover:text-accent'}`}
                     >
                       <DollarSign size={16} />
                       Depositar (Flutterwave)
                     </button>
                   </div>
-                  <div className="p-2 border-t border-border">
-                    <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors">
+                  <div className={`p-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>
+                    <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-red-900/30 hover:text-red-400' : 'text-gray-700 hover:bg-red-50 hover:text-red-600'}`}>
                       <LogOut size={16} />
                       Terminar Sessão
                     </button>

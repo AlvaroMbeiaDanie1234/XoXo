@@ -120,7 +120,7 @@ export default function PostCard({
           setIsFreePlan(!!profileRes.data?.is_free_plan)
           // Check if user has purchased this content
           const purchaseRes = await supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('post_id', id).eq('user_id', user.id)
-          setHasPurchased(purchaseRes.count > 0)
+          setHasPurchased((purchaseRes.count ?? 0) > 0)
         }
       } catch (err) {
         console.error('Error fetching post stats:', err)
@@ -259,22 +259,28 @@ export default function PostCard({
       </div>
 
       {/* Media Content */}
-      <div className="relative w-full h-64 bg-black overflow-hidden group">
+      <div className={`relative w-full h-64 overflow-hidden group ${thumbnail_url ? 'bg-black' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
         {content_type === 'video' ? (
           <div className="w-full h-full relative cursor-pointer" onClick={handlePlayClick}>
-            <video 
-              ref={videoRef}
-              src={content_url}
-              onTimeUpdate={handleTimeUpdate}
-              className="w-full h-full object-contain"
-              poster={thumbnail_url}
-              muted={true}
-              playsInline
-              controls={is_free && isPlaying}
-            />
-            
+            {thumbnail_url ? (
+              <video
+                ref={videoRef}
+                src={content_url}
+                onTimeUpdate={handleTimeUpdate}
+                className="w-full h-full object-contain"
+                poster={thumbnail_url}
+                muted={true}
+                playsInline
+                controls={is_free && isPlaying}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
+                <Play size={48} className="text-purple-500 fill-purple-200 ml-2" />
+              </div>
+            )}
+
             {/* Play Button Overlay */}
-            {!isPlaying && !showCardPaywall && (
+            {!isPlaying && !showCardPaywall && thumbnail_url && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all">
                 <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
                   <Play size={32} className="text-white fill-white ml-1" />
@@ -287,7 +293,7 @@ export default function PostCard({
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
                 <Lock size={32} className="text-accent mb-2 animate-bounce" />
                 <p className="text-white text-xs font-bold uppercase mb-3">Curiosidade esgotada</p>
-                <Link 
+                <Link
                   href={`/dashboard/post/${id}`}
                   className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg active:scale-95 transition-transform"
                 >
@@ -297,7 +303,7 @@ export default function PostCard({
             )}
 
             {/* Expand Icon */}
-            <Link 
+            <Link
               href={`/dashboard/post/${id}`}
               className="absolute top-4 right-4 p-2 bg-black/40 text-white rounded-lg backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
               onClick={(e) => e.stopPropagation()}
@@ -308,13 +314,22 @@ export default function PostCard({
        ) : (
   <Link href={`/dashboard/post/${id}`} className="block w-full h-full relative">
     <div className="relative w-full h-64">
-      <Image
-        src={thumbnail_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80'}
-        alt={title}
-        fill
-        style={{ width: '100%', height: '100%' }}
-        className={`object-cover transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
-      />
+      {thumbnail_url ? (
+        <Image
+          src={thumbnail_url}
+          alt={title}
+          fill
+          style={{ width: '100%', height: '100%' }}
+          className={`object-cover transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">
+          <div className="text-center">
+            <p className="text-4xl mb-2">📝</p>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+          </div>
+        </div>
+      )}
       {!is_free && !hasPurchased && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md">
           <Lock size={48} className="text-white" />

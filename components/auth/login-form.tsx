@@ -118,9 +118,18 @@ export default function LoginForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          Senha
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-foreground">
+            Senha
+          </label>
+          <button
+            type="button"
+            onClick={() => router.push('/auth/reset-password')}
+            className="text-sm text-primary hover:underline"
+          >
+            Esqueceu a senha?
+          </button>
+        </div>
         <input
           type="password"
           value={password}
