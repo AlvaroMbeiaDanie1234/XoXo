@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
 import { Camera, Video, VideoOff, Mic, MicOff, Send, DollarSign, Users, X } from 'lucide-react'
+import LiveKitStream from '@/components/dashboard/LiveKitStream'
 
 export default function StreamPage() {
   const { toast } = useToast()
@@ -21,6 +22,7 @@ export default function StreamPage() {
   const [tipAmount, setTipAmount] = useState('')
   const [showTipModal, setShowTipModal] = useState(false)
   const [currentLiveId, setCurrentLiveId] = useState<string | null>(null)
+  const [liveKitToken, setLiveKitToken] = useState<string | null>(null)
   
   const videoRef = useRef<HTMLVideoElement>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -114,6 +116,20 @@ export default function StreamPage() {
 
       setCurrentLiveId(liveData.id)
       setIsStreaming(true)
+      
+      // Generate LiveKit token
+      const tokenResponse = await fetch('/api/livekit/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomName: liveData.id,
+          participantName: currentUser.email || currentUser.id,
+          isHost: true
+        })
+      })
+      
+      const { token } = await tokenResponse.json()
+      setLiveKitToken(token)
       
       // Subscribe to live messages
       const channel = supabase
@@ -338,13 +354,23 @@ export default function StreamPage() {
           <div className="space-y-4">
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               <div className="relative bg-black aspect-video md:aspect-video">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                {liveKitToken && currentLiveId ? (
+                  <LiveKitStream
+                    roomName={currentLiveId}
+                    participantName={currentUser?.email || currentUser?.id || 'host'}
+                    isHost={true}
+                    token={liveKitToken}
+                    onLeave={handleEndLive}
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                )}
                 <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2">
                   <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                   AO VIVO

@@ -270,7 +270,12 @@ export default function AdminDashboard() {
       // Fetch reports
       const { data: reportsData } = await supabase
         .from('reports')
-        .select('*, reporter:profiles(display_name, email), reported_user:profiles(display_name, email), posts(title)')
+        .select(`
+          *,
+          reporter:reporter_id(id, display_name, email),
+          reported_user:reported_user_id(id, display_name, email),
+          posts:post_id(id, title)
+        `)
         .order('created_at', { ascending: false })
       if (reportsData) setReports(reportsData)
 

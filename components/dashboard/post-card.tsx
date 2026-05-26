@@ -329,7 +329,7 @@ export default function PostCard({
       </div>
 
       {/* Media Content */}
-      <div className={`relative w-full max-h-[200px] group overflow-visible ${thumbnail_url ? 'bg-black' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
+      <div className={`relative w-full max-h-[300px] group overflow-visible ${thumbnail_url ? 'bg-black' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
         {content_type === 'video' ? (
           <div className="w-full h-auto relative cursor-pointer" onClick={handlePlayClick}>
             {thumbnail_url ? (
@@ -337,7 +337,7 @@ export default function PostCard({
                 ref={videoRef}
                 src={content_url}
                 onTimeUpdate={handleTimeUpdate}
-                className="w-full h-auto max-h-[200px] object-contain"
+                className="w-full h-auto max-h-[300px] object-contain"
                 poster={thumbnail_url}
                 muted={true}
                 playsInline
@@ -383,14 +383,14 @@ export default function PostCard({
           </div>
        ) : (
   <Link href={`/dashboard/post/${id}`} className="block w-full relative overflow-visible">
-    <div className="relative w-full max-h-[200px]">
+    <div className="relative w-full max-h-[300px]">
       {thumbnail_url ? (
         <Image
           src={thumbnail_url}
           alt={title}
           width={800}
           height={600}
-          className={`w-full h-auto max-h-[200px] object-contain transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
+          className={`w-full h-auto max-h-[300px] object-contain transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">

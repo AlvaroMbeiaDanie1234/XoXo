@@ -61,6 +61,12 @@ function DashboardContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { theme } = useTheme()
   
+  // Infinite scroll states
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(0)
+  const POSTS_PER_PAGE = 10
+  
   // Wallet states
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -89,6 +95,59 @@ function DashboardContent() {
       setBalance(Number(data.balance) || 0)
     }
   }
+
+  const loadMorePosts = async () => {
+    if (!hasMore || loadingMore || !user) return
+    
+    setLoadingMore(true)
+    try {
+      const from = page * POSTS_PER_PAGE
+      const to = from + POSTS_PER_PAGE - 1
+      
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*, profiles(display_name, avatar_url)')
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (postsError) throw postsError
+      
+      if (postsData && postsData.length > 0) {
+        setPosts(prev => [...prev, ...postsData])
+        setPage(prev => prev + 1)
+        setHasMore(postsData.length >= POSTS_PER_PAGE)
+      } else {
+        setHasMore(false)
+      }
+    } catch (err: any) {
+      console.error('Error loading more posts:', err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  useEffect(() => {
+    // Setup infinite scroll observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMorePosts()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    const sentinel = document.getElementById('infinite-scroll-sentinel')
+    if (sentinel) {
+      observer.observe(sentinel)
+    }
+
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel)
+      }
+    }
+  }, [hasMore, loadingMore, page, user])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -132,14 +191,17 @@ function DashboardContent() {
             .order('created_at', { ascending: false })
           if (transData) setTransactions(transData)
         } else {
-          // Fetch posts
+          // Fetch posts with pagination
           const { data: postsData, error: postsError } = await supabase
             .from('posts')
             .select('*, profiles(display_name, avatar_url)')
             .order('created_at', { ascending: false })
+            .range(0, POSTS_PER_PAGE - 1)
 
           if (postsError) throw postsError
           setPosts(postsData || [])
+          setHasMore((postsData?.length || 0) >= POSTS_PER_PAGE)
+          setPage(1)
         }
       } catch (err: any) {
         setError(err.message || 'Erro ao carregar conteúdo')
@@ -554,6 +616,11 @@ function DashboardContent() {
                       creator_id={post.user_id}
                     />
                   ))}
+                  {hasMore && (
+                    <div id="infinite-scroll-sentinel" className="flex items-center justify-center py-8">
+                      {loadingMore && <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>}
+                    </div>
+                  )}
                 </div>
               )}
             </>

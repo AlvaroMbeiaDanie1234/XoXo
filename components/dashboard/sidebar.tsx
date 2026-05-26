@@ -109,6 +109,7 @@ function SidebarContent() {
     { label: 'Início', href: '/dashboard', icon: Home },
     { label: 'Chat', href: '/dashboard/messages', icon: MessageCircle },
     { label: 'Stream (Live)', href: '/dashboard/live', icon: Radio },
+    { label: 'Reels', href: '/dashboard/reels', icon: Radio, isNew: true },
     { label: 'Explorar', href: '/dashboard/explore', icon: Compass },
     { label: 'Favoritos', href: '/dashboard/favorites', icon: Heart },
     { label: 'Meu Perfil', href: '/dashboard/profile', icon: User },
@@ -161,6 +162,9 @@ function SidebarContent() {
                 >
                   <Icon size={18} className="flex-shrink-0" />
                   <span className="text-sm font-medium">{item.label}</span>
+                  {(item as any).isNew && (
+                    <span className="ml-auto text-red-600 text-xs font-bold">(Novo)</span>
+                  )}
                   {item.label === 'Chat' && unreadGlobalCount > 0 && (
                     <span className="ml-auto bg-accent text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
                       {unreadGlobalCount}
@@ -226,16 +230,6 @@ function SidebarContent() {
             )
           })}
 
-          {/* Append 'Sair' button on mobile if not in wallet mode for 6-grid consistency */}
-          {mode !== 'wallet' && (
-            <button
-              onClick={handleLogout}
-              className={`flex flex-col items-center justify-center flex-1 py-1 active:scale-95 transition-all ${theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-muted-foreground hover:text-destructive'}`}
-            >
-              <LogOut size={20} />
-              <span className="text-[10px] mt-1 font-semibold tracking-tight">Sair</span>
-            </button>
-          )}
         </div>,
         document.body
       )}
