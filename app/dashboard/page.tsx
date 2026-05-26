@@ -543,7 +543,7 @@ function DashboardContent() {
                   {[...Array(4)].map((_, i) => <div key={i} className="h-[400px] bg-gray-200 rounded-md animate-pulse border border-border" />)}
                 </div>
               ) : (
-                <div className="flex flex-col gap-4 w-full">
+                <div className="flex flex-col gap-4 w-full overflow-visible">
                   {posts.map((post) => (
                     <PostCard
                       key={post.id}

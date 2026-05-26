@@ -41,14 +41,15 @@ export default function PostCard({ post }: PostCardProps) {
   return (
     <Link href={`/dashboard/post/${post.id}`}>
       <div className="group cursor-pointer h-full">
-        <div className="relative aspect-video rounded-lg overflow-hidden bg-muted mb-3">
+        <div className="relative aspect-video rounded-lg bg-muted mb-3">
           {/* Thumbnail */}
           {post.thumbnail_url && !imageError ? (
             <Image
               src={post.thumbnail_url}
               alt={post.title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              width={800}
+              height={600}
+              className="w-full h-auto object-contain group-hover:scale-105 transition-transform duration-300"
               onError={() => setImageError(true)}
             />
           ) : (

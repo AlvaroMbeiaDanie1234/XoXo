@@ -282,7 +282,7 @@ export default function PostCard({
   if (isDeleted) return null
 
   return (
-    <div ref={containerRef} className={`rounded-xl mb-6 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 w-full ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+    <div ref={containerRef} className={`rounded-xl mb-6 shadow-sm hover:shadow-md transition-shadow duration-300 w-full overflow-visible ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
@@ -329,15 +329,15 @@ export default function PostCard({
       </div>
 
       {/* Media Content */}
-      <div className={`relative w-full h-64 overflow-hidden group ${thumbnail_url ? 'bg-black' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
+      <div className={`relative w-full max-h-[200px] group overflow-visible ${thumbnail_url ? 'bg-black' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
         {content_type === 'video' ? (
-          <div className="w-full h-full relative cursor-pointer" onClick={handlePlayClick}>
+          <div className="w-full h-auto relative cursor-pointer" onClick={handlePlayClick}>
             {thumbnail_url ? (
               <video
                 ref={videoRef}
                 src={content_url}
                 onTimeUpdate={handleTimeUpdate}
-                className="w-full h-full object-contain"
+                className="w-full h-auto max-h-[200px] object-contain"
                 poster={thumbnail_url}
                 muted={true}
                 playsInline
@@ -382,15 +382,15 @@ export default function PostCard({
             </Link>
           </div>
        ) : (
-  <Link href={`/dashboard/post/${id}`} className="block w-full h-full relative">
-    <div className="relative w-full h-64">
+  <Link href={`/dashboard/post/${id}`} className="block w-full relative overflow-visible">
+    <div className="relative w-full max-h-[200px]">
       {thumbnail_url ? (
         <Image
           src={thumbnail_url}
           alt={title}
-          fill
-          style={{ width: '100%', height: '100%' }}
-          className={`object-cover transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
+          width={800}
+          height={600}
+          className={`w-full h-auto max-h-[200px] object-contain transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">
