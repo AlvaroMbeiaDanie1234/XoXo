@@ -22,6 +22,8 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
+  const [reports, setReports] = useState<any[]>([])
+  const [onlineUsersCount, setOnlineUsersCount] = useState(0)
   const [totalBalance, setTotalBalance] = useState(0)
   const [linkpagaSlug, setLinkpagaSlug] = useState('')
   const [vipBadgePrice, setVipBadgePrice] = useState('15000') // Default 15000 AOA
@@ -138,8 +140,7 @@ export default function AdminDashboard() {
 
   const handleToggleVerification = async (userId: string, currentVal: boolean) => {
     try {
-      const supabaseAdmin = createAdminClient()
-      const { error } = await supabaseAdmin.from('profiles').update({ is_verified: !currentVal }).eq('id', userId)
+      const { error } = await supabase.from('profiles').update({ is_verified: !currentVal }).eq('id', userId)
       if (error) throw error
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !currentVal } : u))
       toast({
@@ -265,6 +266,21 @@ export default function AdminDashboard() {
         .select('*, target:profiles(display_name, email)')
         .order('created_at', { ascending: false })
       if (annData) setAnnouncements(annData)
+
+      // Fetch reports
+      const { data: reportsData } = await supabase
+        .from('reports')
+        .select('*, reporter:profiles(display_name, email), reported_user:profiles(display_name, email), posts(title)')
+        .order('created_at', { ascending: false })
+      if (reportsData) setReports(reportsData)
+
+      // Fetch online users (users with last_seen within last 5 minutes)
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      const { count: onlineCount } = await supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true })
+        .gt('last_seen', fiveMinutesAgo)
+      if (onlineCount !== null) setOnlineUsersCount(onlineCount)
 
       // Fetch Settings
       const { data: settings } = await supabase.from('system_settings').select('*')
@@ -711,9 +727,8 @@ export default function AdminDashboard() {
           altText="Confirmar"
           onClick={async () => {
             try {
-              const supabaseAdmin = createAdminClient()
-              await supabaseAdmin.from('profiles').update({ is_verified: true }).eq('id', userId)
-              await supabaseAdmin.from('verification_requests').update({ status: 'approved' }).eq('id', requestId)
+              await supabase.from('profiles').update({ is_verified: true }).eq('id', userId)
+              await supabase.from('verification_requests').update({ status: 'approved' }).eq('id', requestId)
               toast({
                 title: "Utilizador verificado",
                 description: "O selo oficial foi ativado com sucesso.",
@@ -732,6 +747,45 @@ export default function AdminDashboard() {
         </ToastAction>
       )
     })
+  }
+
+  const handleResolveReport = async (reportId: string, status: string) => {
+    try {
+      const supabaseAdmin = createAdminClient()
+      await supabaseAdmin.from('reports').update({ status, updated_at: new Date().toISOString() }).eq('id', reportId)
+      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r))
+      toast({
+        title: status === 'resolved' ? "Denúncia Resolvida" : "Denúncia Ignorada",
+        description: status === 'resolved' ? "A denúncia foi marcada como resolvida." : "A denúncia foi ignorada."
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro ao atualizar denúncia",
+        description: err.message,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleRespondToReport = async (reportId: string) => {
+    const response = prompt("Digite a resposta para esta denúncia:")
+    if (!response) return
+
+    try {
+      const supabaseAdmin = createAdminClient()
+      await supabaseAdmin.from('reports').update({ admin_response: response, status: 'resolved', updated_at: new Date().toISOString() }).eq('id', reportId)
+      setReports(prev => prev.map(r => r.id === reportId ? { ...r, admin_response: response, status: 'resolved' } : r))
+      toast({
+        title: "Resposta Enviada",
+        description: "A resposta foi enviada com sucesso."
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar resposta",
+        description: err.message,
+        variant: "destructive"
+      })
+    }
   }
 
   const handleSaveTerms = async () => {
@@ -907,6 +961,9 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('announcements')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'announcements' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Megaphone size={20} /> Marketing
               </button>
+              <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'reports' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <AlertTriangle size={20} /> Denúncias {reports.filter(r => r.status === 'pending').length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{reports.filter(r => r.status === 'pending').length}</span>}
+              </button>
               <button onClick={() => setActiveTab('transactions')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'transactions' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <List size={20} /> Transações
               </button>
@@ -1015,11 +1072,18 @@ export default function AdminDashboard() {
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 <div className="bg-white p-6 rounded-2xl border border-border shadow-sm">
                   <div className="p-3 bg-blue-50 text-blue-600 rounded-xl w-12 h-12 flex items-center justify-center mb-4"><Users size={24} /></div>
                   <p className="text-xs font-bold text-gray-400 uppercase">Utilizadores Ativos</p>
                   <h3 className="text-3xl font-black mt-1">{users.length}</h3>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border border-border shadow-sm">
+                  <div className="p-3 bg-green-50 text-green-600 rounded-xl w-12 h-12 flex items-center justify-center mb-4"><Activity size={24} /></div>
+                  <p className="text-xs font-bold text-gray-400 uppercase">Online Agora</p>
+                  <h3 className="text-3xl font-black mt-1 text-green-600">{onlineUsersCount}</h3>
+                  <p className="text-[9px] text-gray-400 mt-1 font-semibold">Últimos 5 minutos</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-border shadow-sm">
@@ -1515,6 +1579,84 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </form>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'reports' && (
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2"><AlertTriangle /> Gestão de Denúncias</h2>
+                <span className="text-sm text-gray-500">{reports.filter(r => r.status === 'pending').length} pendentes</span>
+              </div>
+              <div className="p-6">
+                {reports.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <p>Nenhuma denúncia encontrada</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reports.map((report) => (
+                      <div key={report.id} className={`border rounded-xl p-4 ${report.status === 'pending' ? 'border-orange-200 bg-orange-50/30' : report.status === 'resolved' ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold uppercase bg-gray-200 px-2 py-1 rounded">{report.report_type}</span>
+                              <span className={`text-xs font-bold uppercase px-2 py-1 rounded ${report.status === 'pending' ? 'bg-orange-200 text-orange-800' : report.status === 'resolved' ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-800'}`}>
+                                {report.status === 'pending' ? 'Pendente' : report.status === 'resolved' ? 'Resolvido' : 'Em Análise'}
+                              </span>
+                            </div>
+                            <p className="text-sm font-bold text-gray-900">
+                              Denunciado: {report.reported_user?.display_name || report.reported_user?.email}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Por: {report.reporter?.display_name || report.reporter?.email}
+                            </p>
+                            {report.posts && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Conteúdo: {report.posts.title}
+                              </p>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            {new Date(report.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        {report.description && (
+                          <p className="text-sm text-gray-600 mb-3">{report.description}</p>
+                        )}
+                        {report.admin_response && (
+                          <div className="bg-white rounded-lg p-3 mb-3 border border-gray-200">
+                            <p className="text-xs font-bold text-gray-700 mb-1">Resposta do Admin:</p>
+                            <p className="text-sm text-gray-600">{report.admin_response}</p>
+                          </div>
+                        )}
+                        {report.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleResolveReport(report.id, 'resolved')}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl text-sm transition-all"
+                            >
+                              Resolver
+                            </button>
+                            <button
+                              onClick={() => handleResolveReport(report.id, 'dismissed')}
+                              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-xl text-sm transition-all"
+                            >
+                              Ignorar
+                            </button>
+                            <button
+                              onClick={() => handleRespondToReport(report.id)}
+                              className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold py-2 rounded-xl text-sm transition-all"
+                            >
+                              Responder
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

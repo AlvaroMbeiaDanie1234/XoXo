@@ -18,7 +18,8 @@ import {
   Maximize2,
   Lock,
   Trash2,
-  Loader2
+  Loader2,
+  Flag
 } from 'lucide-react'
 import CommentsModal from './comments-modal'
 import { useTheme } from 'next-themes'
@@ -66,6 +67,7 @@ export default function PostCard({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleted, setIsDeleted] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
   const [isFreePlan, setIsFreePlan] = useState(false)
   const [hasPurchased, setHasPurchased] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -222,6 +224,25 @@ export default function PostCard({
     } catch (err) {
       setIsLiked(originalIsLiked)
       setLikesCount(originalLikes)
+    }
+  }
+
+  const handleReport = async (reportType: string) => {
+    if (!currentUser) return alert('Faz login para denunciar!')
+    try {
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reported_user_id: creator_id,
+          post_id: id,
+          report_type: reportType
+        })
+      })
+      setShowReportModal(false)
+      alert('Denúncia enviada com sucesso!')
+    } catch (err) {
+      alert('Erro ao enviar denúncia')
     }
   }
 
@@ -415,7 +436,12 @@ export default function PostCard({
             </button>
             <button className="hover:scale-110 transition-transform"><Send size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} /></button>
           </div>
-          <button className="hover:scale-110 transition-transform"><Bookmark size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} /></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowReportModal(true)} className="hover:scale-110 transition-transform">
+              <Flag size={20} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} />
+            </button>
+            <button className="hover:scale-110 transition-transform"><Bookmark size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} /></button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 mb-3">
@@ -480,6 +506,58 @@ export default function PostCard({
                 Eliminar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+          <div className={`bg-white border border-border rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-200 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <Flag size={28} />
+            </div>
+            <h4 className="text-lg font-extrabold text-gray-900 mb-2">Denunciar Criador</h4>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Selecione o motivo da denúncia:
+            </p>
+            <div className="space-y-2 mb-6">
+              <button
+                onClick={() => handleReport('Usou meu perfil')}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              >
+                Usou meu perfil
+              </button>
+              <button
+                onClick={() => handleReport('Publicou meus conteúdos')}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              >
+                Publicou meus conteúdos
+              </button>
+              <button
+                onClick={() => handleReport('Conteúdo inapropriado')}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              >
+                Conteúdo inapropriado
+              </button>
+              <button
+                onClick={() => handleReport('Spam')}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              >
+                Spam
+              </button>
+              <button
+                onClick={() => handleReport('Outro')}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              >
+                Outro
+              </button>
+            </div>
+            <button
+              onClick={() => setShowReportModal(false)}
+              className={`w-full font-bold py-3 rounded-xl text-sm transition-all ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}

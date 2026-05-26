@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import SecurityProvider from '@/components/SecurityProvider'
 import { ThemeProvider } from '@/components/theme-provider'
+import SessionTracker from '@/components/session-tracker'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -94,6 +95,7 @@ export default function RootLayout({
       <body className={`font-sans antialiased ${_poppins.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <SecurityProvider />
+          <SessionTracker />
           {children}
           <Toaster />
           {process.env.NODE_ENV === 'production' && <Analytics />}
