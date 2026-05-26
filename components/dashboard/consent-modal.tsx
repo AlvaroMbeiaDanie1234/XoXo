@@ -23,11 +23,20 @@ export default function ConsentModal() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('data_consent_accepted')
+        .select('data_consent_accepted, created_at')
         .eq('id', user.id)
         .single()
 
-      if (!profile?.data_consent_accepted) {
+      if (!profile) {
+        setLoading(false)
+        return
+      }
+
+      // Only show modal for new users (created in the last 7 days) who haven't accepted
+      const isNewUser = profile.created_at && new Date(profile.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      const hasNotAccepted = !profile.data_consent_accepted
+
+      if (isNewUser && hasNotAccepted) {
         setIsOpen(true)
       }
     } catch (error) {
