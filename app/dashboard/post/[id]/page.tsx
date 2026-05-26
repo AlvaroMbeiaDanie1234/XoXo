@@ -31,6 +31,11 @@ export default function PostDetailsPage() {
   const [deleting, setDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
+  // Tip state
+  const [showTipModal, setShowTipModal] = useState(false)
+  const [tipAmount, setTipAmount] = useState('')
+  const [sendingTip, setSendingTip] = useState(false)
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const supabase = createClient()
   const router = useRouter()
@@ -268,7 +273,7 @@ export default function PostDetailsPage() {
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !newComment.trim()) return
-    
+
     setIsSubmittingComment(true)
     try {
       const res = await fetch('/api/comments', {
@@ -308,6 +313,55 @@ export default function PostDetailsPage() {
     }
   }
 
+  const handleSendTip = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !tipAmount.trim()) return
+
+    const amount = Number(tipAmount)
+    if (amount < 300) {
+      toast({
+        title: "Valor mínimo",
+        description: "A gorjeta mínima é de 300 AOA",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSendingTip(true)
+    try {
+      const res = await fetch('/api/tips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: id,
+          amount,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.message || data.error)
+      }
+
+      toast({
+        title: "Gorjeta enviada!",
+        description: `Enviaste ${amount.toLocaleString()} AOA ao criador.`,
+      })
+
+      setTipAmount('')
+      setShowTipModal(false)
+      window.dispatchEvent(new CustomEvent('balanceUpdated'))
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar gorjeta",
+        description: err.message,
+        variant: "destructive"
+      })
+    } finally {
+      setSendingTip(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -320,17 +374,17 @@ export default function PostDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f2ef] pb-12">
+    <div className="min-h-screen bg-[#f3f2ef] pb-12 relative">
       <Header user={user} />
 
-      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4">
+      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4 relative z-10">
         <div className="hidden lg:block w-[225px] flex-shrink-0">
           <Sidebar />
         </div>
 
-        <div className="flex-1 max-w-[800px] w-full">
+        <div className="flex-1 max-w-[800px] w-full relative z-10">
           {/* Post Card */}
-          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden mb-6">
+          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden mb-6 relative z-10">
             <div className="aspect-video bg-black relative flex items-center justify-center overflow-hidden">
               {post.content_type === 'video' ? (
                 <video 
@@ -347,7 +401,7 @@ export default function PostDetailsPage() {
               )}
 
               {showPaywall && !hasAccess && (
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 z-20">
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 z-50">
                   <div className="w-24 h-24 bg-accent rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-accent/40 animate-bounce">
                     <Lock size={44} className="text-white" />
                   </div>
@@ -397,6 +451,16 @@ export default function PostDetailsPage() {
                     Eliminar Conteúdo
                   </button>
                 )}
+
+                {user && user.id !== post.user_id && (
+                  <button
+                    onClick={() => setShowTipModal(true)}
+                    className="flex items-center gap-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-600 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm border border-yellow-100"
+                  >
+                    <DollarSign size={14} />
+                    Enviar Gorjeta
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
                 <h1 className="text-2xl font-bold">{post.title}</h1>
@@ -412,12 +476,12 @@ export default function PostDetailsPage() {
           </div>
 
           {/* Comments Section */}
-          <div className="bg-white rounded-xl border border-border shadow-sm p-6 mb-12">
+          <div className="bg-white rounded-xl border border-border shadow-sm p-6 mb-12 relative z-10">
             <h3 className="font-bold text-xl mb-6">Comentários ({comments.reduce((acc, c) => acc + 1 + c.replies.length, 0)})</h3>
-            
+
             {/* Comment Form */}
             {user ? (
-              <form onSubmit={handleCommentSubmit} className="mb-8">
+              <form onSubmit={handleCommentSubmit} className="mb-8 relative z-10">
                 {replyTo && (
                   <div className="flex items-center justify-between bg-gray-50 p-2 rounded-t-lg border-x border-t border-border">
                     <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -455,7 +519,7 @@ export default function PostDetailsPage() {
             )}
 
             {/* Comments List */}
-            <div className="space-y-6">
+            <div className="space-y-6 relative z-10">
               {comments.map((comment) => (
                 <div key={comment.id} className="space-y-4">
                   {/* Root Comment */}
@@ -526,13 +590,13 @@ export default function PostDetailsPage() {
               Tem a certeza que deseja eliminar esta publicação permanentemente? Esta ação não pode ser desfeita.
             </p>
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setShowDeleteModal(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl text-sm transition-all"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={confirmDeletePost}
                 disabled={deleting}
                 className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-accent/10 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
@@ -541,6 +605,49 @@ export default function PostDetailsPage() {
                 Eliminar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showTipModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+          <div className="bg-white border border-border rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-yellow-50 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-100">
+              <DollarSign size={28} />
+            </div>
+            <h4 className="text-lg font-extrabold text-gray-900 mb-2">Enviar Gorjeta</h4>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Envia uma gorjeta ao criador deste conteúdo. Valor mínimo: 300 AOA.
+            </p>
+            <form onSubmit={handleSendTip} className="space-y-4">
+              <div>
+                <input
+                  type="number"
+                  min="300"
+                  value={tipAmount}
+                  onChange={(e) => setTipAmount(e.target.value)}
+                  placeholder="Valor (AOA)"
+                  className="w-full px-4 py-3 border border-border rounded-xl text-center font-bold text-lg focus:outline-none focus:border-accent"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTipModal(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl text-sm transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingTip}
+                  className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-accent/10 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                >
+                  {sendingTip ? <Loader2 className="animate-spin w-4 h-4" /> : <Send size={16} />}
+                  Enviar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

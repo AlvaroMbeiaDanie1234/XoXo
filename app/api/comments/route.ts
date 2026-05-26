@@ -82,6 +82,36 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Comment created successfully:', data)
+
+    // Fetch post creator to send notification
+    const { data: postData } = await supabaseAdmin
+      .from('posts')
+      .select('user_id, title')
+      .eq('id', post_id)
+      .single()
+
+    if (postData && postData.user_id !== user.id) {
+      // Fetch commenter's name
+      const { data: commenterProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .single()
+
+      const commenterName = commenterProfile?.display_name || user.email
+
+      // Send notification to post creator
+      await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: postData.user_id,
+          title: 'Novo Comentário',
+          message: `${commenterName} comentou no teu conteúdo: "${postData.title}"`,
+          type: 'comment',
+          is_read: false
+        })
+    }
+
     return NextResponse.json(data[0], { status: 201 })
   } catch (error) {
     console.error('Error creating comment:', error)

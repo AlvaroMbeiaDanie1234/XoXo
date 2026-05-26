@@ -57,6 +57,7 @@ export default function PostCard({
   const [commentsCount, setCommentsCount] = useState(0)
   const [viewsCount, setViewsCount] = useState(0)
   const [createdAt, setCreatedAt] = useState<Date | null>(null)
+  const [subscriberCount, setSubscriberCount] = useState(0)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [creatorVerified, setCreatorVerified] = useState(creator_verified || false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -126,17 +127,19 @@ export default function PostCard({
         const { data: { user } } = await supabase.auth.getUser()
         setCurrentUser(user)
 
-        const [likesRes, commsRes, viewsRes, postRes] = await Promise.all([
+        const [likesRes, commsRes, viewsRes, postRes, subsRes] = await Promise.all([
           supabase.from('likes').select('id', { count: 'exact', head: true }).eq('post_id', id),
           supabase.from('comments').select('id', { count: 'exact', head: true }).eq('post_id', id),
           supabase.from('post_views').select('id', { count: 'exact', head: true }).eq('post_id', id),
-          supabase.from('posts').select('created_at').eq('id', id).maybeSingle()
+          supabase.from('posts').select('created_at').eq('id', id).maybeSingle(),
+          supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('following_id', creator_id)
         ])
 
         if (!likesRes.error) setLikesCount(likesRes.count || 0)
         if (!commsRes.error) setCommentsCount(commsRes.count || 0)
         if (!viewsRes.error) setViewsCount(viewsRes.count || 0)
         if (postRes.data) setCreatedAt(new Date(postRes.data.created_at))
+        if (!subsRes.error) setSubscriberCount(subsRes.count || 0)
         setCreatorVerified(false)
 
         if (user) {
@@ -423,6 +426,9 @@ export default function PostCard({
           )}
           <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
             {likesCount > 0 ? `${likesCount.toLocaleString()} curtidas` : 'Sê o primeiro a curtir'}
+          </span>
+          <span className={`text-xs font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+            {subscriberCount > 0 ? `${subscriberCount} Seguidores` : '0 Seguidores'}
           </span>
         </div>
 

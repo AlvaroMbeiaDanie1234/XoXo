@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
@@ -137,7 +138,8 @@ export default function AdminDashboard() {
 
   const handleToggleVerification = async (userId: string, currentVal: boolean) => {
     try {
-      const { error } = await supabase.from('profiles').update({ is_verified: !currentVal }).eq('id', userId)
+      const supabaseAdmin = createAdminClient()
+      const { error } = await supabaseAdmin.from('profiles').update({ is_verified: !currentVal }).eq('id', userId)
       if (error) throw error
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !currentVal } : u))
       toast({
@@ -709,8 +711,9 @@ export default function AdminDashboard() {
           altText="Confirmar"
           onClick={async () => {
             try {
-              await supabase.from('profiles').update({ is_verified: true }).eq('id', userId)
-              await supabase.from('verification_requests').update({ status: 'approved' }).eq('id', requestId)
+              const supabaseAdmin = createAdminClient()
+              await supabaseAdmin.from('profiles').update({ is_verified: true }).eq('id', userId)
+              await supabaseAdmin.from('verification_requests').update({ status: 'approved' }).eq('id', requestId)
               toast({
                 title: "Utilizador verificado",
                 description: "O selo oficial foi ativado com sucesso.",

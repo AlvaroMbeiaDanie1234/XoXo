@@ -55,6 +55,27 @@ export default function CreatorProfileActions({ creatorId, currentUserId }: Crea
           follower_id: currentUserId,
           following_id: creatorId
         })
+
+      // Send notification to creator
+      const { data: followerProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', currentUserId)
+        .single()
+
+      const followerName = followerProfile?.display_name || 'Um utilizador'
+
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: creatorId,
+          title: 'Novo Subscritor',
+          message: `${followerName} subscreveu ao teu perfil!`,
+          type: 'subscription'
+        })
+      })
+
       setIsSubscribed(true)
     }
     setActionLoading(false)

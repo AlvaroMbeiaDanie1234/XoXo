@@ -26,6 +26,12 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
     .eq('user_id', id)
     .order('created_at', { ascending: false })
 
+  // Fetch subscriber count
+  const { count: subscriberCount } = await supabase
+    .from('subscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('following_id', id)
+
   if (creatorError || !creator) {
     return (
       <div className="min-h-screen bg-background">
@@ -101,7 +107,7 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-2xl font-bold text-foreground">1.2K</span>
+                  <span className="text-2xl font-bold text-foreground">{subscriberCount || 0}</span>
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold flex items-center gap-1">
                     <Users size={14} /> Subscritores
                   </span>

@@ -130,9 +130,9 @@ export default function CommentsModal({ isOpen, onClose, postId, user, content_u
           </button>
         </div>
 
-        {/* Content Preview */}
+        {/* Content Preview - Reduced size */}
         {content_url && (
-          <div className="w-full bg-black aspect-video flex-shrink-0 border-b border-border">
+          <div className="w-full bg-black aspect-[16/9] max-h-[200px] flex-shrink-0 border-b border-border">
             {content_type === 'video' ? (
               <video src={content_url} controls className="w-full h-full object-contain" />
             ) : (
