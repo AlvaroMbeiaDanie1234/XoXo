@@ -143,7 +143,7 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
                     content_type={post.content_type}
                     creator_name={post.profiles?.display_name || 'Usuário'}
                     creator_avatar={post.profiles?.avatar_url || undefined}
-                    creator_verified={false}
+                    creator_verified={post.profiles?.is_verified || false}
                     creator_id={post.user_id}
                     price={post.price}
                     is_free={post.is_free}

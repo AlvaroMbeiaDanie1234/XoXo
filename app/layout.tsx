@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono, Poppins } from 'next/font/google'
+import { Geist, Geist_Mono, Poppins, Montserrat } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import SecurityProvider from '@/components/SecurityProvider'
@@ -13,6 +13,11 @@ const _poppins = Poppins({
   weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
   variable: '--font-poppins'
+});
+const _montserrat = Montserrat({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-montserrat'
 });
 
 export const metadata: Metadata = {
@@ -92,7 +97,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="bg-background" suppressHydrationWarning>
-      <body className={`font-sans antialiased ${_poppins.variable}`}>
+      <body className={`font-sans antialiased ${_poppins.variable} ${_montserrat.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <SecurityProvider />
           <SessionTracker />

@@ -68,6 +68,7 @@ const config = {
       },
       fontFamily: {
         sans: ["var(--font-poppins), system-ui, -apple-system, sans-serif"],
+        montserrat: ["var(--font-montserrat), system-ui, sans-serif"],
       },
     },
   },

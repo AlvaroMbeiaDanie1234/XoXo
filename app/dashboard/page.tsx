@@ -110,7 +110,7 @@ function DashboardContent() {
       
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url)')
+        .select('*, profiles(display_name, avatar_url, is_verified)')
         .order('created_at', { ascending: false })
         .range(from, to)
 
@@ -202,7 +202,7 @@ function DashboardContent() {
           // Fetch posts with pagination
           const { data: postsData, error: postsError } = await supabase
             .from('posts')
-            .select('*, profiles(display_name, avatar_url)')
+            .select('*, profiles(display_name, avatar_url, is_verified)')
             .order('created_at', { ascending: false })
             .range(0, POSTS_PER_PAGE - 1)
 
@@ -660,7 +660,7 @@ function DashboardContent() {
                       {...post}
                       creator_name={post.profiles?.display_name || 'Usuário'}
                       creator_avatar={post.profiles?.avatar_url || undefined}
-                      creator_verified={false}
+                      creator_verified={post.profiles?.is_verified || false}
                       creator_id={post.user_id}
                     />
                   ))}

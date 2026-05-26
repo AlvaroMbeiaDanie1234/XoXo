@@ -43,13 +43,14 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [phone, setPhone] = useState<string | null>(null)
   const [preferredCurrency, setPreferredCurrency] = useState('AOA')
+  const [isVerified, setIsVerified] = useState(false)
 
   
 
   const loadBalance = async () => {
     if (!user) return
     try {
-      const { data, error } = await supabase.from('profiles').select('balance, display_name, avatar_url, phone, preferred_currency, withdrawal_country').eq('id', user.id).single()
+      const { data, error } = await supabase.from('profiles').select('balance, display_name, avatar_url, phone, preferred_currency, withdrawal_country, is_verified').eq('id', user.id).single()
       if (error) {
         console.error("XoXo Header: Error loading balance from profiles:", error)
       }
@@ -60,6 +61,8 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
         setAvatarUrl(data.avatar_url || null)
         setPhone(data.phone || null)
         setPreferredCurrency(resolveProfileCurrency(data))
+        setIsVerified(data.is_verified || false)
+        console.log('[Header] is_verified:', data.is_verified)
       }
     } catch (err) {
       console.error("XoXo Header: Exception loading balance:", err)
@@ -301,11 +304,21 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                 className={`flex items-center gap-3 p-1 pr-2 rounded-full transition-colors border ${theme === 'dark' ? 'hover:bg-gray-800 border-transparent' : 'hover:bg-gray-50 border-transparent'}`}
               >
                 <div className="hidden sm:block text-right">
-                  <p className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{displayName}</p>
+                  <p className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'} flex items-center gap-1`}>
+                    {displayName}
+                    {isVerified && <CheckCircle size={12} className="text-blue-500 fill-blue-500" />}
+                  </p>
                   <p className="text-[10px] font-bold text-accent">{formatMoney(balance, preferredCurrency)}</p>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs shadow-md">
-                  {displayName.charAt(0).toUpperCase()}
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs shadow-md">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  {isVerified && (
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-[1px] shadow-sm">
+                      <CheckCircle size={10} className="text-blue-500 fill-blue-500" />
+                    </div>
+                  )}
                 </div>
               </button>
 

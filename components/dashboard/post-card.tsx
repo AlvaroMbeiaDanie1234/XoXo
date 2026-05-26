@@ -142,7 +142,6 @@ export default function PostCard({
         if (!viewsRes.error) setViewsCount(viewsRes.count || 0)
         if (postRes.data) setCreatedAt(new Date(postRes.data.created_at))
         if (!subsRes.error) setSubscriberCount(subsRes.count || 0)
-        setCreatorVerified(false)
 
         if (user) {
           const [likeDataRes, profileRes] = await Promise.all([
@@ -329,7 +328,7 @@ export default function PostCard({
       </div>
 
       {/* Media Content */}
-      <div className={`relative w-full max-h-[300px] group overflow-visible ${thumbnail_url ? 'bg-black' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
+      <div className="relative w-full max-h-[300px] group overflow-visible">
         {content_type === 'video' ? (
           <div className="w-full h-auto relative cursor-pointer" onClick={handlePlayClick}>
             {thumbnail_url ? (
@@ -393,32 +392,35 @@ export default function PostCard({
           className={`w-full h-auto max-h-[300px] object-contain transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">
-          <div className="text-center">
-            <p className="text-4xl mb-2">📝</p>
-            <p className="text-sm font-medium text-gray-600">{title}</p>
+        <div className="w-full min-h-[200px] flex items-center justify-center p-6 relative overflow-hidden bg-gray-100">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 bg-[url('/xoxo.png')] bg-center bg-contain bg-no-repeat"></div>
+          <div className="text-center max-w-lg relative z-10">
+            <h3 className="text-lg font-bold mb-2 text-gray-900 font-montserrat">{title}</h3>
+            <p className="text-sm leading-relaxed text-gray-600 font-montserrat">
+              {description.length > 150 ? description.substring(0, 150) + '...' : description}
+            </p>
           </div>
         </div>
       )}
       {!is_free && !hasPurchased && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md">
+        <div className={`absolute inset-0 flex items-center justify-center backdrop-blur-md ${content_type === 'article' ? 'bg-black/20' : 'bg-black/40'}`}>
           <Lock size={48} className="text-white" />
         </div>
       )}
+      <div className="absolute bottom-4 left-4 flex gap-2">
+        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-black/40 text-white backdrop-blur-md border border-white/20">
+          {content_type}
+        </span>
+        {!is_free && !hasPurchased && (
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-accent/80 text-white backdrop-blur-md border border-accent/40">
+            AOA {price?.toLocaleString()}
+          </span>
+        )}
+      </div>
     </div>
   </Link>
-) }
+       )}
 
-        <div className="absolute bottom-4 left-4 flex gap-2">
-          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-black/40 text-white backdrop-blur-md border border-white/20">
-            {content_type}
-          </span>
-          {!is_free && !hasPurchased && (
-            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-accent/80 text-white backdrop-blur-md border border-accent/40">
-              AOA {price?.toLocaleString()}
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Info & Stats */}

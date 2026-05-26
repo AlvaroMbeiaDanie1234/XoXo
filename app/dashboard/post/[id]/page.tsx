@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
-import { 
-  Loader2, Lock, DollarSign, Play, CheckCircle, Heart, 
+import {
+  Loader2, Lock, DollarSign, Play, CheckCircle, Heart,
   MessageCircle, Bookmark, Star, ArrowRight, Send, Reply, Trash2, CheckCheck, Check
 } from 'lucide-react'
 
@@ -48,7 +49,7 @@ export default function PostDetailsPage() {
       // Fetch Post
       const { data: postData } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url)')
+        .select('*, profiles(display_name, avatar_url, is_verified)')
         .eq('id', id)
         .single()
       
@@ -385,17 +386,25 @@ export default function PostDetailsPage() {
         <div className="flex-1 max-w-[800px] w-full relative z-10">
           {/* Post Card */}
           <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden mb-6 relative z-10">
-            <div className="aspect-video bg-black relative flex items-center justify-center overflow-hidden">
+            <div className={`aspect-video relative flex items-center justify-center overflow-hidden ${post.content_type === 'article' && !post.thumbnail_url ? 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50' : 'bg-black'}`}>
               {post.content_type === 'video' ? (
-                <video 
+                <video
                   ref={videoRef}
-                  src={post.content_url} 
-                  controls={hasAccess || !showPaywall} 
+                  src={post.content_url}
+                  controls={hasAccess || !showPaywall}
                   onTimeUpdate={handleTimeUpdate}
-                  className="w-full h-full object-contain" 
+                  className="w-full h-full object-contain"
                   autoPlay={!showPaywall}
                   muted={!hasAccess}
                 />
+              ) : post.content_type === 'article' && !post.thumbnail_url ? (
+                <div className="text-center p-6 max-w-lg relative bg-gray-100">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 bg-[url('/xoxo.png')] bg-center bg-contain bg-no-repeat"></div>
+                  <div className="relative z-10">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-3 font-montserrat">{post.title}</h2>
+                    <p className="text-gray-600 leading-relaxed font-montserrat">{post.description}</p>
+                  </div>
+                </div>
               ) : (
                 <img src={post.content_url} alt={post.title} className="w-full h-full object-contain" />
               )}

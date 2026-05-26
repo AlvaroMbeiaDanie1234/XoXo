@@ -45,7 +45,7 @@ export default function FavoritesPage() {
         // Fetch favorite posts
         const { data, error } = await supabase
           .from('favorites')
-          .select('posts(*, profiles(display_name, avatar_url))')
+          .select('posts(*, profiles(display_name, avatar_url, is_verified))')
           .eq('user_id', currentUser.id)
           .order('created_at', { ascending: false })
 
@@ -128,6 +128,8 @@ export default function FavoritesPage() {
                   content_type={post.content_type as 'video' | 'article' | 'photo'}
                   creator_name={post.profiles?.display_name || 'Usuário'}
                   creator_avatar={post.profiles?.avatar_url || undefined}
+                  creator_verified={post.profiles?.is_verified || false}
+                  creator_id={post.user_id}
                 />
               ))}
             </div>

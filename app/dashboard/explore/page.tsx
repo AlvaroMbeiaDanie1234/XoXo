@@ -58,7 +58,7 @@ export default function ExplorePage() {
       // Fetch posts with real likes count
       const { data: postsData } = await supabase
         .from('posts')
-        .select('*, profiles!inner(*), likes(count)')
+        .select('*, profiles!inner(display_name, avatar_url, is_verified), likes(count)')
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -300,7 +300,7 @@ export default function ExplorePage() {
                   {...post}
                   creator_name={post.profiles?.display_name || 'Usuário'}
                   creator_avatar={post.profiles?.avatar_url || undefined}
-                  creator_verified={false}
+                  creator_verified={post.profiles?.is_verified || false}
                   creator_id={post.user_id}
                   likes={post.likes?.[0]?.count || 0}
                 />

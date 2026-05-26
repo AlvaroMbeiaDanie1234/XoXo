@@ -76,7 +76,7 @@ export default function ReelsPage() {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url)')
+        .select('*, profiles(display_name, avatar_url, is_verified)')
         .eq('content_type', 'video')
         .order('created_at', { ascending: false })
         .range(0, VIDEOS_PER_PAGE - 1)
@@ -102,7 +102,7 @@ export default function ReelsPage() {
       
       const { data, error } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url)')
+        .select('*, profiles(display_name, avatar_url, is_verified)')
         .eq('content_type', 'video')
         .order('created_at', { ascending: false })
         .range(from, to)
