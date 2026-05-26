@@ -96,6 +96,12 @@ export default function ZegoStream({
             showUserJoinAndLeave: false,
             showTextChat: false,
           },
+          layout: 'Auto', // Use auto layout for better responsiveness
+          showLeavingView: false,
+          showRoomInfo: false,
+          showDuration: false,
+          showNonHostUserList: false,
+          showNonHostUserAvatar: false,
           onLeaveRoom: () => {
             if (onLeave) onLeave()
           }

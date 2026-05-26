@@ -931,14 +931,14 @@ export default function LiveStreamPage() {
     <div className="min-h-screen bg-[#f3f2ef] pb-12">
       <Header user={user} />
 
-      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4">
+      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-2 md:px-4">
         {/* Left Sidebar */}
         <div className="hidden lg:block w-[225px] flex-shrink-0">
           <Sidebar />
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 max-w-[800px] w-full">
+        <div className="flex-1 w-full max-w-full md:max-w-[800px]">
 
           {/* Active Stream Viewer Screen */}
           {selectedStream ? (
@@ -949,7 +949,7 @@ export default function LiveStreamPage() {
 
                 {/* Active webcam for Streamer */}
                 {selectedStream.user_id === user.id ? (
-                  <div className="w-full h-full relative">
+                  <div className="w-full h-full relative z-10">
                     <ZegoStream
                       roomID={selectedStream.id}
                       userID={user.id}
@@ -959,7 +959,7 @@ export default function LiveStreamPage() {
                     />
 
                     {/* Bottom active control panel overlay for Creator */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 z-30 flex flex-col md:flex-row md:items-center md:justify-between gap-4 pointer-events-none">
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 md:p-6 z-50 flex flex-col md:flex-row md:items-center md:justify-between gap-4 pointer-events-none">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-accent uppercase tracking-widest flex items-center gap-1.5">
                           <span className="w-2 h-2 bg-accent rounded-full animate-ping" />
@@ -1189,7 +1189,7 @@ export default function LiveStreamPage() {
 
               {/* Creator Live Setup Card */}
               {profile ? (
-                <div className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden p-6">
+                <div className="bg-white rounded-3xl border border-border shadow-sm p-4 md:p-6 w-full overflow-visible">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
                       <Radio size={22} className="animate-pulse" />
@@ -1203,7 +1203,7 @@ export default function LiveStreamPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                  <div className="grid grid-cols-1 gap-5 mb-6">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Título da Transmissão</label>
                       <input
@@ -1234,7 +1234,7 @@ export default function LiveStreamPage() {
                   </div>
 
                   {!isStreamFree && (
-                    <div className="mb-6 max-w-xs animate-in slide-in-from-top duration-300">
+                    <div className="mb-6 w-full animate-in slide-in-from-top duration-300">
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Preço do Ingresso (AOA)</label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-extrabold text-sm">AOA</span>
@@ -1252,10 +1252,11 @@ export default function LiveStreamPage() {
                   <button
                     onClick={handleStartStream}
                     disabled={startingStream}
-                    className="w-full bg-accent hover:bg-accent/90 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-accent/10 transition-all disabled:opacity-50"
+                    className="w-full bg-accent hover:bg-accent/90 text-white font-bold py-3 md:py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-accent/10 transition-all disabled:opacity-50 text-sm md:text-base relative z-50"
                   >
-                    {startingStream ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                    Iniciar Transmissão ao Vivo
+                    {startingStream ? <Loader2 size={16} className="animate-spin md:size-18" /> : <Camera size={16} className="md:size-18" />}
+                    <span className="hidden md:inline">Iniciar Transmissão ao Vivo</span>
+                    <span className="md:hidden">Iniciar Live</span>
                   </button>
                 </div>
               ) : (
