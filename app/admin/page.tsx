@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { createAdminClient } from '@/lib/supabase/admin'
 import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
@@ -1004,6 +1003,7 @@ export default function AdminDashboard() {
   }
 
   const handleResetPassword = async (userId: string, userEmail: string) => {
+    console.log('[Reset Password] userId:', userId, 'userEmail:', userEmail)
     toast({
       title: "Resetar Senha?",
       description: "A senha será resetada para xoxo12345 e o utilizador será notificado.",
@@ -1012,42 +1012,23 @@ export default function AdminDashboard() {
           altText="Resetar"
           onClick={async () => {
             try {
-              const supabaseAdmin = createAdminClient()
-
-              // Reset password using Supabase admin API
-              const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-                password: 'xoxo12345'
+              const res = await fetch('/api/admin/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, userEmail })
               })
 
-              if (updateError) throw updateError
+              const data = await res.json()
+
+              if (!res.ok) throw new Error(data.error || 'Erro ao resetar senha')
 
               toast({
                 title: "Senha Resetada",
                 description: "A senha foi resetada com sucesso.",
               })
 
-              // Send SMS to user with new password
-              fetch('/api/sms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId,
-                  body: `A tua senha foi resetada pelo admin. Nova senha: xoxo12345. Por favor, altera-a após o login.`
-                })
-              }).catch(console.warn)
-
-              // Send email to user with new password
-              fetch('/api/email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  to: userEmail,
-                  subject: 'Senha Resetada - XoXo',
-                  body: `A tua senha foi resetada pelo admin. Nova senha: xoxo12345. Por favor, altera-a após o login.`
-                })
-              }).catch(console.warn)
-
             } catch (err: any) {
+              console.error('[Reset Password]', err)
               toast({
                 title: "Erro",
                 description: err.message,
@@ -1120,21 +1101,18 @@ export default function AdminDashboard() {
     .filter(t => t.type === 'purchase' && (t.description?.toLowerCase().includes('conteúdo') || t.description?.toLowerCase().includes('content')))
     .reduce((s, t) => s + Number(t.amount || 0), 0)
 
-  // Calculate content earnings - match any earnings with purchase in description
-  const totalContentEarnings = transactions
-    .filter(t => t.type === 'earnings' && (t.description?.toLowerCase().includes('comprou') || t.description?.toLowerCase().includes('purchase') || t.description?.toLowerCase().includes('conteúdo')))
-    .reduce((s, t) => s + Number(t.amount || 0), 0)
+  // Calculate content commission directly based on fee percent
+  // Commission = total purchases * (fee_percent / 100)
+  const contentFeePercent = Number(transactionFeePercent) || 10
+  const lucroComissoesConteudo = Math.round(totalContentPurchases * (contentFeePercent / 100))
 
   // Debug: log all purchase and earnings transactions
   console.log('[DEBUG] All transactions:', transactions.length)
   console.log('[DEBUG] Purchase transactions:', transactions.filter(t => t.type === 'purchase'))
   console.log('[DEBUG] Earnings transactions:', transactions.filter(t => t.type === 'earnings'))
   console.log('[DEBUG] Content Purchases:', totalContentPurchases)
-  console.log('[DEBUG] Content Earnings:', totalContentEarnings)
-  console.log('[DEBUG] Content Commission:', totalContentPurchases - totalContentEarnings)
-
-  // Calculate platform fee/commission from content: total purchases minus creator earnings
-  const lucroComissoesConteudo = Math.max(0, totalContentPurchases - totalContentEarnings)
+  console.log('[DEBUG] Content Fee Percent:', contentFeePercent)
+  console.log('[DEBUG] Content Commission:', lucroComissoesConteudo)
 
   // Calculate tips commission - tips generate commission based on fee percent
   const totalTipsSent = transactions
@@ -1416,7 +1394,7 @@ export default function AdminDashboard() {
                     <p className="font-bold text-gray-700">Total de Transações: {transactions.length}</p>
                     <p className="font-bold text-gray-700">Lucro VIP: AOA {lucroVIP.toLocaleString()}</p>
                     <p className="font-bold text-gray-700">Compras de Conteúdo: AOA {totalContentPurchases.toLocaleString()}</p>
-                    <p className="font-bold text-gray-700">Ganhos de Conteúdo: AOA {totalContentEarnings.toLocaleString()}</p>
+                    <p className="font-bold text-gray-700">Comissão Conteúdo: AOA {lucroComissoesConteudo.toLocaleString()}</p>
                     <p className="font-bold text-gray-700">Lucro Comissões: AOA {lucroComissoes.toLocaleString()}</p>
                     <p className="font-bold text-gray-700">Lucro Total Ganho: AOA {lucroTotalEarned.toLocaleString()}</p>
                     <p className="font-bold text-gray-700">Lucro Retirado: AOA {lucroRetirado.toLocaleString()}</p>

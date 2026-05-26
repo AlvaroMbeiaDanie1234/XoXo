@@ -9,6 +9,7 @@ import Header from '@/components/dashboard/header'
 import CreatePostModal from '@/components/dashboard/create-post-modal'
 import SuggestedCreators from '@/components/dashboard/suggested-creators'
 import WithdrawableAlert from '@/components/dashboard/withdrawable-alert'
+import ConsentModal from '@/components/dashboard/consent-modal'
 import {
   Search, Wallet, PlusCircle, List, ArrowLeft, Loader2,
   CheckCircle2, ExternalLink, ArrowUpRight, ArrowDownLeft,
@@ -709,6 +710,8 @@ function DashboardContent() {
           </div>
         )}
       </div>
+
+      <ConsentModal />
     </div>
   )
 }
