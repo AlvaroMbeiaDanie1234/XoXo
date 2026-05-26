@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle, FileText
+  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
 import Header from '@/components/dashboard/header'
@@ -25,12 +25,17 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState<any[]>([])
   const [onlineUsersCount, setOnlineUsersCount] = useState(0)
   const [totalBalance, setTotalBalance] = useState(0)
+  const [topUsersByBalance, setTopUsersByBalance] = useState<any[]>([])
+  const [topUsersByFollowers, setTopUsersByFollowers] = useState<any[]>([])
+  const [topUsersByPosts, setTopUsersByPosts] = useState<any[]>([])
   const [linkpagaSlug, setLinkpagaSlug] = useState('')
   const [vipBadgePrice, setVipBadgePrice] = useState('15000') // Default 15000 AOA
   const [transactionFeePercent, setTransactionFeePercent] = useState('10') // Default 10%
   const [referralBonusAmount, setReferralBonusAmount] = useState('5000') // Default 5000 AOA
   const [welcomeBonusAmount, setWelcomeBonusAmount] = useState('1500') // Default 1500 AOA
   const [freeTierMessageLimit, setFreeTierMessageLimit] = useState('3') // Default 3
+  const [minWithdrawAmount, setMinWithdrawAmount] = useState('1000') // Default 1000 AOA
+  const [depositFeePercent, setDepositFeePercent] = useState('0') // Default 0%
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [financialResetPhrase, setFinancialResetPhrase] = useState('')
@@ -98,6 +103,8 @@ export default function AdminDashboard() {
   const [flutterwaveSecretKey, setFlutterwaveSecretKey] = useState('')
   const [flutterwaveEncryptionKey, setFlutterwaveEncryptionKey] = useState('')
   const [flutterwaveWebhookHash, setFlutterwaveWebhookHash] = useState('')
+
+  const [userSearchQuery, setUserSearchQuery] = useState('')
 
   const [zegoAppId, setZegoAppId] = useState('')
   const [zegoAppSign, setZegoAppSign] = useState('')
@@ -240,10 +247,71 @@ export default function AdminDashboard() {
 
       // Fetch users
       const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      
+      // Fetch all transactions to calculate withdrawable earnings
+      const { data: allTransactions } = await supabase.from('transactions').select('*')
+      
       if (profiles) {
-        setUsers(profiles)
+        // Calculate withdrawable earnings for each user
+        const usersWithEarnings = profiles.map(profile => {
+          const userTransactions = allTransactions?.filter(t => t.user_id === profile.id) || []
+          const totalDeposits = userTransactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
+          const totalPurchases = userTransactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
+          const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
+          const pendingWithdrawals = userTransactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
+          const withdrawable = Math.max(0, (profile.balance || 0) - unspentDeposits - pendingWithdrawals)
+          
+          return {
+            ...profile,
+            withdrawable_earnings: withdrawable
+          }
+        })
+        
+        setUsers(usersWithEarnings)
         const total = profiles.reduce((sum, p) => sum + (p.balance || 0), 0)
         setTotalBalance(total)
+
+        // Calculate top users by balance
+        const topByBalance = [...usersWithEarnings]
+          .sort((a, b) => (b.balance || 0) - (a.balance || 0))
+          .slice(0, 10)
+        setTopUsersByBalance(topByBalance)
+
+        // Calculate top users by followers
+        const followersPromises = profiles.map(async (profile) => {
+          const { count } = await supabase
+            .from('subscriptions')
+            .select('*', { count: 'exact', head: true })
+            .eq('creator_id', profile.id)
+          return { id: profile.id, count: count || 0 }
+        })
+        const followersData = await Promise.all(followersPromises)
+        const usersWithFollowers = profiles.map(profile => ({
+          ...profile,
+          followers_count: followersData.find(f => f.id === profile.id)?.count || 0
+        }))
+        const topByFollowers = usersWithFollowers
+          .sort((a, b) => b.followers_count - a.followers_count)
+          .slice(0, 10)
+        setTopUsersByFollowers(topByFollowers)
+
+        // Calculate top users by posts
+        const postsPromises = profiles.map(async (profile) => {
+          const { count } = await supabase
+            .from('posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', profile.id)
+          return { id: profile.id, count: count || 0 }
+        })
+        const postsData = await Promise.all(postsPromises)
+        const usersWithPosts = profiles.map(profile => ({
+          ...profile,
+          posts_count: postsData.find(p => p.id === profile.id)?.count || 0
+        }))
+        const topByPosts = usersWithPosts
+          .sort((a, b) => b.posts_count - a.posts_count)
+          .slice(0, 10)
+        setTopUsersByPosts(topByPosts)
       }
 
       // Fetch verification requests
@@ -308,6 +376,12 @@ export default function AdminDashboard() {
         const freeTierSetting = settings.find(s => s.key === 'free_tier_message_limit')
         if (freeTierSetting) setFreeTierMessageLimit(freeTierSetting.value)
 
+        const minWithdrawSetting = settings.find(s => s.key === 'min_withdraw_amount')
+        if (minWithdrawSetting) setMinWithdrawAmount(minWithdrawSetting.value)
+
+        const depositFeeSetting = settings.find(s => s.key === 'deposit_fee_percent')
+        if (depositFeeSetting) setDepositFeePercent(depositFeeSetting.value)
+
         // Load Terms and Privacy
         const termsSetting = settings.find(s => s.key === 'terms_of_use')
         if (termsSetting) setTermsOfUse(termsSetting.value)
@@ -367,6 +441,8 @@ export default function AdminDashboard() {
         { key: 'referral_bonus_amount', value: referralBonusAmount },
         { key: 'welcome_bonus_amount', value: welcomeBonusAmount },
         { key: 'free_tier_message_limit', value: freeTierMessageLimit },
+        { key: 'min_withdraw_amount', value: minWithdrawAmount },
+        { key: 'deposit_fee_percent', value: depositFeePercent },
         
         { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
         { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
@@ -659,15 +735,26 @@ export default function AdminDashboard() {
 
     const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
     const lucroVIP = transactions
-      .filter(t => t.type === 'purchase' && t.description === 'Compra de Selo VIP Oficial')
+      .filter(t => t.type === 'purchase' && (t.description?.toLowerCase().includes('vip') || t.description?.toLowerCase().includes('selo')))
       .reduce((s, t) => s + Number(t.amount), 0)
     const totalContentPurchases = transactions
-      .filter(t => t.type === 'purchase' && t.description.startsWith('Compra de conteúdo:'))
+      .filter(t => t.type === 'purchase' && (t.description?.toLowerCase().includes('conteúdo') || t.description?.toLowerCase().includes('content')))
       .reduce((s, t) => s + Number(t.amount), 0)
     const totalContentEarnings = transactions
-      .filter(t => t.type === 'earnings' && t.description.includes('comprou o teu conteúdo:'))
+      .filter(t => t.type === 'earnings' && (t.description?.toLowerCase().includes('comprou') || t.description?.toLowerCase().includes('purchase')))
       .reduce((s, t) => s + Number(t.amount), 0)
-    const lucroComissoes = Math.max(0, totalContentPurchases - totalContentEarnings)
+    const lucroComissoesConteudo = Math.max(0, totalContentPurchases - totalContentEarnings)
+
+    // Calculate tips commission
+    const totalTipsSent = transactions
+      .filter(t => t.type === 'tip')
+      .reduce((s, t) => s + Number(t.amount), 0)
+    const totalTipsEarnings = transactions
+      .filter(t => t.type === 'earnings' && t.description?.toLowerCase().includes('gorjeta'))
+      .reduce((s, t) => s + Number(t.amount), 0)
+    const lucroComissoesTips = Math.max(0, totalTipsSent - totalTipsEarnings)
+
+    const lucroComissoes = lucroComissoesConteudo + lucroComissoesTips
     const lucroTotalEarned = lucroVIP + lucroComissoes
     const lucroRetirado = transactions.filter(t => t.type === 'admin_withdraw').reduce((s, t) => s + Number(t.amount), 0)
     const lucroDisponivel = lucroTotalEarned - lucroRetirado
@@ -867,6 +954,114 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleCancelWithdrawal = async (txId: string, userId: string, amount: number) => {
+    toast({
+      title: "Cancelar Levantamento?",
+      description: "Ao cancelar, o valor será devolvido ao saldo do utilizador.",
+      action: (
+        <ToastAction
+          altText="Cancelar"
+          onClick={async () => {
+            try {
+              // 1. Mark transaction as cancelled
+              await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', txId)
+
+              // 2. Return amount to user's balance
+              const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single()
+              if (profile) {
+                await supabase.from('profiles').update({ balance: (profile.balance || 0) + amount }).eq('id', userId)
+              }
+
+              toast({
+                title: "Levantamento Cancelado",
+                description: "O levantamento foi cancelado e o valor devolvido ao utilizador.",
+              })
+
+              // 3. Send SMS to user
+              fetch('/api/sms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId,
+                  body: `O seu pedido de levantamento de AOA ${amount.toLocaleString()} foi cancelado. O valor foi devolvido ao seu saldo.`
+                })
+              }).catch(console.warn)
+
+              setTimeout(() => window.location.reload(), 1500)
+            } catch (err: any) {
+              toast({
+                title: "Erro",
+                description: err.message,
+                variant: "destructive"
+              })
+            }
+          }}
+        >
+          Cancelar
+        </ToastAction>
+      )
+    })
+  }
+
+  const handleResetPassword = async (userId: string, userEmail: string) => {
+    toast({
+      title: "Resetar Senha?",
+      description: "A senha será resetada para xoxo12345 e o utilizador será notificado.",
+      action: (
+        <ToastAction
+          altText="Resetar"
+          onClick={async () => {
+            try {
+              const supabaseAdmin = createAdminClient()
+
+              // Reset password using Supabase admin API
+              const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+                password: 'xoxo12345'
+              })
+
+              if (updateError) throw updateError
+
+              toast({
+                title: "Senha Resetada",
+                description: "A senha foi resetada com sucesso.",
+              })
+
+              // Send SMS to user with new password
+              fetch('/api/sms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId,
+                  body: `A tua senha foi resetada pelo admin. Nova senha: xoxo12345. Por favor, altera-a após o login.`
+                })
+              }).catch(console.warn)
+
+              // Send email to user with new password
+              fetch('/api/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: userEmail,
+                  subject: 'Senha Resetada - XoXo',
+                  body: `A tua senha foi resetada pelo admin. Nova senha: xoxo12345. Por favor, altera-a após o login.`
+                })
+              }).catch(console.warn)
+
+            } catch (err: any) {
+              toast({
+                title: "Erro",
+                description: err.message,
+                variant: "destructive"
+              })
+            }
+          }}
+        >
+          Resetar
+        </ToastAction>
+      )
+    })
+  }
+
   const handleToggleSmsGlobal = async () => {
     const current = smsSuspendedGlobal
     setSmsSuspendedGlobal(!current)
@@ -927,13 +1122,46 @@ export default function AdminDashboard() {
 
   // Calculate content earnings - match any earnings with purchase in description
   const totalContentEarnings = transactions
-    .filter(t => t.type === 'earnings' && (t.description?.toLowerCase().includes('comprou') || t.description?.toLowerCase().includes('purchase')))
+    .filter(t => t.type === 'earnings' && (t.description?.toLowerCase().includes('comprou') || t.description?.toLowerCase().includes('purchase') || t.description?.toLowerCase().includes('conteúdo')))
     .reduce((s, t) => s + Number(t.amount || 0), 0)
 
-  // Calculate platform fee/commission from earnings (using existing state)
-  const lucroComissoes = Math.round(totalContentEarnings * (Number(transactionFeePercent) / 100))
+  // Debug: log all purchase and earnings transactions
+  console.log('[DEBUG] All transactions:', transactions.length)
+  console.log('[DEBUG] Purchase transactions:', transactions.filter(t => t.type === 'purchase'))
+  console.log('[DEBUG] Earnings transactions:', transactions.filter(t => t.type === 'earnings'))
+  console.log('[DEBUG] Content Purchases:', totalContentPurchases)
+  console.log('[DEBUG] Content Earnings:', totalContentEarnings)
+  console.log('[DEBUG] Content Commission:', totalContentPurchases - totalContentEarnings)
+
+  // Calculate platform fee/commission from content: total purchases minus creator earnings
+  const lucroComissoesConteudo = Math.max(0, totalContentPurchases - totalContentEarnings)
+
+  // Calculate tips commission - tips generate commission based on fee percent
+  const totalTipsSent = transactions
+    .filter(t => t.type === 'tip')
+    .reduce((s, t) => s + Number(t.amount || 0), 0)
+  const totalTipsEarnings = transactions
+    .filter(t => t.type === 'earnings' && t.description?.toLowerCase().includes('gorjeta'))
+    .reduce((s, t) => s + Number(t.amount || 0), 0)
+  const lucroComissoesTips = Math.max(0, totalTipsSent - totalTipsEarnings)
+
+  // Calculate deposit fees - platform charges fee on deposits
+  const depositFees = transactions
+    .filter(t => t.type === 'deposit_fee')
+    .reduce((s, t) => s + Number(t.amount || 0), 0)
+
+  // Total commissions
+  const lucroComissoes = lucroComissoesConteudo + lucroComissoesTips + depositFees
 
   const lucroTotalEarned = lucroVIP + lucroComissoes
+
+  // Debug: log all profit calculations
+  console.log('[DEBUG] lucroVIP:', lucroVIP)
+  console.log('[DEBUG] lucroComissoesConteudo:', lucroComissoesConteudo)
+  console.log('[DEBUG] lucroComissoesTips:', lucroComissoesTips)
+  console.log('[DEBUG] depositFees:', depositFees)
+  console.log('[DEBUG] lucroComissoes:', lucroComissoes)
+  console.log('[DEBUG] lucroTotalEarned:', lucroTotalEarned)
   const lucroRetirado = transactions.filter(t => t.type === 'admin_withdraw').reduce((s, t) => s + Number(t.amount || 0), 0)
   const netDeposits = Math.max(0, totalDeposits - lucroTotalEarned)
 
@@ -1111,6 +1339,72 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Top Users Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Top Users by Balance */}
+                <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-border bg-green-50/50">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-green-800"><Wallet size={18} /> Top Saldo</h3>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {topUsersByBalance.slice(0, 5).map((u, i) => (
+                      <div key={u.id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          {u.display_name?.charAt(0) || u.email?.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate">{u.display_name || 'Sem Nome'}</p>
+                          <p className="text-[10px] text-gray-500">AOA {(u.balance || 0).toLocaleString()}</p>
+                        </div>
+                        <span className="text-xs font-bold text-green-600">#{i + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Users by Followers */}
+                <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-border bg-blue-50/50">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-blue-800"><Users size={18} /> Top Seguidores</h3>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {topUsersByFollowers.slice(0, 5).map((u, i) => (
+                      <div key={u.id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          {u.display_name?.charAt(0) || u.email?.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate">{u.display_name || 'Sem Nome'}</p>
+                          <p className="text-[10px] text-gray-500">{u.followers_count || 0} seguidores</p>
+                        </div>
+                        <span className="text-xs font-bold text-blue-600">#{i + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Users by Posts */}
+                <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-border bg-purple-50/50">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-purple-800"><FileText size={18} /> Top Conteúdos</h3>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {topUsersByPosts.slice(0, 5).map((u, i) => (
+                      <div key={u.id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          {u.display_name?.charAt(0) || u.email?.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate">{u.display_name || 'Sem Nome'}</p>
+                          <p className="text-[10px] text-gray-500">{u.posts_count || 0} posts</p>
+                        </div>
+                        <span className="text-xs font-bold text-purple-600">#{i + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Debug Section - Transaction Analysis */}
               <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6">
                 <h3 className="text-lg font-bold text-yellow-800 mb-4 flex items-center gap-2">
@@ -1178,7 +1472,13 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold flex items-center gap-2"><Users /> Gestão de Utilizadores</h2>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input type="text" placeholder="Pesquisar..." className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent" />
+                  <input 
+                    type="text" 
+                    placeholder="Pesquisar..." 
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent" 
+                  />
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -1190,12 +1490,20 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 font-bold">Telefone</th>
                       <th className="px-6 py-4 font-bold">Registo</th>
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
+                      <th className="px-6 py-4 font-bold">Ganhos (Saque)</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {users.map((u) => (
+                    {users
+                      .filter(u => 
+                        !userSearchQuery || 
+                        u.display_name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                        u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                        u.phone?.includes(userSearchQuery)
+                      )
+                      .map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -1209,6 +1517,7 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4 text-gray-500 text-xs">{u.phone || <span className="text-gray-300">—</span>}</td>
                         <td className="px-6 py-4 text-gray-500 text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                         <td className="px-6 py-4 font-black text-accent text-lg">AOA {u.balance?.toLocaleString() || 0}</td>
+                        <td className="px-6 py-4 font-black text-green-600 text-lg">AOA {(u.withdrawable_earnings || 0).toLocaleString()}</td>
                         <td className="px-6 py-4">
                           <button
                             onClick={() => handleToggleFreePlan(u.id, !!u.is_free_plan)}
@@ -1251,6 +1560,13 @@ export default function AdminDashboard() {
                               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12 19.79 19.79 0 0 1 1.21 3.15 2 2 0 0 1 3.22 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/>
                               {u.sms_suspended_by_admin && <line x1="1" y1="1" x2="23" y2="23"/>}
                             </svg>
+                          </button>
+                          <button
+                            onClick={() => handleResetPassword(u.id, u.email)}
+                            className="p-2 text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors mr-2"
+                            title="Resetar Senha"
+                          >
+                            <KeyRound size={18} />
                           </button>
                           <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"><Trash2 size={18} /></button>
                         </td>
@@ -1338,12 +1654,20 @@ export default function AdminDashboard() {
                           <p className="text-sm font-bold text-gray-900 mt-1 whitespace-pre-wrap">{t.description.replace('Levantamento para: ', '')}</p>
                         </div>
 
-                        <button
-                          onClick={() => handleProcessWithdrawal(t.id, t.user_id, Number(t.amount))}
-                          className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <CheckCircle size={18} /> Marcar como Transferido
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleProcessWithdrawal(t.id, t.user_id, Number(t.amount))}
+                            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle size={18} /> Aprovar
+                          </button>
+                          <button
+                            onClick={() => handleCancelWithdrawal(t.id, t.user_id, Number(t.amount))}
+                            className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <XCircle size={18} /> Cancelar
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1787,6 +2111,37 @@ export default function AdminDashboard() {
                         />
                         <p className="text-[9px] text-gray-400 mt-2 leading-snug">
                           Número de mensagens/posts/comentários grátis para utilizadores que ainda não fizeram depósito.
+                        </p>
+                      </div>
+                      {/* Card 7: Saque Mínimo */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Saque Mínimo (AOA)</label>
+                        <input
+                          type="number"
+                          value={minWithdrawAmount}
+                          onChange={(e) => setMinWithdrawAmount(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="1000"
+                          min="100"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Valor mínimo que um utilizador pode levantar da sua conta.
+                        </p>
+                      </div>
+                      {/* Card 8: Taxa de Depósito */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Taxa de Depósito (%)</label>
+                        <input
+                          type="number"
+                          value={depositFeePercent}
+                          onChange={(e) => setDepositFeePercent(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="0"
+                          min="0"
+                          max="10"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Percentagem de lucro do admin em cada depósito (0-10%).
                         </p>
                       </div>
                     </div>

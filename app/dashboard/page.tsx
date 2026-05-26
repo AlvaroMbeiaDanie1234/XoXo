@@ -8,6 +8,7 @@ import PostCard from '@/components/dashboard/post-card'
 import Header from '@/components/dashboard/header'
 import CreatePostModal from '@/components/dashboard/create-post-modal'
 import SuggestedCreators from '@/components/dashboard/suggested-creators'
+import WithdrawableAlert from '@/components/dashboard/withdrawable-alert'
 import {
   Search, Wallet, PlusCircle, List, ArrowLeft, Loader2,
   CheckCircle2, ExternalLink, ArrowUpRight, ArrowDownLeft,
@@ -59,6 +60,7 @@ function DashboardContent() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [minWithdrawAmount, setMinWithdrawAmount] = useState(1000)
   const { theme } = useTheme()
   
   // Infinite scroll states
@@ -70,6 +72,7 @@ function DashboardContent() {
   // Wallet states
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
+  const [withdrawPhone, setWithdrawPhone] = useState('')
   const [depositLoading, setDepositLoading] = useState(false)
   const [depositSuccess, setDepositSuccess] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -182,6 +185,10 @@ function DashboardContent() {
           .order('created_at', { ascending: false })
         if (annData) setDashboardAnnouncements(annData)
 
+        // Fetch min withdraw amount setting
+        const { data: settings } = await supabase.from('system_settings').select('*').eq('key', 'min_withdraw_amount').single()
+        if (settings) setMinWithdrawAmount(Number(settings.value) || 1000)
+
         if (mode === 'wallet') {
           // Fetch Transactions
           const { data: transData } = await supabase
@@ -250,10 +257,15 @@ function DashboardContent() {
 
     const amount = parseFloat(withdrawAmount)
 
+    if (amount < minWithdrawAmount) {
+      return alert(`O valor mínimo de levantamento é AOA ${minWithdrawAmount.toLocaleString()}.`)
+    }
+
     const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
     const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
     const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
-    const withdrawable = Math.max(0, balance - unspentDeposits)
+    const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
+    const withdrawable = Math.max(0, balance - unspentDeposits - pendingWithdrawals)
 
     if (amount > withdrawable) {
       return alert('Saldo insuficiente para levantamento! Apenas ganhos podem ser levantados.')
@@ -267,6 +279,19 @@ function DashboardContent() {
         preferredCurrency
       )
 
+      // Update phone number if provided
+      if (withdrawPhone && withdrawPhone !== userProfile?.phone) {
+        await supabase.from('profiles').update({ phone: withdrawPhone }).eq('id', user.id)
+      }
+
+      // Deduct amount from balance immediately (cativar valor)
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ balance: balance - amount })
+        .eq('id', user.id)
+
+      if (balanceError) throw balanceError
+
       await supabase.from('transactions').insert({
         user_id: user.id,
         amount: amount,
@@ -275,8 +300,11 @@ function DashboardContent() {
         status: 'pending',
       })
 
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
-      if (profile) setBalance(Number(profile.balance) || 0)
+      const { data: profile } = await supabase.from('profiles').select('balance, phone').eq('id', user.id).single()
+      if (profile) {
+        setBalance(Number(profile.balance) || 0)
+        setUserProfile(prev => ({ ...prev, phone: profile.phone }))
+      }
 
       fetch('/api/sms', {
         method: 'POST',
@@ -499,6 +527,22 @@ function DashboardContent() {
                         </div>
                       </div>
 
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                          Telefone para notificação (opcional)
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder={userProfile?.phone || 'Número de telefone'}
+                          className="w-full bg-gray-50 border border-border rounded-xl py-3 px-4 outline-none focus:border-accent font-bold text-sm"
+                          value={withdrawPhone}
+                          onChange={(e) => setWithdrawPhone(e.target.value)}
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          Atualiza o teu número de telefone para receber notificações sobre este levantamento.
+                        </p>
+                      </div>
+
                       <button 
                         onClick={handleWithdraw}
                         disabled={isProcessing || !withdrawAmount || !bankComplete}
@@ -576,6 +620,9 @@ function DashboardContent() {
                     </button>
                   </div>
                 ))}
+
+              {/* Withdrawable Alert */}
+              <WithdrawableAlert />
 
               {/* Feed Logic Same as Before */}
               <div className={`rounded-md p-4 mb-4 shadow-sm w-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>

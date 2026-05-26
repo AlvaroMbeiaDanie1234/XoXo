@@ -59,6 +59,16 @@ export async function POST(req: Request) {
       const txRef = verified.txRef || flwData?.tx_ref
       const description = `Depósito Flutterwave: ${txRef || transactionId}`
 
+      // Get deposit fee percent from settings
+      const { data: feeSetting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'deposit_fee_percent')
+        .single()
+      const depositFeePercent = Number(feeSetting?.value || '0')
+      const feeAmount = Math.round(verified.amount * (depositFeePercent / 100))
+      const netAmount = verified.amount - feeAmount
+
       const { data: existingTx } = await supabase
         .from('transactions')
         .select('id')
@@ -87,7 +97,7 @@ export async function POST(req: Request) {
 
       const { error: insertError } = await supabase.from('transactions').insert({
         user_id: userId,
-        amount: verified.amount,
+        amount: netAmount,
         type: 'deposit',
         description,
         status: 'completed',
@@ -98,9 +108,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Database error' }, { status: 500 })
       }
 
+      // If there's a fee, record it as platform profit
+      if (feeAmount > 0) {
+        await supabase.from('transactions').insert({
+          user_id: userId,
+          amount: feeAmount,
+          type: 'deposit_fee',
+          description: `Taxa de processamento de depósito (${depositFeePercent}%)`,
+          status: 'completed',
+        })
+      }
+
       await markUserHasDeposited(supabase, userId)
       await syncProfileBalance(supabase, userId)
-      console.log(`[Flutterwave Webhook] Credited AOA ${verified.amount} to ${userId}`)
+      console.log(`[Flutterwave Webhook] Credited AOA ${netAmount} to ${userId} (fee: AOA ${feeAmount})`)
     }
 
     return NextResponse.json({ message: 'OK' }, { status: 200 })
