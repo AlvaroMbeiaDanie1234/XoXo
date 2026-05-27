@@ -68,9 +68,26 @@ function MessagesContent() {
         .from('subscriptions')
         .select('following_id, profiles!subscriptions_following_id_fkey(id, display_name, avatar_url)')
         .eq('follower_id', currentUser.id)
-      
+
       const subbedContacts = subs?.map((s: any) => Array.isArray(s.profiles) ? s.profiles[0] : s.profiles).filter(Boolean) || []
-      setContacts(subbedContacts)
+
+      // Also fetch people who sent you messages (even if you don't follow them)
+      const { data: messageSenders } = await supabase
+        .from('messages')
+        .select('sender_id, profiles!messages_sender_id_fkey(id, display_name, avatar_url)')
+        .eq('receiver_id', currentUser.id)
+
+      const senderContacts = messageSenders?.map((m: any) => Array.isArray(m.profiles) ? m.profiles[0] : m.profiles).filter(Boolean) || []
+
+      // Merge both lists, removing duplicates
+      const allContacts = [...subbedContacts]
+      senderContacts.forEach((contact: any) => {
+        if (!allContacts.find((c: any) => c.id === contact.id)) {
+          allContacts.push(contact)
+        }
+      })
+
+      setContacts(allContacts)
 
       // Fetch unread message counts from everyone
       const { data: unreadData } = await supabase
