@@ -8,8 +8,10 @@ import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useRef } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
+import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
 export default function ExplorePage() {
+  const EXPLORE_CACHE_TTL_MS = 60 * 1000
   const [user, setUser] = useState<any>(null)
   const [creators, setCreators] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
@@ -28,6 +30,25 @@ export default function ExplorePage() {
     async function loadData() {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       setUser(currentUser)
+      const cacheKey = `xoxo:explore:data:${currentUser?.id || 'guest'}`
+      const cached = readTimedCache<{
+        creators: any[]
+        posts: any[]
+        followersCount: Record<string, number>
+        onlineUserIds: string[]
+        followingIds: string[]
+        likedPostIds: string[]
+      }>(cacheKey, EXPLORE_CACHE_TTL_MS)
+
+      if (cached) {
+        setCreators(cached.creators || [])
+        setPosts(cached.posts || [])
+        setFollowersCount(cached.followersCount || {})
+        setOnlineUsers(new Set(cached.onlineUserIds || []))
+        setFollowing(new Set(cached.followingIds || []))
+        setLikedPosts(new Set(cached.likedPostIds || []))
+        setLoading(false)
+      }
 
       // Fetch all creators (profiles)
       const { data: profiles } = await supabase
@@ -36,6 +57,7 @@ export default function ExplorePage() {
         .neq('id', currentUser?.id || '')
         .limit(20)
 
+      let followersMap: Record<string, number> = {}
       if (profiles) {
         setCreators(profiles)
 
@@ -49,7 +71,7 @@ export default function ExplorePage() {
         })
 
         const followersData = await Promise.all(followersPromises)
-        const followersMap: Record<string, number> = {}
+        followersMap = {}
         followersData.forEach(({ id, count }) => {
           followersMap[id] = count
         })
@@ -67,6 +89,8 @@ export default function ExplorePage() {
         setPosts(postsData)
       }
 
+      let followingIds: string[] = []
+      let likedIds: string[] = []
       // Fetch current user's subscriptions
       if (currentUser) {
         const [subsRes, likesRes] = await Promise.all([
@@ -78,6 +102,8 @@ export default function ExplorePage() {
         const likedSet = new Set(likesRes.data?.map(l => l.post_id) || [])
         setFollowing(followingSet)
         setLikedPosts(likedSet)
+        followingIds = Array.from(followingSet)
+        likedIds = Array.from(likedSet)
       }
 
       // Fetch online users (profiles with last_online within last 5 minutes)
@@ -87,9 +113,17 @@ export default function ExplorePage() {
         .select('id')
         .gte('last_online', fiveMinutesAgo)
 
-      if (onlineProfiles) {
-        setOnlineUsers(new Set(onlineProfiles.map(p => p.id)))
-      }
+      const onlineUserIds = onlineProfiles?.map(p => p.id) || []
+      if (onlineUserIds.length > 0) setOnlineUsers(new Set(onlineUserIds))
+
+      writeTimedCache(cacheKey, {
+        creators: profiles || [],
+        posts: postsData || [],
+        followersCount: followersMap,
+        onlineUserIds,
+        followingIds,
+        likedPostIds: likedIds,
+      })
 
       setLoading(false)
     }

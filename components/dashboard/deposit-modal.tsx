@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, CreditCard, Loader2, ArrowRight, Wallet } from 'lucide-react'
+import { X, Loader2, ArrowRight, Wallet, AlertTriangle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -53,22 +53,14 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess, require
 
     setLoading(true)
     try {
-      const res = await fetch('/api/payments/flutterwave/initialize', {
+      await fetch('/api/payments/flutterwave/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: parseFloat(amount), currency }),
       })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao iniciar pagamento')
-      }
-
-      window.location.href = data.link
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao depositar'
-      alert(message)
+      alert('Canal de depósito em atualização. Aguarde a ativação da API para concluir o depósito.')
+    } catch {
+      alert('Canal de depósito em atualização. Aguarde a ativação da API para concluir o depósito.')
     } finally {
       setLoading(false)
     }
@@ -94,7 +86,7 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess, require
           <p className="text-white/80 text-sm mt-1">
             {required
               ? 'Atingiste o limite gratuito. Deposita para continuar a usar a plataforma.'
-              : 'Adiciona saldo via Flutterwave (ambiente seguro)'}
+              : 'Canal de depósito em atualização temporária'}
           </p>
         </div>
 
@@ -138,13 +130,18 @@ export default function DepositModal({ isOpen, onClose, user, onSuccess, require
               ))}
             </div>
 
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+              <span>Depósitos estão temporariamente indisponíveis enquanto atualizamos a API de pagamentos.</span>
+            </div>
+
             <button
               type="submit"
               disabled={loading || !amount}
               className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-accent/20 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {loading ? <Loader2 size={24} className="animate-spin" /> : <CreditCard size={20} />}
-              <span>Pagar com Flutterwave</span>
+              {loading ? <Loader2 size={24} className="animate-spin" /> : <Wallet size={20} />}
+              <span>Canal de depósito em atualização</span>
               <ArrowRight size={18} />
             </button>
 

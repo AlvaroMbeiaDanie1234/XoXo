@@ -71,12 +71,12 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   const loadNotifications = async () => {
     if (!user) return
-    // Fetch recent earnings (sales) and deposits as notifications
+    // Fetch recent wallet events (credit + debit) as notifications
     const { data } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
-      .in('type', ['earnings', 'deposit'])
+      .in('type', ['earnings', 'deposit', 'message'])
       .order('created_at', { ascending: false })
       .limit(5)
 
@@ -273,7 +273,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                           <div>
                             <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
                             <div className="flex justify-between items-center mt-1">
-                              <span className="text-xs font-bold text-accent">+ AOA {notif.amount?.toLocaleString()}</span>
+                              <span className={`text-xs font-bold ${notif.type === 'message' ? 'text-red-500' : 'text-accent'}`}>
+                                {notif.type === 'message' ? '-' : '+'} AOA {notif.amount?.toLocaleString()}
+                              </span>
                               <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{new Date(notif.created_at).toLocaleDateString()}</span>
                             </div>
                           </div>
@@ -345,7 +347,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-accent' : 'text-gray-700 hover:bg-gray-50 hover:text-accent'}`}
                     >
                       <DollarSign size={16} />
-                      Depositar (Flutterwave)
+                      Depositar (Canal em atualização)
                     </button>
                   </div>
                   <div className={`p-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>

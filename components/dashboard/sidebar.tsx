@@ -111,7 +111,7 @@ function SidebarContent() {
     { label: 'Stream (Live)', href: '/dashboard/live', icon: Radio },
     { label: 'Reels', href: '/dashboard/reels', icon: Radio, isNew: true },
     { label: 'Explorar', href: '/dashboard/explore', icon: Compass },
-    { label: 'Favoritos', href: '/dashboard/favorites', icon: Heart },
+    { label: 'Comprados', href: '/dashboard/favorites', icon: Heart },
     { label: 'Meu Perfil', href: '/dashboard/profile', icon: User },
   ]
 

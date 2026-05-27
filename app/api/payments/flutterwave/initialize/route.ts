@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getFlutterwaveKeys, initializeFlutterwavePayment } from '@/lib/flutterwave'
+import { getFlutterwaveKeys } from '@/lib/flutterwave'
 import { flutterwaveCurrency, minDepositForCurrency, resolveProfileCurrency } from '@/lib/wallet'
 
 export async function POST(request: NextRequest) {
@@ -38,34 +38,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const keys = await getFlutterwaveKeys(supabaseAdmin)
-
-    if (!keys) {
-      return NextResponse.json(
-        { error: 'Flutterwave não configurado no servidor' },
-        { status: 500 }
-      )
-    }
-
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin
-    const txRef = `xoxo-${user.id.slice(0, 8)}-${Date.now()}`
-
-    const { link } = await initializeFlutterwavePayment({
-      secretKey: keys.secretKey,
-      txRef,
-      amount: depositAmount,
-      currency,
-      email: profile?.email || user.email || '',
-      name: profile?.display_name || user.email?.split('@')[0] || 'Utilizador',
-      redirectUrl: `${baseUrl}/dashboard?mode=wallet&view=deposit&status=success`,
-      userId: user.id,
-    })
-
-    return NextResponse.json({
-      link,
-      tx_ref: txRef,
-      public_key: keys.publicKey,
-    })
+    await getFlutterwaveKeys(supabaseAdmin)
+    return NextResponse.json(
+      {
+        error:
+          'Canal de depósito temporariamente indisponível. Estamos a atualizar a API de pagamentos. Tente novamente mais tarde.',
+      },
+      { status: 503 }
+    )
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erro ao iniciar pagamento'
     console.error('[Flutterwave] initialize error:', error)

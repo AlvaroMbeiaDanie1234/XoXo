@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { assertFreeTierAction } from '@/lib/free-tier'
+import { assertFreeTierAction, getFreeTierStatus } from '@/lib/free-tier'
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,6 +33,48 @@ export async function POST(request: NextRequest) {
         { error: check.error, message: check.message, status: check.status },
         { status: 403 }
       )
+    }
+
+    // Check if free tier is exhausted and deduct from balance
+    const status = await getFreeTierStatus(supabaseAdmin, user.id, user.email)
+    if (!status.hasDeposited && status.messagesRemaining === 0 && status.balance > 0) {
+      // Get message cost from system settings (default to 1 AOA)
+      const { data: costSetting } = await supabaseAdmin
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'message_cost')
+        .maybeSingle()
+
+      const messageCost = Math.max(1, Number(costSetting?.value || 1))
+
+      // Deduct from balance
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('balance')
+        .eq('id', user.id)
+        .single()
+
+      const currentBalance = Number(profile?.balance || 0)
+      if (currentBalance < messageCost) {
+        return NextResponse.json(
+          { error: 'Saldo insuficiente para enviar mensagem' },
+          { status: 403 }
+        )
+      }
+
+      await supabaseAdmin
+        .from('profiles')
+        .update({ balance: currentBalance - messageCost })
+        .eq('id', user.id)
+
+      // Record transaction
+      await supabaseAdmin.from('transactions').insert({
+        user_id: user.id,
+        type: 'message',
+        amount: messageCost,
+        status: 'completed',
+        description: `Desconto de ${messageCost} AOA por envio de mensagem`,
+      })
     }
 
     const insertData: Record<string, string> = {

@@ -8,8 +8,10 @@ import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react'
 import { useOnlinePresence } from '@/hooks/use-online-presence'
+import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
 function MessagesContent() {
+  const MESSAGES_CACHE_TTL_MS = 45 * 1000
   const [contacts, setContacts] = useState<any[]>([])
   const [selectedContact, setSelectedContact] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
@@ -48,6 +50,21 @@ function MessagesContent() {
         return
       }
       setUser(currentUser)
+      const cacheKey = `xoxo:messages:overview:${currentUser.id}`
+      const cached = readTimedCache<{
+        contacts: any[]
+        unreadCounts: { [key: string]: number }
+        userBalance: number
+        freeTierStatus: any
+      }>(cacheKey, MESSAGES_CACHE_TTL_MS)
+
+      if (cached) {
+        setContacts(cached.contacts || [])
+        setUnreadCounts(cached.unreadCounts || {})
+        setUserBalance(Number(cached.userBalance || 0))
+        setFreeTierStatus(cached.freeTierStatus || null)
+        setLoading(false)
+      }
 
       // Fetch user balance
       const { data: profile } = await supabase.from('profiles').select('balance').eq('id', currentUser.id).single()
@@ -56,10 +73,11 @@ function MessagesContent() {
         setUserBalance(isNaN(val) ? 0 : val);
       }
 
+      let tierData: any = null
       const tierRes = await fetch('/api/free-tier/status')
       if (tierRes.ok) {
-        const tier = await tierRes.json()
-        setFreeTierStatus(tier)
+        tierData = await tierRes.json()
+        setFreeTierStatus(tierData)
       }
 
       // Fetch contacts (people you follow or who follow you)
@@ -143,6 +161,13 @@ function MessagesContent() {
           }
         }
       }
+
+      writeTimedCache(cacheKey, {
+        contacts: sortedContacts,
+        unreadCounts: counts,
+        userBalance: Number(profile?.balance || 0),
+        freeTierStatus: tierData,
+      })
 
       setLoading(false)
     }

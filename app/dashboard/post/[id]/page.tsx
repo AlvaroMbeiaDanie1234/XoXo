@@ -8,12 +8,15 @@ import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
+import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 import {
   Loader2, Lock, DollarSign, Play, CheckCircle, Heart,
   MessageCircle, Bookmark, Star, ArrowRight, Send, Reply, Trash2, CheckCheck, Check
 } from 'lucide-react'
 
 export default function PostDetailsPage() {
+  const POST_DETAILS_CACHE_TTL_MS = 60 * 1000
+  const PAID_PREVIEW_SECONDS = 1
   const { toast } = useToast()
   const params = useParams()
   const id = params.id as string
@@ -43,6 +46,20 @@ export default function PostDetailsPage() {
 
   useEffect(() => {
     async function loadData() {
+      const cacheKey = `xoxo:post:details:${id}`
+      const cached = readTimedCache<{
+        post: any
+        hasAccess: boolean
+        showPaywall: boolean
+      }>(cacheKey, POST_DETAILS_CACHE_TTL_MS)
+
+      if (cached?.post) {
+        setPost(cached.post)
+        setHasAccess(Boolean(cached.hasAccess))
+        setShowPaywall(Boolean(cached.showPaywall))
+        setLoading(false)
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
 
@@ -59,13 +76,18 @@ export default function PostDetailsPage() {
       }
       setPost(postData)
 
+      let computedHasAccess = false
+      let computedShowPaywall = false
+
       // Check access
       if (postData.is_free || postData.user_id === user?.id) {
         setHasAccess(true)
+        computedHasAccess = true
       } else if (user) {
         const { data: profile } = await supabase.from('profiles').select('is_free_plan').eq('id', user.id).single()
         if (profile?.is_free_plan) {
           setHasAccess(true)
+          computedHasAccess = true
         } else {
           const { data: purchase } = await supabase
             .from('purchases')
@@ -74,15 +96,29 @@ export default function PostDetailsPage() {
             .eq('post_id', id)
             .single()
           
-          if (purchase) setHasAccess(true)
-          else setShowPaywall(!postData.is_free)
+          if (purchase) {
+            setHasAccess(true)
+            computedHasAccess = true
+          } else {
+            const paywall = !postData.is_free
+            setShowPaywall(paywall)
+            computedShowPaywall = paywall
+          }
         }
       } else {
-        setShowPaywall(!postData.is_free)
+        const paywall = !postData.is_free
+        setShowPaywall(paywall)
+        computedShowPaywall = paywall
       }
 
       // Fetch Comments
       fetchComments()
+
+      writeTimedCache(cacheKey, {
+        post: postData,
+        hasAccess: computedHasAccess,
+        showPaywall: computedShowPaywall,
+      })
       setLoading(false)
     }
 
@@ -152,7 +188,7 @@ export default function PostDetailsPage() {
   }
 
   const handleTimeUpdate = () => {
-    if (!hasAccess && videoRef.current && videoRef.current.currentTime >= 2) {
+    if (!hasAccess && videoRef.current && videoRef.current.currentTime >= PAID_PREVIEW_SECONDS) {
       videoRef.current.pause()
       setShowPaywall(true)
     }
@@ -257,7 +293,7 @@ export default function PostDetailsPage() {
 
       toast({
         title: "Conteúdo Adquirido!",
-        description: "Compra efetuada com sucesso e adicionado aos teus Favoritos.",
+        description: "Compra efetuada com sucesso e adicionado aos teus Comprados.",
       })
 
     } catch (err: any) {
@@ -417,7 +453,9 @@ export default function PostDetailsPage() {
                   </div>
                   <div className="text-center px-4 max-w-sm flex-shrink-0">
                     <h2 className="text-2xl md:text-3xl font-black text-white mb-2 tracking-tighter uppercase">Quer continuar a ver?</h2>
-                    <p className="text-gray-300 text-xs md:text-sm mb-4 md:mb-8">O tempo de curiosidade de 2 segundos acabou. Desbloqueia agora para assistir ao conteúdo completo.</p>
+                    <p className="text-gray-300 text-xs md:text-sm mb-4 md:mb-8">
+                      O tempo de curiosidade de {PAID_PREVIEW_SECONDS} segundo{PAID_PREVIEW_SECONDS > 1 ? 's' : ''} acabou. Desbloqueia agora para assistir ao conteúdo completo.
+                    </p>
                   </div>
                   <div className="flex flex-col items-center w-full max-w-xs flex-shrink-0">
                     <div className="bg-white p-1 rounded-2xl flex flex-col items-center w-full shadow-2xl">

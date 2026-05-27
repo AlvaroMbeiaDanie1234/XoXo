@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Heart, MessageCircle, MoreHorizontal, Play, Pause, ChevronUp, ChevronDown, X, Send } from 'lucide-react'
+import { Heart, MessageCircle, MoreHorizontal, Play, Pause, ChevronUp, ChevronDown, X, Send, Lock } from 'lucide-react'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
+import { useRouter } from 'next/navigation'
 
 export default function ReelsPage() {
   const supabase = createClient()
+  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -17,19 +19,53 @@ export default function ReelsPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [page, setPage] = useState(0)
   const VIDEOS_PER_PAGE = 3
-  
+  const PAID_PREVIEW_SECONDS = 1
+  const [paidVideos, setPaidVideos] = useState<Set<string>>(new Set())
+  const [previewExpired, setPreviewExpired] = useState<Set<string>>(new Set())
+  const [videoDurations, setVideoDurations] = useState<Record<string, number>>({})
+
   // Comments state
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<any[]>([])
   const [commentInput, setCommentInput] = useState('')
-  
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
+  const videoTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const pageCacheRef = useRef<Record<number, any[]>>({})
+  const isLockedVideo = (video: any) =>
+    Boolean(video && !video.is_free && Number(video.price) > 0 && !paidVideos.has(video.id))
+  const clearVideoTimer = (videoId?: string) => {
+    if (!videoId) return
+    const timer = videoTimersRef.current[videoId]
+    if (!timer) return
+    clearTimeout(timer)
+    delete videoTimersRef.current[videoId]
+  }
+  const formatDuration = (seconds?: number) => {
+    if (!seconds || Number.isNaN(seconds)) return null
+    const total = Math.floor(seconds)
+    const minutes = Math.floor(total / 60)
+    const secs = String(total % 60).padStart(2, '0')
+    return `${minutes}:${secs}`
+  }
 
   useEffect(() => {
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+
+      if (user) {
+        // Load paid videos
+        const { data: payments } = await supabase
+          .from('purchases')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+
+        const paidSet = new Set(payments?.map(p => p.post_id) || [])
+        setPaidVideos(paidSet)
+      }
     }
     loadUser()
     loadVideos()
@@ -42,14 +78,29 @@ export default function ReelsPage() {
         entries.forEach((entry) => {
           const index = parseInt(entry.target.getAttribute('data-index') || '0')
           const video = entry.target.querySelector('video') as HTMLVideoElement
-          
+          const videoData = videos[index]
+
           if (entry.isIntersecting) {
             if (video) {
-              video.play().catch(console.error)
+              // Check if video is paid and user hasn't paid
+              if (isLockedVideo(videoData)) {
+                video.play().catch(console.error)
+                // Pause after paid preview window
+                clearVideoTimer(videoData.id)
+                const timer = setTimeout(() => {
+                  video.pause()
+                  video.currentTime = 0
+                  setPreviewExpired(prev => new Set(prev).add(videoData.id))
+                }, PAID_PREVIEW_SECONDS * 1000)
+                videoTimersRef.current[videoData.id] = timer
+              } else {
+                video.play().catch(console.error)
+              }
             }
           } else {
             if (video) {
               video.pause()
+              clearVideoTimer(videoData?.id)
             }
           }
         })
@@ -61,19 +112,55 @@ export default function ReelsPage() {
       if (observerRef.current) {
         observerRef.current.disconnect()
       }
+      Object.keys(videoTimersRef.current).forEach(clearVideoTimer)
     }
-  }, [videos])
+  }, [videos, paidVideos])
 
   useEffect(() => {
     // Auto-play current video in modal
     if (videoRef.current && selectedVideoIndex !== null && videos[selectedVideoIndex]) {
-      videoRef.current.play().catch(console.error)
-      setIsPlaying(true)
+      const videoData = videos[selectedVideoIndex]
+
+      // Check if video is paid and user hasn't paid
+      if (isLockedVideo(videoData)) {
+        videoRef.current.play().catch(console.error)
+        setIsPlaying(true)
+        // Pause after paid preview window
+        clearVideoTimer(videoData.id)
+        const timer = setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.pause()
+            videoRef.current.currentTime = 0
+            setIsPlaying(false)
+            setPreviewExpired(prev => new Set(prev).add(videoData.id))
+          }
+        }, PAID_PREVIEW_SECONDS * 1000)
+        videoTimersRef.current[videoData.id] = timer
+      } else {
+        videoRef.current.play().catch(console.error)
+        setIsPlaying(true)
+      }
     }
-  }, [selectedVideoIndex, videos])
+
+    // Cleanup timer when switching videos
+    return () => {
+      if (selectedVideoIndex !== null && videos[selectedVideoIndex]) {
+        const videoData = videos[selectedVideoIndex]
+        clearVideoTimer(videoData.id)
+      }
+    }
+  }, [selectedVideoIndex, videos, paidVideos])
 
   const loadVideos = async () => {
     try {
+      if (pageCacheRef.current[0]) {
+        const cached = pageCacheRef.current[0]
+        setVideos(cached)
+        setHasMore(cached.length >= VIDEOS_PER_PAGE)
+        setPage(1)
+        return
+      }
+
       const { data, error } = await supabase
         .from('posts')
         .select('*, profiles(display_name, avatar_url, is_verified)')
@@ -82,8 +169,10 @@ export default function ReelsPage() {
         .range(0, VIDEOS_PER_PAGE - 1)
 
       if (error) throw error
-      setVideos(data || [])
-      setHasMore((data?.length || 0) >= VIDEOS_PER_PAGE)
+      const firstPage = data || []
+      pageCacheRef.current[0] = firstPage
+      setVideos(firstPage)
+      setHasMore(firstPage.length >= VIDEOS_PER_PAGE)
       setPage(1)
     } catch (error) {
       console.error('Error loading videos:', error)
@@ -99,6 +188,25 @@ export default function ReelsPage() {
     try {
       const from = page * VIDEOS_PER_PAGE
       const to = from + VIDEOS_PER_PAGE - 1
+
+      if (pageCacheRef.current[page]) {
+        const cachedPage = pageCacheRef.current[page]
+        if (cachedPage.length > 0) {
+          setVideos(prev => {
+            const existing = new Set(prev.map(v => v.id))
+            const merged = [...prev]
+            cachedPage.forEach(item => {
+              if (!existing.has(item.id)) merged.push(item)
+            })
+            return merged
+          })
+          setPage(prev => prev + 1)
+          setHasMore(cachedPage.length >= VIDEOS_PER_PAGE)
+          return
+        }
+        setHasMore(false)
+        return
+      }
       
       const { data, error } = await supabase
         .from('posts')
@@ -110,10 +218,12 @@ export default function ReelsPage() {
       if (error) throw error
       
       if (data && data.length > 0) {
+        pageCacheRef.current[page] = data
         setVideos(prev => [...prev, ...data])
         setPage(prev => prev + 1)
         setHasMore(data.length >= VIDEOS_PER_PAGE)
       } else {
+        pageCacheRef.current[page] = []
         setHasMore(false)
       }
     } catch (error) {
@@ -125,6 +235,10 @@ export default function ReelsPage() {
 
   const togglePlay = () => {
     if (videoRef.current) {
+      const activeVideo = selectedVideoIndex !== null ? videos[selectedVideoIndex] : null
+      if (isLockedVideo(activeVideo) && activeVideo && previewExpired.has(activeVideo.id)) {
+        return
+      }
       if (videoRef.current.paused) {
         videoRef.current.play()
         setIsPlaying(true)
@@ -299,12 +413,40 @@ export default function ReelsPage() {
                       loop
                       muted
                       playsInline
+                      onLoadedMetadata={(e) => {
+                        const duration = e.currentTarget.duration
+                        if (!duration || Number.isNaN(duration)) return
+                        setVideoDurations(prev =>
+                          prev[video.id] === duration ? prev : { ...prev, [video.id]: duration }
+                        )
+                      }}
                     />
                     
                     {/* Play Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
                       <Play size={48} className="text-white" />
                     </div>
+
+                    {isLockedVideo(video) && (
+                      <div
+                        className={`absolute inset-0 flex flex-col items-center justify-center p-4 transition-colors ${
+                          previewExpired.has(video.id) ? 'bg-black/85' : 'bg-black/45'
+                        }`}
+                      >
+                        <Lock size={28} className="text-white mb-2" />
+                        <p className="text-white text-xs font-semibold text-center">
+                          {previewExpired.has(video.id)
+                            ? 'Pré-visualização terminada. Paga para continuar.'
+                            : `Conteúdo pago: pré-visualização de ${PAID_PREVIEW_SECONDS} segundo${PAID_PREVIEW_SECONDS > 1 ? 's' : ''}.`}
+                        </p>
+                      </div>
+                    )}
+
+                    {paidVideos.has(video.id) && (
+                      <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded-full bg-green-600/90 text-white text-[10px] font-bold uppercase tracking-wide">
+                        Pago
+                      </div>
+                    )}
 
                     {/* Video Info */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
@@ -323,6 +465,11 @@ export default function ReelsPage() {
                         <div>
                           <p className="text-white font-semibold text-sm">{video.profiles?.display_name}</p>
                           <p className="text-white/70 text-xs">{video.title}</p>
+                          {formatDuration(videoDurations[video.id]) && (
+                            <p className="text-white/80 text-[10px] font-semibold">
+                              Duração: {formatDuration(videoDurations[video.id])}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -399,6 +546,13 @@ export default function ReelsPage() {
               loop
               muted
               playsInline
+              onLoadedMetadata={(e) => {
+                const duration = e.currentTarget.duration
+                if (!duration || Number.isNaN(duration)) return
+                setVideoDurations(prev =>
+                  prev[currentVideo.id] === duration ? prev : { ...prev, [currentVideo.id]: duration }
+                )
+              }}
             />
             
             {/* Play/Pause Overlay */}
@@ -409,6 +563,12 @@ export default function ReelsPage() {
                 <Play size={64} className="text-white" />
               )}
             </div>
+
+            {paidVideos.has(currentVideo.id) && (
+              <div className="absolute top-4 left-4 z-20 px-3 py-1 rounded-full bg-green-600/90 text-white text-xs font-bold uppercase tracking-wide">
+                Pago
+              </div>
+            )}
 
             {/* Video Info */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
@@ -427,6 +587,11 @@ export default function ReelsPage() {
                 <div>
                   <p className="text-white font-semibold">{currentVideo.profiles?.display_name}</p>
                   <p className="text-white/70 text-sm">{currentVideo.title}</p>
+                  {formatDuration(videoDurations[currentVideo.id]) && (
+                    <p className="text-white/80 text-xs font-semibold">
+                      Duração: {formatDuration(videoDurations[currentVideo.id])}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -447,15 +612,26 @@ export default function ReelsPage() {
 
               {/* Comments Section */}
               {showComments && (
-                <div className="mt-4 bg-black/50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <div className="space-y-3">
+                <div className="mt-4 rounded-2xl border border-white/15 bg-black/60 backdrop-blur-md overflow-hidden">
+                  <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                    <p className="text-white font-semibold text-sm">Comentários</p>
+                    <span className="text-white/60 text-xs">{comments.length}</span>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto px-3 py-3 space-y-2">
                     {comments.length === 0 ? (
-                      <p className="text-white/70 text-sm text-center">Seja o primeiro a comentar!</p>
+                      <div className="py-8 text-center">
+                        <p className="text-white/70 text-sm font-medium">Seja o primeiro a comentar</p>
+                        <p className="text-white/40 text-xs mt-1">Partilha a tua opinião sobre este reel.</p>
+                      </div>
                     ) : (
                       comments.map((comment) => (
-                        <div key={comment.id} className="flex gap-2">
+                        <div
+                          key={comment.id}
+                          className="flex gap-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors p-2.5"
+                        >
                           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] flex-shrink-0">
-                            <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-muted flex items-center justify-center">
+                            <div className="w-full h-full rounded-full border border-white/40 overflow-hidden bg-muted flex items-center justify-center">
                               {comment.profiles?.avatar_url ? (
                                 <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
                               ) : (
@@ -465,9 +641,16 @@ export default function ReelsPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="text-white font-semibold text-sm">{comment.profiles?.display_name}</p>
-                            <p className="text-white/90 text-sm">{comment.content}</p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <p className="text-white font-semibold text-xs truncate">
+                                {comment.profiles?.display_name || 'Utilizador'}
+                              </p>
+                              <span className="text-white/40 text-[10px] whitespace-nowrap">
+                                {new Date(comment.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-white/90 text-sm leading-relaxed break-words">{comment.content}</p>
                           </div>
                         </div>
                       ))
@@ -475,25 +658,53 @@ export default function ReelsPage() {
                   </div>
                   
                   {/* Comment Input */}
-                  <div className="mt-4 flex gap-2">
-                    <input
-                      type="text"
-                      value={commentInput}
-                      onChange={(e) => setCommentInput(e.target.value)}
-                      placeholder="Escreve um comentário..."
-                      className="flex-1 bg-white/10 border border-white/20 rounded-full px-4 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-accent"
-                    />
-                    <button
-                      onClick={() => handleSubmitComment(currentVideo.id)}
-                      disabled={!commentInput.trim()}
-                      className="p-2 bg-accent rounded-full text-white hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Send size={20} />
-                    </button>
+                  <div className="p-3 border-t border-white/10 bg-black/30">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={commentInput}
+                        onChange={(e) => setCommentInput(e.target.value)}
+                        placeholder="Escreve um comentário..."
+                        className="flex-1 bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-accent/70"
+                      />
+                      <button
+                        onClick={() => handleSubmitComment(currentVideo.id)}
+                        disabled={!commentInput.trim()}
+                        className="px-3 bg-accent rounded-full text-white hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
+
+            {isLockedVideo(currentVideo) && previewExpired.has(currentVideo.id) && (
+              <div className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-20">
+                <Lock size={34} className="text-white mb-3" />
+                <p className="text-white font-bold text-center mb-2">
+                  Pré-visualização de {PAID_PREVIEW_SECONDS} segundo{PAID_PREVIEW_SECONDS > 1 ? 's' : ''} concluída
+                </p>
+                <p className="text-white/80 text-xs text-center mb-5">
+                  Este reel é pago. Desbloqueia para assistir ao vídeo completo.
+                </p>
+                {formatDuration(videoDurations[currentVideo.id]) && (
+                  <p className="text-white text-xs font-semibold mb-4">
+                    Duração do conteúdo: {formatDuration(videoDurations[currentVideo.id])}
+                  </p>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    router.push(`/dashboard/post/${currentVideo.id}`)
+                  }}
+                  className="bg-accent hover:bg-accent/90 text-white px-5 py-2.5 rounded-lg font-semibold"
+                >
+                  Pagar para desbloquear
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Mobile Navigation Indicator */}

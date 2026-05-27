@@ -31,6 +31,7 @@ import {
   resolveProfileCurrency,
   type WithdrawalCountryCode,
 } from '@/lib/wallet'
+import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
 interface Post {
   id: string
@@ -51,6 +52,7 @@ interface Post {
 }
 
 function DashboardContent() {
+  const DASHBOARD_CACHE_TTL_MS = 60 * 1000
   const [posts, setPosts] = useState<Post[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [dashboardAnnouncements, setDashboardAnnouncements] = useState<any[]>([])
@@ -162,6 +164,23 @@ function DashboardContent() {
           return
         }
         setUser(currentUser)
+        const cacheKey = `xoxo:dashboard:data:${currentUser.id}:${mode || 'feed'}:${view || 'default'}`
+        const cached = readTimedCache<{
+          posts: Post[]
+          transactions: any[]
+          announcements: any[]
+          profile: any
+          balance: number
+        }>(cacheKey, DASHBOARD_CACHE_TTL_MS)
+
+        if (cached) {
+          setPosts(cached.posts || [])
+          setTransactions(cached.transactions || [])
+          setDashboardAnnouncements(cached.announcements || [])
+          setUserProfile(cached.profile || null)
+          setBalance(Number(cached.balance || 0))
+          setLoading(false)
+        }
 
         // Fetch User Profile
         const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
@@ -190,6 +209,9 @@ function DashboardContent() {
         const { data: settings } = await supabase.from('system_settings').select('*').eq('key', 'min_withdraw_amount').single()
         if (settings) setMinWithdrawAmount(Number(settings.value) || 1000)
 
+        let postsForCache: Post[] = cached?.posts || []
+        let transactionsForCache: any[] = cached?.transactions || []
+
         if (mode === 'wallet') {
           // Fetch Transactions
           const { data: transData } = await supabase
@@ -197,7 +219,10 @@ function DashboardContent() {
             .select('*')
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: false })
-          if (transData) setTransactions(transData)
+          if (transData) {
+            setTransactions(transData)
+            transactionsForCache = transData
+          }
         } else {
           // Fetch posts with pagination
           const { data: postsData, error: postsError } = await supabase
@@ -210,7 +235,16 @@ function DashboardContent() {
           setPosts(postsData || [])
           setHasMore((postsData?.length || 0) >= POSTS_PER_PAGE)
           setPage(1)
+          postsForCache = postsData || []
         }
+
+        writeTimedCache(cacheKey, {
+          posts: postsForCache,
+          transactions: transactionsForCache,
+          announcements: annData || [],
+          profile: profile || null,
+          balance: Number(profile?.balance || 0),
+        })
       } catch (err: any) {
         setError(err.message || 'Erro ao carregar conteúdo')
       } finally {
@@ -229,7 +263,7 @@ function DashboardContent() {
     }
     setDepositLoading(true)
     try {
-      const res = await fetch('/api/payments/flutterwave/initialize', {
+      await fetch('/api/payments/flutterwave/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -237,11 +271,9 @@ function DashboardContent() {
           currency: preferredCurrency,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento')
-      window.location.href = data.link
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erro ao depositar')
+      alert('Canal de depósito em atualização. Aguarde a disponibilização da API de pagamentos.')
+    } catch {
+      alert('Canal de depósito em atualização. Aguarde a disponibilização da API de pagamentos.')
     } finally {
       setDepositLoading(false)
     }
@@ -407,7 +439,7 @@ function DashboardContent() {
                         </div>
                       )}
                       <div className="text-center">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Pagamento seguro via Flutterwave</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Canal de depósito em atualização</p>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">
                             {currencyOpt.symbol}
@@ -451,10 +483,10 @@ function DashboardContent() {
                         className="w-full bg-accent text-white py-4 rounded-xl font-bold text-base shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {depositLoading ? <Loader2 className="animate-spin" size={20} /> : <ExternalLink size={18} />}
-                        Pagar com Flutterwave
+                        Canal de depósito em atualização
                       </button>
                       <p className="text-[10px] text-center text-gray-400">
-                        Aceita Multicaixa, cartão e outros métodos disponíveis na Flutterwave.
+                        A API de pagamentos está temporariamente indisponível. Tente novamente mais tarde.
                       </p>
                     </div>
                   </div>

@@ -40,7 +40,7 @@ export default function Navbar({ user }: NavbarProps) {
               href="/dashboard/favorites"
               className="text-foreground hover:text-accent transition-colors"
             >
-              Favoritos
+              Comprados
             </Link>
           </div>
 
@@ -104,7 +104,7 @@ export default function Navbar({ user }: NavbarProps) {
               className="block px-3 py-2 rounded-lg text-foreground hover:bg-muted"
               onClick={() => setMenuOpen(false)}
             >
-              Favoritos
+              Comprados
             </Link>
           </div>
         )}
