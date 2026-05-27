@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
 
     const newBalance = await syncProfileBalance(supabaseAdmin, userId)
 
+    
     return NextResponse.json({
       success: true,
       balance: newBalance,

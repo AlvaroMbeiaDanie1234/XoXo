@@ -5,6 +5,8 @@ import { Toaster } from '@/components/ui/toaster'
 import SecurityProvider from '@/components/SecurityProvider'
 import { ThemeProvider } from '@/components/theme-provider'
 import SessionTracker from '@/components/session-tracker'
+import PWAInstallPrompt from '@/components/pwa-install-prompt'
+import RankingNotifications from '@/components/dashboard/ranking-notifications'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -103,6 +105,8 @@ export default function RootLayout({
           <SessionTracker />
           {children}
           <Toaster />
+          <PWAInstallPrompt />
+          <RankingNotifications />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </ThemeProvider>
       </body>

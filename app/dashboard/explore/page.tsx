@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/dashboard/sidebar'
 import PostCard from '@/components/dashboard/post-card'
+import TopCreatorsRanking from '@/components/dashboard/top-creators-ranking'
 import { Search, UserPlus, Check, TrendingUp, Star, Sparkles, Video, Image as ImageIcon, FileText, Heart, MessageCircle, Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useRef } from 'react'
@@ -224,6 +225,11 @@ export default function ExplorePage() {
 
         {/* Main Content */}
         <div className="flex-1 max-w-2xl w-full">
+          {/* Top Creators Ranking Section */}
+          <div className="mb-6">
+            <TopCreatorsRanking />
+          </div>
+
           {/* Stories Section */}
           <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
             <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>

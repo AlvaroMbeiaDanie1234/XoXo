@@ -1483,70 +1483,76 @@ export default function AdminDashboard() {
                       )
                       .map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-sm uppercase shadow-sm">
+                        <td className="px-3 py-4 max-w-[180px]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm flex-shrink-0">
                               {u.display_name?.charAt(0) || u.email?.charAt(0)}
                             </div>
-                            <span className="font-bold flex items-center gap-1">{u.display_name || 'Sem Nome'} {u.is_verified && <CheckCircle size={14} className="text-blue-500 fill-blue-500" />}</span>
+                            <div className="flex-1 min-w-0">
+                              <span className="font-bold flex items-center gap-1 truncate block text-sm" title={u.display_name || 'Sem Nome'}>{u.display_name || 'Sem Nome'} {u.is_verified && <CheckCircle size={12} className="text-blue-500 fill-blue-500 flex-shrink-0" />}</span>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-500">{u.email}</td>
-                        <td className="px-6 py-4 text-gray-500 text-xs">{u.phone || <span className="text-gray-300">—</span>}</td>
-                        <td className="px-6 py-4 text-gray-500 text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
-                        <td className="px-6 py-4 font-black text-accent text-lg">AOA {u.balance?.toLocaleString() || 0}</td>
-                        <td className="px-6 py-4 font-black text-green-600 text-lg">AOA {(u.withdrawable_earnings || 0).toLocaleString()}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-4 text-gray-500 max-w-[180px]">
+                          <span className="truncate block text-sm" title={u.email}>{u.email}</span>
+                        </td>
+                        <td className="px-3 py-4 text-gray-500 text-xs">{u.phone || <span className="text-gray-300">—</span>}</td>
+                        <td className="px-3 py-4 text-gray-500 text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+                        <td className="px-3 py-4 font-black text-accent text-sm whitespace-nowrap">AOA {u.balance?.toLocaleString() || 0}</td>
+                        <td className="px-3 py-4 font-black text-green-600 text-sm whitespace-nowrap">AOA {(u.withdrawable_earnings || 0).toLocaleString()}</td>
+                        <td className="px-3 py-4">
                           <button
                             onClick={() => handleToggleFreePlan(u.id, !!u.is_free_plan)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                              u.is_free_plan 
-                                ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
+                            className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all ${
+                              u.is_free_plan
+                                ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                           >
                             {u.is_free_plan ? 'Plano Grátis 🌟' : 'Standard'}
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleToggleVerification(u.id, !!u.is_verified)}
-                            className={`p-2 rounded-lg transition-colors mr-2 ${
-                              u.is_verified ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'
-                            }`}
-                            title={u.is_verified ? 'Remover Selo VIP' : 'Atribuir Selo VIP (Grátis)'}
-                          >
-                            <ShieldCheck size={18} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedUserForCredit(u)
-                              setShowCreditModal(true)
-                            }}
-                            className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors mr-2"
-                            title="Carregar Saldo"
-                          >
-                            <Banknote size={18} />
-                          </button>
-                          <button onClick={() => router.push(`/admin/user/${u.id}`)} className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors mr-2"><Edit size={18} /></button>
-                          <button
-                            onClick={() => handleToggleUserSms(u.id, !!u.sms_suspended_by_admin)}
-                            className={`p-2 rounded-lg transition-colors mr-2 ${u.sms_suspended_by_admin ? 'text-gray-400 bg-gray-100 hover:bg-gray-200' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
-                            title={u.sms_suspended_by_admin ? 'Reativar SMS' : 'Suspender SMS'}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12 19.79 19.79 0 0 1 1.21 3.15 2 2 0 0 1 3.22 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/>
-                              {u.sms_suspended_by_admin && <line x1="1" y1="1" x2="23" y2="23"/>}
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleResetPassword(u.id, u.email)}
-                            className="p-2 text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors mr-2"
-                            title="Resetar Senha"
-                          >
-                            <KeyRound size={18} />
-                          </button>
-                          <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"><Trash2 size={18} /></button>
+                        <td className="px-3 py-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <button
+                              onClick={() => handleToggleVerification(u.id, !!u.is_verified)}
+                              className={`p-1.5 rounded-md transition-colors ${
+                                u.is_verified ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'
+                              }`}
+                              title={u.is_verified ? 'Remover Selo VIP' : 'Atribuir Selo VIP (Grátis)'}
+                            >
+                              <ShieldCheck size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedUserForCredit(u)
+                                setShowCreditModal(true)
+                              }}
+                              className="p-1.5 text-green-600 bg-green-50 rounded-md hover:bg-green-100 transition-colors"
+                              title="Carregar Saldo"
+                            >
+                              <Banknote size={16} />
+                            </button>
+                            <button onClick={() => router.push(`/admin/user/${u.id}`)} className="p-1.5 text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"><Edit size={16} /></button>
+                            <button
+                              onClick={() => handleToggleUserSms(u.id, !!u.sms_suspended_by_admin)}
+                              className={`p-1.5 rounded-md transition-colors ${u.sms_suspended_by_admin ? 'text-gray-400 bg-gray-100 hover:bg-gray-200' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
+                              title={u.sms_suspended_by_admin ? 'Reativar SMS' : 'Suspender SMS'}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12 19.79 19.79 0 0 1 1.21 3.15 2 2 0 0 1 3.22 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/>
+                                {u.sms_suspended_by_admin && <line x1="1" y1="1" x2="23" y2="23"/>}
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleResetPassword(u.id, u.email)}
+                              className="p-1.5 text-orange-600 bg-orange-50 rounded-md hover:bg-orange-100 transition-colors"
+                              title="Resetar Senha"
+                            >
+                              <KeyRound size={16} />
+                            </button>
+                            <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
+                          </div>
                         </td>
                       </tr>
                     ))}
