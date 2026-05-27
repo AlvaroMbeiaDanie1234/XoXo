@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import SessionTracker from '@/components/session-tracker'
 import PWAInstallPrompt from '@/components/pwa-install-prompt'
 import RankingNotifications from '@/components/dashboard/ranking-notifications'
+import FeedbackModal from '@/components/dashboard/feedback-modal'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -107,6 +108,7 @@ export default function RootLayout({
           <Toaster />
           <PWAInstallPrompt />
           <RankingNotifications />
+          <FeedbackModal />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </ThemeProvider>
       </body>

@@ -410,23 +410,34 @@ export default function PostDetailsPage() {
               )}
 
               {showPaywall && !hasAccess && (
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 z-50">
-                  <div className="w-24 h-24 bg-accent rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-accent/40 animate-bounce">
-                    <Lock size={44} className="text-white" />
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in duration-500 z-50">
+                  <div className="w-20 h-20 md:w-24 md:h-24 bg-accent rounded-full flex items-center justify-center mb-4 md:mb-6 shadow-2xl shadow-accent/40 animate-bounce flex-shrink-0">
+                    <Lock size={36} className="text-white md:hidden" />
+                    <Lock size={44} className="text-white hidden md:block" />
                   </div>
-                  <div className="text-center px-6 max-w-sm">
-                    <h2 className="text-3xl font-black text-white mb-2 tracking-tighter uppercase">Quer continuar a ver?</h2>
-                    <p className="text-gray-300 text-sm mb-8">O tempo de curiosidade de 2 segundos acabou. Desbloqueia agora para assistir ao conteúdo completo.</p>
+                  <div className="text-center px-4 max-w-sm flex-shrink-0">
+                    <h2 className="text-2xl md:text-3xl font-black text-white mb-2 tracking-tighter uppercase">Quer continuar a ver?</h2>
+                    <p className="text-gray-300 text-xs md:text-sm mb-4 md:mb-8">O tempo de curiosidade de 2 segundos acabou. Desbloqueia agora para assistir ao conteúdo completo.</p>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <div className="bg-white p-1 rounded-2xl flex flex-col items-center w-64 shadow-2xl">
-                      <div className="w-full bg-gray-50 py-4 rounded-xl flex flex-col items-center border border-gray-100">
+                  <div className="flex flex-col items-center w-full max-w-xs flex-shrink-0">
+                    <div className="bg-white p-1 rounded-2xl flex flex-col items-center w-full shadow-2xl">
+                      <div className="w-full bg-gray-50 py-3 md:py-4 rounded-xl flex flex-col items-center border border-gray-100">
                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Preço do Acesso</span>
-                         <span className="text-3xl font-black text-accent tracking-tighter">AOA {post.price?.toLocaleString()}</span>
+                         <span className="text-2xl md:text-3xl font-black text-accent tracking-tighter">AOA {post.price?.toLocaleString()}</span>
                       </div>
-                      <button onClick={handleBuy} disabled={buying} className="w-full mt-1 bg-accent hover:bg-accent/90 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3">
-                        {buying ? <Loader2 size={24} className="animate-spin" /> : <Play size={20} className="fill-white" />}
-                        <span className="text-lg">Pagar {post.price?.toLocaleString()}</span>
+                      <button onClick={handleBuy} disabled={buying} className="w-full mt-1 bg-accent hover:bg-accent/90 text-white py-3 md:py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3">
+                        {buying ? (
+                          <>
+                            <Loader2 size={20} className="animate-spin md:hidden" />
+                            <Loader2 size={24} className="animate-spin hidden md:block" />
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} className="fill-white md:hidden" />
+                            <Play size={20} className="fill-white hidden md:block" />
+                          </>
+                        )}
+                        <span className="text-base md:text-lg">Pagar {post.price?.toLocaleString()}</span>
                       </button>
                     </div>
                   </div>
@@ -500,13 +511,13 @@ export default function PostDetailsPage() {
                   </div>
                 )}
                 <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold flex-shrink-0">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0">
                     {user.email?.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 relative">
                     <textarea
                       placeholder="Escreve um comentário..."
-                      className={`w-full bg-gray-50 border border-border p-3 outline-none focus:border-accent transition-colors resize-none ${replyTo ? 'rounded-b-lg' : 'rounded-lg'}`}
+                      className={`w-full bg-gray-50 border border-border p-2 md:p-3 text-sm md:text-base outline-none focus:border-accent transition-colors resize-none ${replyTo ? 'rounded-b-lg' : 'rounded-lg'}`}
                       rows={2}
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
@@ -514,9 +525,19 @@ export default function PostDetailsPage() {
                     <button
                       type="submit"
                       disabled={isSubmittingComment || !newComment.trim()}
-                      className="absolute right-3 bottom-3 text-accent hover:text-accent/80 disabled:opacity-50"
+                      className="absolute right-2 md:right-3 bottom-2 md:bottom-3 text-accent hover:text-accent/80 disabled:opacity-50"
                     >
-                      {isSubmittingComment ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                      {isSubmittingComment ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin md:hidden" />
+                          <Loader2 size={20} className="animate-spin hidden md:block" />
+                        </>
+                      ) : (
+                        <>
+                          <Send size={16} className="md:hidden" />
+                          <Send size={20} className="hidden md:block" />
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

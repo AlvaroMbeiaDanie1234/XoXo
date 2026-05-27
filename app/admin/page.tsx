@@ -6,7 +6,7 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound
+  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
 import Header from '@/components/dashboard/header'
@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [reports, setReports] = useState<any[]>([])
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [onlineUsersCount, setOnlineUsersCount] = useState(0)
   const [totalBalance, setTotalBalance] = useState(0)
   const [topUsersByBalance, setTopUsersByBalance] = useState<any[]>([])
@@ -333,6 +334,13 @@ export default function AdminDashboard() {
         .select('*, target:profiles(display_name, email)')
         .order('created_at', { ascending: false })
       if (annData) setAnnouncements(annData)
+
+      // Fetch feedbacks
+      const { data: feedbacksData } = await supabase
+        .from('feedbacks')
+        .select('*, profiles(display_name, email, avatar_url)')
+        .order('created_at', { ascending: false })
+      if (feedbacksData) setFeedbacks(feedbacksData)
 
       // Fetch reports
       const { data: reportsData } = await supabase
@@ -1175,6 +1183,9 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'reports' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <AlertTriangle size={20} /> Denúncias {reports.filter(r => r.status === 'pending').length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{reports.filter(r => r.status === 'pending').length}</span>}
               </button>
+              <button onClick={() => setActiveTab('feedbacks')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'feedbacks' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <MessageCircle size={20} /> Feedbacks {feedbacks.length > 0 && <span className="bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full">{feedbacks.length}</span>}
+              </button>
               <button onClick={() => setActiveTab('transactions')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'transactions' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <List size={20} /> Transações
               </button>
@@ -1966,6 +1977,56 @@ export default function AdminDashboard() {
                             </button>
                           </div>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'feedbacks' && (
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2"><MessageCircle /> Feedbacks dos Utilizadores</h2>
+                <span className="text-sm text-gray-500">{feedbacks.length} feedbacks</span>
+              </div>
+              <div className="overflow-x-auto">
+                {feedbacks.length === 0 ? (
+                  <div className="p-12 text-center text-gray-500">
+                    <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>Nenhum feedback recebido ainda.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {feedbacks.map((feedback) => (
+                      <div key={feedback.id} className="p-6 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden">
+                            {feedback.profiles?.avatar_url ? (
+                              <img src={feedback.profiles.avatar_url} alt={feedback.profiles.display_name} className="w-full h-full object-cover" />
+                            ) : (
+                              feedback.profiles?.display_name?.charAt(0) || '?'
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-bold text-gray-900">{feedback.profiles?.display_name || 'Utilizador'}</h3>
+                              <span className="text-xs text-gray-500">{feedback.profiles?.email || ''}</span>
+                              <span className="text-xs text-gray-400">• {new Date(feedback.created_at).toLocaleString('pt-BR')}</span>
+                            </div>
+                            <div className="flex items-center gap-1 mb-3">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  size={16}
+                                  className={star <= feedback.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
+                                />
+                              ))}
+                            </div>
+                            <p className="text-gray-700 text-sm leading-relaxed">{feedback.message}</p>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
