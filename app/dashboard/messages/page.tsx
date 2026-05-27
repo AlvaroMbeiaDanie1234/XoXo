@@ -87,7 +87,33 @@ function MessagesContent() {
         }
       })
 
-      setContacts(allContacts)
+      // Fetch last message for each contact to sort by most recent
+      const contactsWithLastMessage = await Promise.all(
+        allContacts.map(async (contact: any) => {
+          const { data: lastMsg } = await supabase
+            .from('messages')
+            .select('created_at')
+            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${contact.id}),and(sender_id.eq.${contact.id},receiver_id.eq.${currentUser.id})`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          return {
+            ...contact,
+            lastMessageAt: lastMsg?.created_at || null
+          }
+        })
+      )
+
+      // Sort contacts by last message date (most recent first)
+      const sortedContacts = contactsWithLastMessage.sort((a: any, b: any) => {
+        if (!a.lastMessageAt && !b.lastMessageAt) return 0
+        if (!a.lastMessageAt) return 1
+        if (!b.lastMessageAt) return -1
+        return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      })
+
+      setContacts(sortedContacts)
 
       // Fetch unread message counts from everyone
       const { data: unreadData } = await supabase
