@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+const DEFAULT_SITE_URL = 'https://www.xoxo.ao'
+
+function getSiteUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_URL
+  const urlWithProtocol = /^https?:\/\//i.test(configuredUrl)
+    ? configuredUrl
+    : `https://${configuredUrl}`
+
+  return urlWithProtocol.replace(/\/+$/, '')
+}
+
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -19,9 +30,9 @@ export default function ResetPasswordPage() {
     setError(null)
 
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      const siteUrl = getSiteUrl()
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${siteUrl}/auth/update-password`,
+        redirectTo: `${siteUrl}/auth/callback?next=/auth/update-password`,
       })
 
       if (resetError) {
