@@ -259,20 +259,20 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {notifOpen && (
-                <div className={`absolute right-0 mt-2 w-80 rounded-md shadow-lg border overflow-hidden z-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                <div className={`fixed left-3 right-3 top-[64px] z-50 max-h-[70vh] overflow-hidden rounded-xl border shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                   <div className={`p-3 border-b flex justify-between items-center ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-border'}`}>
                     <p className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>Notificações</p>
                   </div>
-                  <div className="max-h-[300px] overflow-y-auto">
+                  <div className="max-h-[calc(70vh-48px)] overflow-y-auto sm:max-h-[300px]">
                     {notifications.length > 0 ? (
                       notifications.map(notif => (
                         <div key={notif.id} className={`p-3 border-b flex gap-3 items-start transition-colors ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'}`}>
                           <div className="mt-1 flex-shrink-0 text-accent">
                             <DollarSign size={16} className="bg-accent/10 rounded-full p-0.5" />
                           </div>
-                          <div>
-                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
-                            <div className="flex justify-between items-center mt-1">
+                          <div className="min-w-0 flex-1">
+                            <p className={`break-words text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
+                            <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                               <span className={`text-xs font-bold ${notif.type === 'message' ? 'text-red-500' : 'text-accent'}`}>
                                 {notif.type === 'message' ? '-' : '+'} AOA {notif.amount?.toLocaleString()}
                               </span>

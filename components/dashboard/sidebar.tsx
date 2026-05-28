@@ -195,9 +195,9 @@ function SidebarContent() {
         </div>
       </div>
 
-      {/* Sleek Fixed Bottom Navigation Bar for Mobile (WhatsApp-style) - Rendered via React Portal */}
+      {/* Floating Bottom Navigation Bar for Mobile - Rendered via React Portal */}
       {mounted && typeof document !== 'undefined' && createPortal(
-        <div className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t shadow-[0_-4px_12px_rgba(0,0,0,0.06)] px-1 py-1.5 flex items-center justify-around h-16 pb-safe animate-in slide-in-from-bottom duration-300 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-border'}`}>
+        <div className={`fixed bottom-4 left-3 right-3 z-50 mx-auto flex h-16 max-w-md items-center justify-around rounded-[1.75rem] border px-2 shadow-[0_18px_45px_rgba(0,0,0,0.20)] backdrop-blur-xl animate-in slide-in-from-bottom duration-300 transition-colors lg:hidden ${theme === 'dark' ? 'border-gray-700/80 bg-gray-950/90' : 'border-white/70 bg-white/90'}`}>
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -205,27 +205,28 @@ function SidebarContent() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+                aria-label={item.label}
+                title={item.label}
+                className={`flex h-12 min-w-0 flex-1 items-center justify-center rounded-2xl transition-all active:scale-95 ${
                   isActive
-                    ? 'text-accent font-bold scale-105'
-                    : `${theme === 'dark' ? 'text-gray-400 active:scale-95 hover:text-white' : 'text-muted-foreground active:scale-95 hover:text-foreground'}`
+                    ? 'bg-accent/10 text-accent shadow-inner shadow-accent/5'
+                    : `${theme === 'dark' ? 'text-gray-400 hover:bg-white/5 hover:text-white' : 'text-muted-foreground hover:bg-gray-100 hover:text-foreground'}`
                 }`}
               >
                 <div className="relative">
-                  <Icon size={20} className={isActive ? 'text-accent' : theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'} />
+                  <Icon size={22} className={isActive ? 'text-accent' : theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'} />
                   {item.label === 'Chat' && unreadGlobalCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 bg-accent text-white text-[8px] font-black min-w-[14px] h-[14px] px-1 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in duration-300">
+                    <span className="absolute -top-2 -right-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-accent px-1 text-[8px] font-black text-white shadow-sm animate-in zoom-in duration-300">
                       {unreadGlobalCount}
                     </span>
                   )}
                   {item.label === 'Stream (Live)' && activeStreamsCount > 0 && (
-                    <span className="absolute -top-2 -right-4 bg-red-600 text-white text-[7px] font-extrabold px-1 rounded-full shadow-sm animate-pulse flex items-center gap-0.5">
+                    <span className="absolute -top-2 -right-5 flex items-center gap-0.5 rounded-full bg-red-600 px-1 text-[7px] font-extrabold text-white shadow-sm animate-pulse">
                       <span className="w-0.5 h-0.5 bg-white rounded-full animate-ping" />
                       HOT ({activeStreamsCount})
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] mt-1 font-semibold tracking-tight truncate max-w-[64px]">{item.label}</span>
               </Link>
             )
           })}

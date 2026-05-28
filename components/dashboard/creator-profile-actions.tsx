@@ -89,25 +89,31 @@ export default function CreatorProfileActions({ creatorId, currentUserId }: Crea
     router.push(`/dashboard/messages?user=${creatorId}`)
   }
 
-  if (loading) return <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-full"></div>
+  if (loading) {
+    return (
+      <div className="w-full rounded-2xl border border-border bg-white/90 p-2 shadow-lg shadow-black/5 backdrop-blur sm:w-64 dark:border-gray-800 dark:bg-gray-950/90">
+        <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      </div>
+    )
+  }
 
   return (
-    <div className="flex justify-end pt-4 gap-3">
-      <button 
+    <div className="flex w-full flex-wrap gap-2 rounded-2xl border border-border bg-white/95 p-2 shadow-xl shadow-black/10 backdrop-blur-md sm:w-auto sm:flex-nowrap sm:justify-end dark:border-gray-800 dark:bg-gray-950/90 dark:shadow-black/30">
+      <button
         onClick={handleMessage}
-        className="px-6 py-2 rounded-full border border-accent text-accent font-semibold text-sm hover:bg-accent/5 transition-colors flex items-center gap-2"
+        className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-accent/25 bg-white px-4 py-2.5 text-sm font-bold text-accent transition-all hover:border-accent/40 hover:bg-accent/5 active:scale-95 sm:min-h-10 sm:flex-none sm:px-5 dark:bg-gray-900 dark:hover:bg-accent/10"
       >
         <Send size={16} />
         Mensagem
       </button>
-      
+
       {currentUserId !== creatorId && (
-        <button 
+        <button
           onClick={handleSubscribe}
           disabled={actionLoading}
-          className={`px-6 py-2 rounded-full font-semibold text-sm transition-all flex items-center gap-2 shadow-md ${
-            isSubscribed 
-              ? 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-100 group' 
+          className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold shadow-md transition-all active:scale-95 disabled:pointer-events-none disabled:opacity-70 sm:min-h-10 sm:flex-none sm:px-5 ${
+            isSubscribed
+              ? 'border border-gray-200 bg-gray-100 text-gray-600 hover:border-red-100 hover:bg-red-50 hover:text-red-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-red-900/60 dark:hover:bg-red-950/30 dark:hover:text-red-300'
               : 'bg-accent text-white hover:bg-accent/90 shadow-accent/20'
           }`}
         >

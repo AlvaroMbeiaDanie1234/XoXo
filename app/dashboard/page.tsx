@@ -369,22 +369,23 @@ function DashboardContent() {
 
         <div className="flex-1 max-w-[800px] w-full min-h-[80vh]">
           {mode === 'wallet' ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {view === 'balance' || !view ? (
-                <div className={`rounded-xl border overflow-hidden shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-                  <div className="bg-accent p-10 text-white">
-                    <h2 className="text-xl font-bold flex items-center gap-2 mb-3">
-                      <Wallet /> Saldo Disponível (Para Compras)
+                <div className={`overflow-hidden rounded-2xl border shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                  <div className="bg-[linear-gradient(135deg,#111827_0%,#e31e24_65%,#7f1d1d_100%)] p-6 text-white sm:p-7">
+                    <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white/80">
+                      <Wallet size={18} /> Saldo Disponível
                     </h2>
-                    <p className="text-5xl font-black tracking-tighter">{formatMoney(balance, preferredCurrency)}</p>
+                    <p className="text-3xl font-black tracking-tight sm:text-4xl">{formatMoney(balance, preferredCurrency)}</p>
+                    <p className="mt-2 text-xs font-medium text-white/70">Para compras, mensagens e conteúdos premium.</p>
                   </div>
-                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-100'}`}>
+                  <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5">
+                    <div className={`rounded-xl border p-4 ${theme === 'dark' ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-100'}`}>
                       <div className="flex items-center gap-3 mb-2 text-green-600">
-                        <ArrowDownLeft size={20} />
-                        <p className="text-xs font-bold uppercase tracking-widest">Ganhos (A Levantar)</p>
+                        <ArrowDownLeft size={18} />
+                        <p className="text-[11px] font-bold uppercase tracking-widest">Ganhos a levantar</p>
                       </div>
-                      <p className={`text-2xl font-black ${theme === 'dark' ? 'text-green-400' : 'text-green-700'}`}>
+                      <p className={`text-xl font-black sm:text-2xl ${theme === 'dark' ? 'text-green-400' : 'text-green-700'}`}>
                         {formatMoney(
                           (() => {
                             const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
@@ -396,12 +397,12 @@ function DashboardContent() {
                         )}
                       </p>
                     </div>
-                    <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-100'}`}>
+                    <div className={`rounded-xl border p-4 ${theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-100'}`}>
                       <div className="flex items-center gap-3 mb-2 text-red-600">
-                        <ArrowUpRight size={20} />
-                        <p className="text-xs font-bold uppercase tracking-widest">Despesas</p>
+                        <ArrowUpRight size={18} />
+                        <p className="text-[11px] font-bold uppercase tracking-widest">Despesas</p>
                       </div>
-                      <p className={`text-2xl font-black ${theme === 'dark' ? 'text-red-400' : 'text-red-700'}`}>
+                      <p className={`text-xl font-black sm:text-2xl ${theme === 'dark' ? 'text-red-400' : 'text-red-700'}`}>
                         {formatMoney(
                           transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0),
                           preferredCurrency
@@ -419,22 +420,22 @@ function DashboardContent() {
                   />
                 )
               ) : view === 'deposit' ? (
-                <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-                  <div className="p-6 border-b border-border">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
+                <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
+                  <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
+                    <h2 className="flex items-center gap-2 text-lg font-bold">
                       <PlusCircle className="text-accent" /> Carregar Carteira
                     </h2>
                   </div>
-                  
-                  <div className="p-8">
-                    <div className="max-w-md mx-auto space-y-6">
+
+                  <div className="p-5 sm:p-6">
+                    <div className="mx-auto max-w-sm space-y-4">
                       {searchParams.get('required') === '1' && (
-                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800 font-medium text-center">
+                        <div className={`rounded-xl border p-3 text-center text-xs font-medium ${theme === 'dark' ? 'border-orange-900/70 bg-orange-950/30 text-orange-200' : 'border-orange-200 bg-orange-50 text-orange-800'}`}>
                           Atingiste o limite gratuito (3 publicações, 3 mensagens, 3 comentários). Realiza um depósito para continuar.
                         </div>
                       )}
                       {depositSuccess && (
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 font-medium text-center flex items-center justify-center gap-2">
+                        <div className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-center text-xs font-medium ${theme === 'dark' ? 'border-green-900/70 bg-green-950/30 text-green-200' : 'border-green-200 bg-green-50 text-green-800'}`}>
                           <CheckCircle2 size={18} /> Pagamento recebido! O saldo será atualizado em breve.
                         </div>
                       )}
@@ -448,7 +449,7 @@ function DashboardContent() {
                             type="number"
                             min={minDeposit}
                             placeholder={`Mín. ${minDeposit}`}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-16 pr-6 outline-none focus:border-accent text-2xl font-black text-center"
+                            className={`w-full rounded-xl border py-3 pl-14 pr-5 text-center text-xl font-black outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-gray-200 bg-gray-50 text-gray-900'}`}
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
                           />
@@ -471,7 +472,7 @@ function DashboardContent() {
                             key={val}
                             type="button"
                             onClick={() => setDepositAmount(val)}
-                            className="py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:border-accent hover:text-accent"
+                            className={`rounded-lg border py-2 text-xs font-bold transition-colors hover:border-accent hover:text-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-900 text-gray-300' : 'border-gray-200 bg-gray-50 text-gray-600'}`}
                           >
                             {val}
                           </button>
@@ -480,7 +481,7 @@ function DashboardContent() {
                       <button 
                         onClick={handleFlutterwaveDeposit}
                         disabled={depositLoading || !depositAmount}
-                        className="w-full bg-accent text-white py-4 rounded-xl font-bold text-base shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
                       >
                         {depositLoading ? <Loader2 className="animate-spin" size={20} /> : <ExternalLink size={18} />}
                         Canal de depósito em atualização
@@ -492,9 +493,9 @@ function DashboardContent() {
                   </div>
                 </div>
               ) : view === 'withdraw' ? (
-                <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-                  <div className="p-6 border-b border-border bg-orange-50/30">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
+                <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
+                  <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-orange-950/20' : 'border-border bg-orange-50/50'}`}>
+                    <h2 className="flex items-center gap-2 text-lg font-bold">
                       <Banknote className="text-orange-600" /> Levantamento de Dinheiro
                     </h2>
                     <p className="text-xs text-gray-500 mt-1">
@@ -502,15 +503,15 @@ function DashboardContent() {
                       creditado na conta bancária configurada em Moeda e Banco.
                     </p>
                   </div>
-                  <div className="p-8">
-                    <div className="max-w-md mx-auto space-y-6">
-                      <div className="bg-gray-50 p-4 rounded-xl border border-border flex justify-between items-center">
+                  <div className="p-5 sm:p-6">
+                    <div className="mx-auto max-w-sm space-y-4">
+                      <div className={`flex items-center justify-between rounded-xl border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-border bg-gray-50'}`}>
                         <span className="text-sm text-gray-500">Saldo Disponível</span>
-                        <span className="font-bold text-gray-900">{formatMoney(balance, preferredCurrency)}</span>
+                        <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{formatMoney(balance, preferredCurrency)}</span>
                       </div>
 
                       {!bankComplete ? (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
+                        <div className={`rounded-xl border p-4 text-sm ${theme === 'dark' ? 'border-amber-900/70 bg-amber-950/30 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
                           <p className="font-bold mb-1">Dados bancários em falta</p>
                           <p className="text-xs mb-3">
                             Guarda o teu nome, banco e IBAN/conta em Moeda e Banco antes de solicitar levantamento.
@@ -524,12 +525,12 @@ function DashboardContent() {
                           </button>
                         </div>
                       ) : (
-                        <div className="p-4 bg-white border border-border rounded-xl space-y-1">
+                        <div className={`space-y-1 rounded-xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-border bg-white'}`}>
                           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                             <Building2 size={14} /> Conta de recebimento
                           </p>
                           {formatBankSummary(withdrawalCountry, bankDetails).map((line) => (
-                            <p key={line} className="text-sm text-gray-800">{line}</p>
+                            <p key={line} className={`text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{line}</p>
                           ))}
                           <button
                             type="button"
@@ -553,7 +554,7 @@ function DashboardContent() {
                             type="number"
                             placeholder="0"
                             min={0}
-                            className="w-full bg-gray-50 border border-border rounded-xl py-3 pl-14 pr-4 outline-none focus:border-accent font-bold"
+                            className={`w-full rounded-xl border py-3 pl-14 pr-4 font-bold outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
                           />
@@ -567,7 +568,7 @@ function DashboardContent() {
                         <input
                           type="tel"
                           placeholder={userProfile?.phone || 'Número de telefone'}
-                          className="w-full bg-gray-50 border border-border rounded-xl py-3 px-4 outline-none focus:border-accent font-bold text-sm"
+                          className={`w-full rounded-xl border px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
                           value={withdrawPhone}
                           onChange={(e) => setWithdrawPhone(e.target.value)}
                         />
@@ -579,7 +580,7 @@ function DashboardContent() {
                       <button 
                         onClick={handleWithdraw}
                         disabled={isProcessing || !withdrawAmount || !bankComplete}
-                        className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-orange-100 flex items-center justify-center gap-2 disabled:opacity-40"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 font-bold text-white shadow-lg shadow-orange-600/20 disabled:opacity-40"
                       >
                         {isProcessing ? <Loader2 className="animate-spin" /> : <Send size={18} />}
                         Solicitar Levantamento
@@ -591,24 +592,24 @@ function DashboardContent() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-                  <div className="p-6 border-b border-border">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
+                <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
+                  <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
+                    <h2 className="flex items-center gap-2 text-lg font-bold">
                       <List className="text-accent" /> Histórico de Transações
                     </h2>
                   </div>
-                  <div className="divide-y divide-border">
+                  <div className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-border'}`}>
                     {transactions.length > 0 ? (
                       transactions.map((t) => (
-                        <div key={t.id} className="p-4 hover:bg-gray-50 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                        <div key={t.id} className={`flex items-center justify-between gap-3 p-3 transition-colors ${theme === 'dark' ? 'hover:bg-gray-700/60' : 'hover:bg-gray-50'}`}>
+                          <div className="flex min-w-0 items-center gap-3">
                             <div className={`p-2 rounded-full ${
                               t.type === 'deposit' || t.type === 'earnings' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                             }`}>
                               {t.type === 'deposit' ? <PlusCircle size={18} /> : t.type === 'earnings' ? <ArrowDownLeft size={18} /> : t.type === 'withdraw' ? <Banknote size={18} /> : <ArrowUpRight size={18} />}
                             </div>
-                            <div>
-                              <p className="font-bold text-sm text-gray-900 line-clamp-1">{t.description}</p>
+                            <div className="min-w-0">
+                              <p className={`line-clamp-1 text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.description}</p>
                               <p className="text-[10px] text-gray-400 uppercase font-medium">{new Date(t.created_at).toLocaleString()} • {t.type}</p>
                             </div>
                           </div>
@@ -622,7 +623,7 @@ function DashboardContent() {
                         </div>
                       ))
                     ) : (
-                      <div className="p-12 text-center text-gray-400 italic">Ainda não existem transações registadas.</div>
+                      <div className="p-10 text-center text-sm italic text-gray-400">Ainda não existem transações registadas.</div>
                     )}
                   </div>
                 </div>
@@ -658,7 +659,7 @@ function DashboardContent() {
               <WithdrawableAlert />
 
               {/* Feed Logic Same as Before */}
-              <div className={`rounded-md p-4 mb-4 shadow-sm w-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+              <div className={`-mx-4 mb-4 w-[calc(100%+2rem)] rounded-none border p-4 shadow-sm transition-colors duration-300 sm:mx-0 sm:w-full sm:rounded-md ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
                 <div className="flex gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] shadow-sm flex-shrink-0">
                     <div className="w-full h-full rounded-full border border-white overflow-hidden bg-muted flex items-center justify-center text-white font-bold text-lg">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTheme } from 'next-themes'
 import {
   WITHDRAWAL_COUNTRIES,
   getBankFieldsForCountry,
@@ -22,6 +23,7 @@ interface WalletPreferencesProps {
 
 export default function WalletPreferences({ profile, userId, onSaved }: WalletPreferencesProps) {
   const supabase = createClient()
+  const { theme } = useTheme()
   const [saving, setSaving] = useState(false)
 
   const [country, setCountry] = useState<WithdrawalCountryCode>('AO')
@@ -75,8 +77,8 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
   const countryInfo = getCountryByCode(country)
 
   return (
-    <form onSubmit={handleSave} className="space-y-6">
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3 text-sm text-blue-900">
+    <form onSubmit={handleSave} className="space-y-4">
+      <div className={`flex gap-3 rounded-xl border p-3 text-sm ${theme === 'dark' ? 'border-blue-900/70 bg-blue-950/30 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-900'}`}>
         <Info className="flex-shrink-0 text-blue-600 mt-0.5" size={18} />
         <p>
           Os levantamentos serão creditados na conta bancária que indicares abaixo. Confirma que o
@@ -84,8 +86,8 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border bg-gray-50">
+      <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
+        <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Globe className="text-accent" size={22} />
             País e moeda
@@ -95,26 +97,26 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
             selecionado.
           </p>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="space-y-4 p-4 sm:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {WITHDRAWAL_COUNTRIES.map((c) => (
               <button
                 key={c.code}
                 type="button"
                 onClick={() => setCountry(c.code)}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                className={`rounded-xl border-2 p-3 text-left transition-all ${
                   country === c.code
                     ? 'border-accent bg-accent/5 shadow-sm'
-                    : 'border-border hover:border-accent/40'
+                    : theme === 'dark' ? 'border-gray-700 bg-gray-900 hover:border-accent/40' : 'border-border hover:border-accent/40'
                 }`}
               >
                 <span className="text-2xl">{c.flag}</span>
-                <p className="text-sm font-bold text-gray-900 mt-2">{c.name}</p>
+                <p className={`mt-2 text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{c.name}</p>
                 <p className="text-[10px] text-gray-500">Moeda: {c.defaultCurrency}</p>
               </button>
             ))}
           </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-lg">
+          <div className={`flex items-center justify-between rounded-lg border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-border bg-gray-50'}`}>
             <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
               Moeda ativa
             </span>
@@ -123,15 +125,15 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
             </span>
           </div>
           {countryInfo && (
-            <p className="text-xs text-gray-600 bg-gray-50 border border-border rounded-lg p-3">
+            <p className={`rounded-lg border p-3 text-xs ${theme === 'dark' ? 'border-gray-700 bg-gray-900 text-gray-300' : 'border-border bg-gray-50 text-gray-600'}`}>
               {countryInfo.hint}
             </p>
           )}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border bg-gray-50">
+      <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
+        <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Building2 className="text-orange-600" size={22} />
             Dados bancários para saque
@@ -140,7 +142,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
             Conta onde receberás os levantamentos em {countryInfo?.name ?? 'país selecionado'}.
           </p>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="space-y-4 p-4 sm:p-5">
           {bankFields.map((field) => (
             <div key={field.key}>
               <label className="block text-xs font-bold text-gray-500 mb-1.5">
@@ -154,7 +156,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
                   placeholder={field.placeholder}
                   required={field.required}
                   rows={3}
-                  className="w-full bg-gray-50 border border-border rounded-xl py-3 px-4 outline-none focus:border-accent text-sm"
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
                 />
               ) : (
                 <input
@@ -163,7 +165,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
                   onChange={(e) => setBank((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   placeholder={field.placeholder}
                   required={field.required}
-                  className="w-full bg-gray-50 border border-border rounded-xl py-3 px-4 outline-none focus:border-accent text-sm"
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
                 />
               )}
             </div>
@@ -174,7 +176,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
       <button
         type="submit"
         disabled={saving}
-        className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-bold text-white shadow-lg hover:bg-accent/90 disabled:opacity-60"
       >
         {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
         Guardar país e dados bancários

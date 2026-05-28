@@ -414,15 +414,15 @@ export default function PostDetailsPage() {
     <div className="min-h-screen bg-[#f3f2ef] pb-12 relative">
       <Header user={user} />
 
-      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4 relative z-10">
+      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-4 px-0 sm:pt-6 sm:px-4 relative z-10">
         <div className="hidden lg:block w-[225px] flex-shrink-0">
           <Sidebar />
         </div>
 
         <div className="flex-1 max-w-[800px] w-full relative z-10">
           {/* Post Card */}
-          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden mb-6 relative z-10">
-            <div className={`aspect-video relative flex items-center justify-center overflow-hidden ${post.content_type === 'article' && !post.thumbnail_url ? 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50' : 'bg-black'}`}>
+          <div className="bg-white rounded-none border-y border-border shadow-sm overflow-hidden mb-6 relative z-10 sm:rounded-xl sm:border">
+            <div className={`relative flex items-center justify-center overflow-hidden ${showPaywall && !hasAccess ? 'min-h-[520px] sm:aspect-video sm:min-h-0' : 'aspect-video'} ${post.content_type === 'article' && !post.thumbnail_url ? 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50' : 'bg-black'}`}>
               {post.content_type === 'video' ? (
                 <video
                   ref={videoRef}
@@ -446,7 +446,8 @@ export default function PostDetailsPage() {
               )}
 
               {showPaywall && !hasAccess && (
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in duration-500 z-50">
+                <div className="absolute inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md animate-in fade-in zoom-in duration-500">
+                  <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
                   <div className="w-20 h-20 md:w-24 md:h-24 bg-accent rounded-full flex items-center justify-center mb-4 md:mb-6 shadow-2xl shadow-accent/40 animate-bounce flex-shrink-0">
                     <Lock size={36} className="text-white md:hidden" />
                     <Lock size={44} className="text-white hidden md:block" />
@@ -479,12 +480,13 @@ export default function PostDetailsPage() {
                       </button>
                     </div>
                   </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-purple-500 p-[2px]">
                     <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-muted">
@@ -534,49 +536,42 @@ export default function PostDetailsPage() {
           </div>
 
           {/* Comments Section */}
-          <div className="bg-white rounded-xl border border-border shadow-sm p-6 mb-12 relative z-10">
-            <h3 className="font-bold text-xl mb-6">Comentários ({comments.reduce((acc, c) => acc + 1 + c.replies.length, 0)})</h3>
+          <div className="bg-white rounded-none border-y border-border shadow-sm p-4 mb-12 relative z-10 sm:rounded-xl sm:border sm:p-6">
+            <h3 className="font-bold text-xl mb-5">Comentários ({comments.reduce((acc, c) => acc + 1 + c.replies.length, 0)})</h3>
 
             {/* Comment Form */}
             {user ? (
-              <form onSubmit={handleCommentSubmit} className="mb-8 relative z-10">
+              <form onSubmit={handleCommentSubmit} className="mb-8 relative z-10 rounded-2xl border border-gray-100 bg-gray-50/80 p-3 shadow-sm sm:p-4">
                 {replyTo && (
-                  <div className="flex items-center justify-between bg-gray-50 p-2 rounded-t-lg border-x border-t border-border">
+                  <div className="mb-3 flex items-center justify-between rounded-xl bg-white px-3 py-2 border border-gray-100">
                     <span className="text-xs text-gray-500 flex items-center gap-1">
                       <Reply size={12} /> Respondendo a <strong>{replyTo.profiles?.display_name}</strong>
                     </span>
-                    <button type="button" onClick={() => setReplyTo(null)} className="text-xs text-red-500 hover:underline">Cancelar</button>
+                    <button type="button" onClick={() => setReplyTo(null)} className="text-xs font-bold text-red-500 hover:underline">Cancelar</button>
                   </div>
                 )}
                 <div className="flex gap-3">
                   <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0">
                     {user.email?.charAt(0).toUpperCase()}
                   </div>
-                  <div className="flex-1 relative">
+                  <div className="min-w-0 flex-1">
                     <textarea
                       placeholder="Escreve um comentário..."
-                      className={`w-full bg-gray-50 border border-border p-2 md:p-3 text-sm md:text-base outline-none focus:border-accent transition-colors resize-none ${replyTo ? 'rounded-b-lg' : 'rounded-lg'}`}
+                      className="min-h-[82px] w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none shadow-sm transition-colors placeholder:text-gray-400 focus:border-accent focus:ring-2 focus:ring-accent/10"
                       rows={2}
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                     />
-                    <button
-                      type="submit"
-                      disabled={isSubmittingComment || !newComment.trim()}
-                      className="absolute right-2 md:right-3 bottom-2 md:bottom-3 text-accent hover:text-accent/80 disabled:opacity-50"
-                    >
-                      {isSubmittingComment ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin md:hidden" />
-                          <Loader2 size={20} className="animate-spin hidden md:block" />
-                        </>
-                      ) : (
-                        <>
-                          <Send size={16} className="md:hidden" />
-                          <Send size={20} className="hidden md:block" />
-                        </>
-                      )}
-                    </button>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={isSubmittingComment || !newComment.trim()}
+                        className="flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isSubmittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        Enviar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </form>
@@ -595,12 +590,12 @@ export default function PostDetailsPage() {
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
                       {comment.profiles?.avatar_url && <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />}
                     </div>
-                    <div className="flex-1">
-                      <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                    <div className="min-w-0 flex-1">
+                      <div className="rounded-[20px] border border-gray-100 bg-gray-50 px-4 py-3">
                         <div className="flex items-center gap-1 mb-1">
                           <span className="font-bold text-sm">{comment.profiles?.display_name}</span>
                         </div>
-                        <p className="text-sm text-gray-800 leading-relaxed">{comment.content}</p>
+                        <p className="break-words text-sm text-gray-800 leading-relaxed">{comment.content}</p>
                       </div>
                       <div className="flex items-center gap-4 mt-2 ml-2">
                         <button className="text-xs font-bold text-gray-500 hover:text-accent">Gostar</button>
@@ -617,16 +612,16 @@ export default function PostDetailsPage() {
 
                   {/* Replies */}
                   {comment.replies?.map((reply: any) => (
-                    <div key={reply.id} className="flex gap-3 ml-12">
+                    <div key={reply.id} className="flex gap-3 ml-8 sm:ml-12">
                       <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex-shrink-0">
                         {reply.profiles?.avatar_url && <img src={reply.profiles.avatar_url} className="w-full h-full object-cover" />}
                       </div>
-                      <div className="flex-1">
-                        <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                      <div className="min-w-0 flex-1">
+                        <div className="rounded-[18px] border border-gray-100 bg-gray-50 px-3 py-2.5">
                           <div className="flex items-center gap-1 mb-1">
                             <span className="font-bold text-xs">{reply.profiles?.display_name}</span>
                           </div>
-                          <p className="text-xs text-gray-800 leading-relaxed">{reply.content}</p>
+                          <p className="break-words text-xs text-gray-800 leading-relaxed">{reply.content}</p>
                         </div>
                         <div className="flex items-center gap-4 mt-1 ml-2">
                           <button className="text-[10px] font-bold text-gray-500 hover:text-accent">Gostar</button>

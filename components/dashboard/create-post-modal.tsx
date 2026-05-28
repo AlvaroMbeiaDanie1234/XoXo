@@ -238,9 +238,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
           title: content.split('\n')[0] || 'Nova Publicação',
           description: content,
           content_type: mediaType,
-          thumbnail_url:
-            mediaUrl ||
-            'https://images.unsplash.com/photo-1633356122544-f134ef2944f1?w=600&h=400&fit=crop',
+          thumbnail_url: mediaUrl,
           content_url: mediaUrl,
           price: parseFloat(price) || 0,
           is_free: !isPaid,
@@ -268,21 +266,21 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-[600px] flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b border-border">
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-0 animate-in fade-in duration-200 sm:items-center sm:p-4">
+      <div className="flex h-[100dvh] max-h-[100dvh] w-full flex-col rounded-none border-border bg-white shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-[600px] sm:rounded-xl sm:border dark:border-gray-800 dark:bg-gray-950">
+        <div className="flex shrink-0 items-center justify-between border-b border-border p-4 dark:border-gray-800">
           <h2 className="text-xl font-semibold text-foreground">Criar publicação</h2>
           <button
             onClick={handleClose}
             disabled={isSubmitting}
-            className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
           >
             <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-y-auto">
-          <div className="p-4 flex-1">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-lg">
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
@@ -291,7 +289,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                 <p className="font-semibold text-foreground">{user?.email || 'Membro'}</p>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full mt-1"
+                  className="mt-1 flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-900 dark:text-gray-300"
                 >
                   Qualquer pessoa <Settings size={12} className="ml-1" />
                 </button>
@@ -300,7 +298,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
 
             <textarea
               placeholder="No que está a pensar?"
-              className="w-full h-24 resize-none outline-none text-lg text-foreground placeholder-gray-500 bg-transparent"
+              className="h-32 w-full resize-none bg-transparent text-lg text-foreground outline-none placeholder:text-gray-500 dark:placeholder:text-gray-500 sm:h-24"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               disabled={isSubmitting}
@@ -308,7 +306,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
 
             {/* Live camera while recording */}
             {isRecording && (
-              <div className="relative mt-4 rounded-lg overflow-hidden border-2 border-red-500 bg-gray-900 min-h-[220px]">
+              <div className="relative mt-4 min-h-[220px] overflow-hidden rounded-lg border-2 border-red-500 bg-gray-900">
                 {!cameraReady && (
                   <div className="absolute inset-0 flex items-center justify-center z-10 bg-gray-900">
                     <Loader2 className="animate-spin text-white/80" size={32} />
@@ -328,7 +326,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                 <button
                   type="button"
                   onClick={stopRecording}
-                  className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white text-red-600 px-5 py-2.5 rounded-full font-bold shadow-lg hover:bg-red-50"
+                  className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-bold text-red-600 shadow-lg hover:bg-red-50 sm:px-5"
                 >
                   <Square size={16} fill="currentColor" />
                   Parar gravação
@@ -338,7 +336,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
 
             {/* Recorded / uploaded preview */}
             {mediaPreview && !isRecording && (
-              <div className="relative mt-4 rounded-lg overflow-hidden border border-border bg-black max-h-[300px] flex items-center justify-center">
+              <div className="relative mt-4 flex max-h-[45dvh] items-center justify-center overflow-hidden rounded-lg border border-border bg-black sm:max-h-[300px] dark:border-gray-800">
                 <button
                   type="button"
                   onClick={clearMedia}
@@ -354,19 +352,19 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                     controls
                     preload="auto"
                     playsInline
-                    className="max-h-[300px] w-full object-contain bg-black"
+                    className="max-h-[45dvh] w-full bg-black object-contain sm:max-h-[300px]"
                     onLoadedMetadata={(e) => {
                       const v = e.currentTarget
                       v.currentTime = 0.01
                     }}
                   />
                 ) : (
-                  <img src={mediaPreview} alt="Preview" className="max-h-[300px] w-full object-contain" />
+                  <img src={mediaPreview} alt="Preview" className="max-h-[45dvh] w-full object-contain sm:max-h-[300px]" />
                 )}
               </div>
             )}
 
-            <div className="mt-4 p-4 border border-border rounded-lg bg-gray-50">
+            <div className="mt-4 rounded-lg border border-border bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/70">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-foreground font-medium">
                   <DollarSign size={20} className="text-green-600" />
@@ -379,19 +377,19 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                     checked={isPaid}
                     onChange={(e) => setIsPaid(e.target.checked)}
                   />
-                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent" />
+                  <div className="peer h-6 w-11 rounded-full bg-gray-300 peer-checked:bg-accent peer-focus:outline-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-700" />
                 </label>
               </div>
 
               {isPaid && (
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-sm font-medium text-gray-600">Preço:</span>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Preço:</span>
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">AOA</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium dark:text-gray-400">AOA</span>
                     <input
                       type="number"
                       placeholder="0,00"
-                      className="w-full pl-12 pr-4 py-2 bg-white border border-border rounded-md outline-none focus:border-accent transition-colors"
+                      className="w-full rounded-md border border-border bg-white py-2 pl-12 pr-4 text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent dark:border-gray-700 dark:bg-gray-950"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       required={isPaid}
@@ -402,9 +400,9 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
             </div>
           </div>
 
-          <div className="p-4 border-t border-border mt-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex gap-1 flex-wrap">
+          <div className="mt-auto shrink-0 border-t border-border bg-white p-3 dark:border-gray-800 dark:bg-gray-950 sm:p-4">
+            <div className="mb-3 flex items-center justify-between sm:mb-4">
+              <div className="flex flex-wrap gap-1">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -416,7 +414,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSubmitting || isRecording}
-                  className="p-3 text-gray-500 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                  className="rounded-full p-3 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900"
                   title="Carregar foto ou vídeo"
                 >
                   <ImageIcon size={24} className="text-blue-500" />
@@ -425,7 +423,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSubmitting || isRecording}
-                  className="p-3 text-gray-500 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                  className="rounded-full p-3 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900"
                   title="Carregar vídeo"
                 >
                   <Video size={24} className="text-green-600" />
@@ -435,7 +433,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                     type="button"
                     onClick={startRecording}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-full transition-colors font-semibold text-sm border border-red-200 disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-full border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/70 dark:text-red-300 dark:hover:bg-red-950/40 sm:px-4"
                     title="Gravar vídeo com a câmara (até 3 min)"
                   >
                     <Circle size={18} fill="currentColor" />
@@ -445,7 +443,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                 <button
                   type="button"
                   disabled={isSubmitting || isRecording}
-                  className="p-3 text-gray-500 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                  className="rounded-full p-3 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900"
                 >
                   <Calendar size={24} className="text-orange-500" />
                 </button>
@@ -456,7 +454,7 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
               <button
                 type="submit"
                 disabled={(!content.trim() && !mediaFile) || isSubmitting || isRecording}
-                className="bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-2 rounded-full transition-colors flex items-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-6 py-2.5 font-semibold text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2"
               >
                 {isSubmitting ? (
                   <>

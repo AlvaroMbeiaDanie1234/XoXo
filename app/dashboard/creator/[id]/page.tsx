@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import PostCard from '@/components/dashboard/post-card'
-import { Star, Users, PlaySquare, CheckCircle2 } from 'lucide-react'
+import { Users, PlaySquare } from 'lucide-react'
 import CreatorProfileActions from '@/components/dashboard/creator-profile-actions'
+import ProfilePhotoModal from '@/components/dashboard/profile-photo-modal'
 
 export default async function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -49,7 +50,7 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
     <div className="min-h-screen bg-background">
       <Header user={user} />
 
-      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4">
+      <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-4 px-4 sm:pt-6">
         {/* Left Sidebar */}
         <div className="hidden lg:block w-[225px] flex-shrink-0">
           <Sidebar />
@@ -58,32 +59,38 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
         {/* Main Content */}
         <div className="flex-1 max-w-[800px] w-full">
           {/* Futuristic Profile Header */}
-          <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden mb-6 relative group">
+          <div className="relative mb-6 overflow-hidden border-y border-border bg-white shadow-sm sm:rounded-xl sm:border dark:border-gray-800 dark:bg-gray-950">
             {/* Cover Banner */}
-            <div className="h-48 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 relative overflow-hidden">
-              <div className="absolute inset-0 bg-black/20" />
+            <div className="relative h-40 w-full overflow-hidden bg-[linear-gradient(135deg,#111827_0%,#e31e24_48%,#111111_100%)] sm:h-48">
+              <div className="absolute inset-0 bg-black/15" />
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30 mix-blend-overlay" />
             </div>
 
             {/* Profile Info Section */}
-            <div className="px-8 pb-8 relative">
-              {/* Avatar */}
-              <div className="absolute -top-16 left-8 p-1.5 bg-white rounded-full shadow-lg">
-                <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-4xl font-bold overflow-hidden border-4 border-white shadow-inner">
+            <div className="relative px-4 pb-6 sm:px-8 sm:pb-8">
+              <div className="-mt-14 flex flex-col gap-4 sm:-mt-16">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  {/* Avatar */}
                   {creator.avatar_url ? (
-                    <img src={creator.avatar_url} alt={creator.display_name} className="w-full h-full object-cover" />
+                    <ProfilePhotoModal avatarUrl={creator.avatar_url} displayName={creator.display_name} />
                   ) : (
-                    creator.display_name ? creator.display_name.charAt(0).toUpperCase() : 'U'
+                    <div className="z-20 w-fit rounded-full bg-white p-1.5 shadow-2xl shadow-black/20 dark:bg-gray-950">
+                      <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-tr from-accent to-primary text-3xl font-bold text-white shadow-inner sm:h-28 sm:w-28 sm:text-4xl dark:border-gray-950">
+                        {creator.display_name ? creator.display_name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Action Buttons */}
+                  <div className="z-10 w-full sm:w-auto sm:pb-2">
+                    <CreatorProfileActions creatorId={id} currentUserId={user?.id} />
+                  </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <CreatorProfileActions creatorId={id} currentUserId={user?.id} />
-
               {/* Details */}
-              <div className="mt-4">
-                <h1 className="text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
+              <div className="mt-5 sm:mt-6">
+                <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2 sm:text-3xl">
                   {creator.display_name || 'Usuário'}
                 </h1>
 
@@ -93,13 +100,13 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
                   </p>
                 )}
 
-                <p className="text-gray-500 text-sm mt-3 max-w-2xl leading-relaxed whitespace-pre-wrap">
+                <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                   {creator.bio ? creator.bio : 'Bem-vindo ao meu espaçXoXo. Aqui partilho os meus melhores conteúdos, tutoriais avançados e bastidores que não vais encontrar em mais lado nenhum. Subscreve para acederes a tudo!'}
                 </p>
               </div>
 
               {/* Stats */}
-              <div className="flex items-center gap-8 mt-8 py-4 border-y border-border/50">
+              <div className="mt-6 grid grid-cols-2 gap-3 border-y border-border/50 py-4 sm:mt-8 sm:flex sm:items-center sm:gap-8 dark:border-gray-800">
                 <div className="flex flex-col">
                   <span className="text-2xl font-bold text-foreground">{postCount}</span>
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold flex items-center gap-1">
@@ -123,8 +130,8 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
             </h2>
 
             {!posts || posts.length === 0 ? (
-              <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="rounded-xl border border-border bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 dark:bg-gray-900">
                   <PlaySquare size={24} className="text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Ainda não há publicações</h3>

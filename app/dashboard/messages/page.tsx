@@ -340,14 +340,14 @@ function MessagesContent() {
     <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-[#f0f2f5]'}`}>
       <Header user={user} />
       
-      <div className="max-w-[1200px] mx-auto flex h-[calc(100vh-64px)] p-4 gap-4">
+      <div className="mx-auto flex h-[calc(100dvh-64px)] max-w-[1200px] gap-0 p-0 md:gap-4 md:p-4">
         {/* Desktop Sidebar Wrapper */}
         <div className="hidden lg:block w-[225px] flex-shrink-0">
           <Sidebar />
         </div>
 
         {/* Contacts Sidebar */}
-        <div className={`w-full md:w-[360px] rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex w-full flex-col overflow-hidden border-y border-border shadow-sm transition-colors duration-300 md:w-[360px] md:rounded-2xl md:border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
           <div className={`p-4 border-b border-border sticky top-0 z-10 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : ''}`}>Mensagens</h2>
@@ -401,11 +401,11 @@ function MessagesContent() {
         </div>
 
         {/* Chat Window */}
-        <div className={`flex-1 rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden relative transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`relative flex flex-1 flex-col overflow-hidden border-y border-border shadow-sm transition-colors duration-300 md:rounded-2xl md:border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
           {selectedContact ? (
             <>
               {/* Chat Header */}
-              <div className={`p-4 border-b border-border flex items-center justify-between backdrop-blur-md sticky top-0 z-10 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80'}`}>
+              <div className={`sticky top-0 z-10 flex items-center justify-between border-b border-border p-3 backdrop-blur-md transition-colors duration-300 sm:p-4 ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80'}`}>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setSelectedContact(null)} className={`md:hidden p-2 -ml-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-accent'}`}><ArrowLeft size={20} /></button>
                   <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold overflow-hidden shadow-sm">
@@ -419,12 +419,12 @@ function MessagesContent() {
               </div>
 
               {/* Messages Area */}
-              <div className={`flex-1 overflow-y-auto p-6 space-y-4 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-[#f0f2f5]/50'}`}>
+              <div className={`flex-1 space-y-4 overflow-y-auto p-3 transition-colors duration-300 sm:p-4 md:p-6 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-[#f0f2f5]/50'}`}>
                 {messages.map((msg, idx) => {
                   const isMine = msg.sender_id === user.id
                   return (
                     <div key={idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                      <div className={`max-w-[70%] p-3 rounded-2xl text-sm shadow-sm ${
+                      <div className={`max-w-[84%] break-words rounded-2xl p-3 text-sm shadow-sm sm:max-w-[70%] ${
                         isMine
                           ? 'bg-accent text-white rounded-tr-none'
                           : `${theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} rounded-tl-none border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-100'}`
@@ -463,7 +463,7 @@ function MessagesContent() {
               </div>
 
               {/* Message Input */}
-              <div className={`p-4 border-t border-border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+              <div className={`border-t border-border p-2 transition-colors duration-300 sm:p-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
                 {freeTierStatus && !freeTierStatus.hasDeposited && freeTierStatus.messagesRemaining <= 0 && !freeTierStatus.canUseBonusCredit ? (
                   <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-sm font-medium border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300">
                     Atingiste o limite de {freeTierStatus.limit} mensagens gratuitas.{' '}
@@ -491,7 +491,7 @@ function MessagesContent() {
                         <button type="button" onClick={() => setSelectedFile(null)} className={`hover:text-red-500 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}><X size={14} /></button>
                       </div>
                     )}
-                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                    <form onSubmit={handleSendMessage} className="flex min-w-0 items-center gap-2">
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -505,7 +505,7 @@ function MessagesContent() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
                         title="Anexar ficheiro"
                       >
                         <Paperclip size={20} />
@@ -515,12 +515,12 @@ function MessagesContent() {
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Escreve uma mensagem..."
-                        className={`flex-1 border-none rounded-full py-3 px-6 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all ${theme === 'dark' ? 'bg-gray-700 text-white placeholder-gray-400' : 'bg-gray-100'}`}
+                        className={`min-w-0 flex-1 rounded-full border-none px-4 py-3 text-sm outline-none transition-all focus:ring-2 focus:ring-accent/20 sm:px-6 ${theme === 'dark' ? 'bg-gray-700 text-white placeholder-gray-400' : 'bg-gray-100'}`}
                       />
                       <button 
                         type="submit"
                         disabled={(!newMessage.trim() && !selectedFile) || uploadingFile}
-                        className="w-12 h-12 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:shadow-none"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/20 transition-all hover:bg-accent/90 disabled:opacity-50 disabled:shadow-none sm:h-12 sm:w-12"
                       >
                         {uploadingFile ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
                       </button>

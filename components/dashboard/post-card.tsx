@@ -8,12 +8,9 @@ import {
   Heart,
   MessageCircle,
   Send,
-  Bookmark,
   MoreHorizontal,
   CheckCircle2,
-  Share2,
   MessageSquare,
-  ThumbsUp,
   Play,
   Maximize2,
   Lock,
@@ -74,6 +71,9 @@ export default function PostCard({
   const containerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const { theme } = useTheme()
+  const postText = (description || title || '').trim()
+  const mediaSrc = thumbnail_url || content_url
+  const isTextOnly = content_type === 'article' && !content_url
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -281,7 +281,7 @@ export default function PostCard({
   if (isDeleted) return null
 
   return (
-    <div ref={containerRef} className={`rounded-xl mb-6 shadow-sm hover:shadow-md transition-shadow duration-300 w-full overflow-visible ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+    <div ref={containerRef} className={`-mx-4 mb-6 w-[calc(100%+2rem)] rounded-none shadow-sm transition-shadow duration-300 hover:shadow-md sm:mx-0 sm:w-full sm:rounded-xl overflow-visible ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
@@ -327,11 +327,20 @@ export default function PostCard({
         </div>
       </div>
 
+      {postText && (
+        <Link href={`/dashboard/post/${id}`} className="block px-4 pb-3">
+          <p className={`whitespace-pre-wrap break-words leading-relaxed ${isTextOnly ? 'text-base' : 'text-[15px]'} ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
+            {postText}
+          </p>
+        </Link>
+      )}
+
       {/* Media Content */}
+      {!isTextOnly && (
       <div className="relative w-full max-h-[300px] group overflow-visible">
         {content_type === 'video' ? (
           <div className="w-full h-auto relative cursor-pointer" onClick={handlePlayClick}>
-            {thumbnail_url ? (
+            {content_url ? (
               <video
                 ref={videoRef}
                 src={content_url}
@@ -383,9 +392,9 @@ export default function PostCard({
        ) : (
   <Link href={`/dashboard/post/${id}`} className="block w-full relative overflow-visible">
     <div className="relative w-full max-h-[300px]">
-      {thumbnail_url ? (
+      {mediaSrc ? (
         <Image
-          src={thumbnail_url}
+          src={mediaSrc}
           alt={title}
           width={800}
           height={600}
@@ -422,6 +431,7 @@ export default function PostCard({
        )}
 
       </div>
+      )}
 
       {/* Info & Stats */}
       <div className="p-4">
@@ -442,7 +452,6 @@ export default function PostCard({
             <button onClick={() => setShowReportModal(true)} className="hover:scale-110 transition-transform">
               <Flag size={20} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} />
             </button>
-            <button className="hover:scale-110 transition-transform"><Bookmark size={26} className={theme === 'dark' ? 'text-gray-400' : 'text-foreground'} /></button>
           </div>
         </div>
 
@@ -459,11 +468,6 @@ export default function PostCard({
             {subscriberCount > 0 ? `${subscriberCount} Seguidores` : '0 Seguidores'}
           </span>
         </div>
-
-        <Link href={`/dashboard/post/${id}`}>
-          <h3 className={`font-bold text-[15px] leading-snug hover:text-accent transition-colors mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>{title}</h3>
-        </Link>
-        <p className={`text-sm line-clamp-2 leading-relaxed mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{description}</p>
 
         <div className={`pt-4 border-t flex items-center justify-between text-[10px] font-bold uppercase ${theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-50 text-gray-400'}`}>
           <button
