@@ -2,19 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-
-const DEFAULT_SITE_URL = 'https://www.xoxo.ao'
-
-function getSiteUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_URL
-  const urlWithProtocol = /^https?:\/\//i.test(configuredUrl)
-    ? configuredUrl
-    : `https://${configuredUrl}`
-
-  return urlWithProtocol.replace(/\/+$/, '')
-}
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
@@ -22,7 +10,6 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,20 +17,22 @@ export default function ResetPasswordPage() {
     setError(null)
 
     try {
-      const siteUrl = getSiteUrl()
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${siteUrl}/auth/callback?next=/auth/update-password`,
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
       })
+      const data = await response.json().catch(() => ({}))
 
-      if (resetError) {
-        setError(resetError.message || 'Erro ao enviar email de recuperação')
+      if (!response.ok) {
+        setError(data?.error || 'Erro ao enviar email de recuperacao')
         setLoading(false)
         return
       }
 
       setSuccess(true)
     } catch (err: any) {
-      setError(err?.message || 'Erro ao enviar email de recuperação')
+      setError(err?.message || 'Erro ao enviar email de recuperacao')
       setLoading(false)
     }
   }
@@ -54,7 +43,7 @@ export default function ResetPasswordPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Recuperar Senha</h1>
-            <p className="text-gray-600">Digite seu email para receber um link de recuperação</p>
+            <p className="text-gray-600">Digite seu email para receber um link de recuperacao</p>
           </div>
 
           {error && (
@@ -68,7 +57,7 @@ export default function ResetPasswordPage() {
             <div className="text-center">
               <div className="mb-6 p-4 rounded-lg bg-green-100 border border-green-400 text-green-700 text-sm">
                 <p className="font-semibold">Email enviado com sucesso!</p>
-                <p className="mt-1">Verifique sua caixa de entrada para o link de recuperação.</p>
+                <p className="mt-1">Verifique sua caixa de entrada para o link de recuperacao.</p>
               </div>
               <button
                 onClick={() => router.push('/auth/login')}
@@ -101,11 +90,11 @@ export default function ResetPasswordPage() {
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="inline-block animate-spin">⟳</span>
+                    <span className="inline-block animate-spin">...</span>
                     Enviando...
                   </span>
                 ) : (
-                  'Enviar Link de Recuperação'
+                  'Enviar Link de Recuperacao'
                 )}
               </button>
 

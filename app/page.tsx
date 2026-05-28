@@ -22,6 +22,27 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href)
+    const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ''))
+
+    if (hashParams.get('type') === 'recovery' && hashParams.has('access_token')) {
+      window.location.replace(`/auth/update-password${currentUrl.hash}`)
+      return
+    }
+
+    if (!currentUrl.searchParams.has('code')) {
+      return
+    }
+
+    currentUrl.pathname = '/auth/callback'
+    if (!currentUrl.searchParams.has('next')) {
+      currentUrl.searchParams.set('next', '/auth/update-password')
+    }
+
+    window.location.replace(`${currentUrl.pathname}${currentUrl.search}`)
+  }, [])
+
   return (
     <>
       {/* Structured Data for SEO */}

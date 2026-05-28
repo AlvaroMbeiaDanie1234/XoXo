@@ -157,6 +157,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   
 
   const handleLogout = async () => {
+    await fetch('/api/session', { method: 'DELETE' }).catch(() => undefined)
     await supabase.auth.signOut()
     router.push('/')
   }

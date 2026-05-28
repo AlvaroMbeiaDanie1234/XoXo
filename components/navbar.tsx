@@ -15,6 +15,7 @@ export default function Navbar({ user }: NavbarProps) {
   const supabase = createClient()
 
   const handleLogout = async () => {
+    await fetch('/api/session', { method: 'DELETE' }).catch(() => undefined)
     await supabase.auth.signOut()
     router.push('/auth/login')
   }

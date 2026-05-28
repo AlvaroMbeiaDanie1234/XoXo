@@ -237,6 +237,14 @@ export default function AdminDashboard() {
   const router = useRouter()
 
   useEffect(() => {
+    async function refreshOnlineUsers() {
+      const onlineRes = await fetch('/api/admin/online-users', { cache: 'no-store' })
+      if (onlineRes.ok) {
+        const onlineData = await onlineRes.json()
+        setOnlineUsersCount(Number(onlineData.count) || 0)
+      }
+    }
+
     async function loadAdminData() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || (user.email !== 'admin.xoxo@gmail.com' && user.email !== 'superadmin.xoxo@gmail.com')) {
@@ -354,13 +362,8 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false })
       if (reportsData) setReports(reportsData)
 
-      // Fetch online users (users with last_seen within last 5 minutes)
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-      const { count: onlineCount } = await supabase
-        .from('user_sessions')
-        .select('*', { count: 'exact', head: true })
-        .gt('last_seen', fiveMinutesAgo)
-      if (onlineCount !== null) setOnlineUsersCount(onlineCount)
+      // Fetch online users through the admin API so RLS does not hide sessions.
+      await refreshOnlineUsers()
 
       // Fetch Settings
       const { data: settings } = await supabase.from('system_settings').select('*')
@@ -437,6 +440,9 @@ export default function AdminDashboard() {
     }
 
     loadAdminData()
+    const onlineInterval = setInterval(refreshOnlineUsers, 30 * 1000)
+
+    return () => clearInterval(onlineInterval)
   }, [supabase, router])
 
   const handleUpdateSettings = async () => {
