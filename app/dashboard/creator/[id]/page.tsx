@@ -4,6 +4,7 @@ import Sidebar from '@/components/dashboard/sidebar'
 import PostCard from '@/components/dashboard/post-card'
 import { Users, PlaySquare } from 'lucide-react'
 import CreatorProfileActions from '@/components/dashboard/creator-profile-actions'
+import CreatorProfileBackButton from '@/components/dashboard/creator-profile-back-button'
 import ProfilePhotoModal from '@/components/dashboard/profile-photo-modal'
 
 export default async function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +38,8 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
     return (
       <div className="min-h-screen bg-background">
         <Header user={user} />
-        <div className="max-w-[1128px] mx-auto pt-16 text-center">
+        <div className="max-w-[1128px] mx-auto px-4 pt-8">
+          <CreatorProfileBackButton />
           <h1 className="text-2xl font-bold text-foreground">Criador não encontrado</h1>
         </div>
       </div>
@@ -58,6 +60,8 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
 
         {/* Main Content */}
         <div className="flex-1 max-w-[800px] w-full">
+          <CreatorProfileBackButton />
+
           {/* Futuristic Profile Header */}
           <div className="relative mb-6 overflow-hidden border-y border-border bg-white shadow-sm sm:rounded-xl sm:border dark:border-gray-800 dark:bg-gray-950">
             {/* Cover Banner */}

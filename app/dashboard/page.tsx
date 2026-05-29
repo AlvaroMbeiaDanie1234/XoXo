@@ -658,6 +658,10 @@ function DashboardContent() {
               {/* Withdrawable Alert */}
               <WithdrawableAlert />
 
+              <div className="-mx-4 mb-4 w-[calc(100%+2rem)] xl:hidden">
+                <SuggestedCreators variant="mobile" />
+              </div>
+
               {/* Feed Logic Same as Before */}
               <div className={`-mx-4 mb-4 w-[calc(100%+2rem)] rounded-none border p-4 shadow-sm transition-colors duration-300 sm:mx-0 sm:w-full sm:rounded-md ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
                 <div className="flex gap-3">

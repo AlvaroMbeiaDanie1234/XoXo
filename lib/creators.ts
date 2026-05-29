@@ -9,6 +9,7 @@ export interface CreatorProfile {
   is_verified?: boolean
   email?: string | null
   created_at?: string
+  post_count?: number
 }
 
 export async function getAdminUserIds(): Promise<Set<string>> {
@@ -54,6 +55,41 @@ export async function fetchSuggestedCreators(
 ): Promise<CreatorProfile[]> {
   const adminIds = await getAdminUserIds()
 
+  const { data: postRows } = await supabaseAdmin
+    .from('posts')
+    .select('user_id')
+    .limit(5000)
+
+  const postCounts = new Map<string, number>()
+  postRows?.forEach((post) => {
+    if (post.user_id) postCounts.set(post.user_id, (postCounts.get(post.user_id) || 0) + 1)
+  })
+
+  const rankedPostCreatorIds = [...postCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([userId]) => userId)
+
+  const topPostCreatorIds = rankedPostCreatorIds.slice(0, Math.max(limit * 4, 100))
+  let creatorsWithPosts: CreatorProfile[] = []
+
+  if (topPostCreatorIds.length > 0) {
+    const { data: postCreators } = await supabaseAdmin
+      .from('profiles')
+      .select('id, display_name, avatar_url, email, is_verified, created_at')
+      .in('id', topPostCreatorIds)
+
+    if (postCreators) {
+      const profilesById = new Map(postCreators.map((profile) => [profile.id, profile]))
+      creatorsWithPosts = topPostCreatorIds
+        .map((id) => profilesById.get(id))
+        .filter(Boolean)
+        .map((profile) => ({
+          ...profile!,
+          post_count: postCounts.get(profile!.id) || 0,
+        }))
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('id, display_name, avatar_url, email, is_verified, created_at')
@@ -62,10 +98,20 @@ export async function fetchSuggestedCreators(
 
   if (error || !data) return []
 
-  const filtered = filterCreatorProfiles(data, { adminIds, excludeUserId })
+  const filteredWithPosts = filterCreatorProfiles(creatorsWithPosts, { adminIds, excludeUserId })
+  const postCreatorIds = new Set(filteredWithPosts.map((creator) => creator.id))
+  const filteredRecent = filterCreatorProfiles(data, { adminIds, excludeUserId })
+    .filter((creator) => !postCreatorIds.has(creator.id))
+    .map((creator) => ({
+      ...creator,
+      post_count: postCounts.get(creator.id) || 0,
+    }))
 
-  return filtered
+  return [...filteredWithPosts, ...filteredRecent]
     .sort((a, b) => {
+      if ((a.post_count || 0) !== (b.post_count || 0)) {
+        return (b.post_count || 0) - (a.post_count || 0)
+      }
       if (a.is_verified !== b.is_verified) {
         return (b.is_verified ? 1 : 0) - (a.is_verified ? 1 : 0)
       }

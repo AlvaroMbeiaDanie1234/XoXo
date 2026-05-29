@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react'
+import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon, Mic, Square } from 'lucide-react'
 import { useOnlinePresence } from '@/hooks/use-online-presence'
 import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
@@ -36,11 +36,28 @@ function MessagesContent() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [recordingAudio, setRecordingAudio] = useState(false)
+  const [recordingError, setRecordingError] = useState<string | null>(null)
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null)
+  const [fileInputAccept, setFileInputAccept] = useState('')
+  const audioRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioStreamRef = useRef<MediaStream | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const audioPreviewUrlRef = useRef<string | null>(null)
   const { isOnline } = useOnlinePresence(user?.id ?? null)
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    return () => {
+      audioStreamRef.current?.getTracks().forEach((track) => track.stop())
+      if (audioPreviewUrlRef.current) {
+        URL.revokeObjectURL(audioPreviewUrlRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -211,7 +228,7 @@ function MessagesContent() {
         
         // If we are actively chatting with this sender, append and mark as read immediately
         if (selectedContact && selectedContact.id === senderId) {
-          setMessages(prev => [...prev, payload.new])
+          setMessages(prev => prev.some((msg) => msg.id === payload.new.id) ? prev : [...prev, payload.new])
           markAsRead(senderId)
         } else {
           // Increment unread count for the sender
@@ -240,6 +257,124 @@ function MessagesContent() {
       .order('created_at', { ascending: true })
     
     if (data) setMessages(data)
+  }
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null)
+    setRecordingError(null)
+    if (audioPreviewUrlRef.current) {
+      URL.revokeObjectURL(audioPreviewUrlRef.current)
+      audioPreviewUrlRef.current = null
+    }
+    setAudioPreviewUrl(null)
+  }
+
+  const setAttachmentFile = (file: File) => {
+    clearSelectedFile()
+    setSelectedFile(file)
+
+    if (file.type.startsWith('audio/')) {
+      const previewUrl = URL.createObjectURL(file)
+      audioPreviewUrlRef.current = previewUrl
+      setAudioPreviewUrl(previewUrl)
+    }
+  }
+
+  const openFilePicker = (accept = '') => {
+    setFileInputAccept(accept)
+    requestAnimationFrame(() => fileInputRef.current?.click())
+  }
+
+  const getAudioExtension = (mimeType: string) => {
+    if (mimeType.includes('ogg')) return 'ogg'
+    if (mimeType.includes('mpeg')) return 'mp3'
+    if (mimeType.includes('mp4')) return 'm4a'
+    if (mimeType.includes('wav')) return 'wav'
+    return 'webm'
+  }
+
+  const getAttachmentFallback = (fileName: string | null, fileType: string | null) => {
+    if (fileType?.startsWith('audio/')) return '[Audio]'
+    return fileName ? `[Ficheiro: ${fileName}]` : ''
+  }
+
+  const isAttachmentOnlyText = (content: string | null | undefined) => {
+    return !!content && (content.startsWith('[Ficheiro:') || content.startsWith('[Audio]'))
+  }
+
+  const stopAudioTracks = () => {
+    audioStreamRef.current?.getTracks().forEach((track) => track.stop())
+    audioStreamRef.current = null
+  }
+
+  const startAudioRecording = async () => {
+    if (recordingAudio || uploadingFile) return
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setRecordingError('O teu navegador nao suporta gravacao de audio.')
+      return
+    }
+
+    try {
+      clearSelectedFile()
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : ''
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+
+      audioStreamRef.current = stream
+      audioChunksRef.current = []
+      audioRecorderRef.current = recorder
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data)
+      }
+
+      recorder.onstop = () => {
+        const recordedMimeType = recorder.mimeType || 'audio/webm'
+        const blob = new Blob(audioChunksRef.current, { type: recordedMimeType })
+        stopAudioTracks()
+        setRecordingAudio(false)
+
+        if (!blob.size) {
+          setRecordingError('Nao foi possivel gravar audio. Tenta novamente.')
+          return
+        }
+
+        const audioFile = new File(
+          [blob],
+          `audio-${Date.now()}.${getAudioExtension(recordedMimeType)}`,
+          { type: recordedMimeType },
+        )
+        setAttachmentFile(audioFile)
+      }
+
+      recorder.onerror = () => {
+        stopAudioTracks()
+        setRecordingAudio(false)
+        setRecordingError('Nao foi possivel gravar audio. Tenta novamente.')
+      }
+
+      recorder.start()
+      setRecordingAudio(true)
+      setRecordingError(null)
+    } catch (error) {
+      if (!(error instanceof DOMException) || error.name !== 'NotAllowedError') {
+        console.error('Erro ao iniciar gravacao de audio:', error)
+      }
+      stopAudioTracks()
+      setRecordingAudio(false)
+      setRecordingError('Microfone bloqueado. Permite o acesso no navegador ou anexa um ficheiro de audio.')
+    }
+  }
+
+  const stopAudioRecording = () => {
+    if (audioRecorderRef.current && audioRecorderRef.current.state !== 'inactive') {
+      audioRecorderRef.current.stop()
+    }
   }
 
   const uploadFile = async (file: File): Promise<string | null> => {
@@ -294,17 +429,18 @@ function MessagesContent() {
       }
     }
 
+    const attachmentFallback = getAttachmentFallback(fileName, fileType)
     const contentToSend = newMessage.trim()
     const messageObj = {
       sender_id: user.id,
       receiver_id: selectedContact.id,
-      content: contentToSend || (fileName ? `[Ficheiro: ${fileName}]` : ''),
+      content: contentToSend || attachmentFallback,
       file_url: fileUrl,
       file_name: fileName,
       file_type: fileType,
     }
 
-    setMessages([...messages, { ...messageObj, created_at: new Date().toISOString(), id: 'temp' }])
+    setMessages((prev) => [...prev, { ...messageObj, created_at: new Date().toISOString(), id: `temp-${Date.now()}` }])
     setNewMessage('')
 
     const res = await fetch('/api/messages/send', {
@@ -312,7 +448,7 @@ function MessagesContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         receiver_id: selectedContact.id,
-        content: contentToSend || (fileName ? `[Ficheiro: ${fileName}]` : ''),
+        content: contentToSend || attachmentFallback,
         file_url: fileUrl,
         file_name: fileName,
         file_type: fileType,
@@ -331,7 +467,7 @@ function MessagesContent() {
     } else {
       // Só limpa o arquivo se a mensagem foi enviada com sucesso
       if (selectedFile) {
-        setSelectedFile(null)
+        clearSelectedFile()
       }
     }
   }
@@ -431,7 +567,11 @@ function MessagesContent() {
                       }`}>
                         {msg.file_url && (
                           <div className="mb-1">
-                            {msg.file_type?.startsWith('image/') ? (
+                            {msg.file_type?.startsWith('audio/') ? (
+                              <div className={`rounded-xl px-2 py-2 ${isMine ? 'bg-white/20' : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-100'}`}>
+                                <audio controls src={msg.file_url} preload="metadata" className="h-9 w-56 max-w-full" />
+                              </div>
+                            ) : msg.file_type?.startsWith('image/') ? (
                               <a href={msg.file_url} target="_blank" rel="noopener noreferrer">
                                 <img src={msg.file_url} alt={msg.file_name || 'Imagem'} className="max-w-full rounded-lg max-h-48 object-cover" />
                               </a>
@@ -448,7 +588,7 @@ function MessagesContent() {
                             )}
                           </div>
                         )}
-                        {msg.content && !msg.content.startsWith('[Ficheiro:') && (
+                        {msg.content && !isAttachmentOnlyText(msg.content) && (
                           <p className="leading-relaxed">{msg.content}</p>
                         )}
                         <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isMine ? 'text-white/70' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
@@ -485,30 +625,70 @@ function MessagesContent() {
                       </div>
                     )}
                     {selectedFile && (
-                      <div className={`mb-2 flex items-center gap-2 px-3 py-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        {selectedFile.type.startsWith('image/') ? <ImageIcon size={16} className="text-accent" /> : <FileText size={16} className="text-accent" />}
-                        <span className={`text-xs truncate flex-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{selectedFile.name}</span>
-                        <button type="button" onClick={() => setSelectedFile(null)} className={`hover:text-red-500 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}><X size={14} /></button>
+                      <div className={`mb-2 flex items-center gap-2 rounded-xl px-3 py-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        {selectedFile.type.startsWith('audio/') ? <Mic size={16} className="text-accent" /> : selectedFile.type.startsWith('image/') ? <ImageIcon size={16} className="text-accent" /> : <FileText size={16} className="text-accent" />}
+                        <div className="min-w-0 flex-1">
+                          <span className={`block truncate text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{selectedFile.type.startsWith('audio/') ? 'Mensagem de audio pronta' : selectedFile.name}</span>
+                          {selectedFile.type.startsWith('audio/') && audioPreviewUrl && (
+                            <audio controls src={audioPreviewUrl} preload="metadata" className="mt-2 h-8 w-full max-w-[260px]" />
+                          )}
+                        </div>
+                        <button type="button" onClick={clearSelectedFile} className={`hover:text-red-500 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}><X size={14} /></button>
+                      </div>
+                    )}
+                    {recordingAudio && (
+                      <div className="mb-2 flex items-center justify-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-600">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                        A gravar audio
+                      </div>
+                    )}
+                    {recordingError && (
+                      <div className="mb-2 flex flex-col items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-center text-xs font-medium text-red-600 sm:flex-row sm:justify-center">
+                        <span>{recordingError}</span>
+                        <button
+                          type="button"
+                          onClick={() => openFilePicker('audio/*')}
+                          className="rounded-full bg-white px-3 py-1 font-bold text-red-600 shadow-sm transition-colors hover:bg-red-100"
+                        >
+                          Anexar audio
+                        </button>
                       </div>
                     )}
                     <form onSubmit={handleSendMessage} className="flex min-w-0 items-center gap-2">
                       <input
                         ref={fileInputRef}
                         type="file"
+                        accept={fileInputAccept}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0]
-                          if (file) setSelectedFile(file)
+                          if (file) setAttachmentFile(file)
                           e.target.value = ''
+                          setFileInputAccept('')
                         }}
                       />
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => openFilePicker()}
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
                         title="Anexar ficheiro"
                       >
                         <Paperclip size={20} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={recordingAudio ? stopAudioRecording : startAudioRecording}
+                        disabled={uploadingFile}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
+                          recordingAudio
+                            ? 'bg-red-500 text-white hover:bg-red-600'
+                            : theme === 'dark'
+                              ? 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                              : 'text-gray-500 hover:bg-gray-100 hover:text-accent'
+                        }`}
+                        title={recordingAudio ? 'Parar gravacao' : 'Gravar audio'}
+                      >
+                        {recordingAudio ? <Square size={18} /> : <Mic size={20} />}
                       </button>
                       <input
                         type="text"
@@ -519,7 +699,7 @@ function MessagesContent() {
                       />
                       <button 
                         type="submit"
-                        disabled={(!newMessage.trim() && !selectedFile) || uploadingFile}
+                        disabled={(!newMessage.trim() && !selectedFile) || uploadingFile || recordingAudio}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/20 transition-all hover:bg-accent/90 disabled:opacity-50 disabled:shadow-none sm:h-12 sm:w-12"
                       >
                         {uploadingFile ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
