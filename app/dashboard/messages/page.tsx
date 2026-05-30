@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon, Mic, Square } from 'lucide-react'
+import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon, Mic, Square, Trash2 } from 'lucide-react'
 import { useOnlinePresence } from '@/hooks/use-online-presence'
 import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
@@ -34,6 +34,8 @@ function MessagesContent() {
   const supabase = createClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const deleteMenuRef = useRef<HTMLDivElement>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [recordingAudio, setRecordingAudio] = useState(false)
@@ -49,6 +51,18 @@ function MessagesContent() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (deleteMenuRef.current && !deleteMenuRef.current.contains(e.target as Node)) {
+        setDeleteTargetId(null)
+      }
+    }
+    if (deleteTargetId) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [deleteTargetId])
 
   useEffect(() => {
     return () => {
@@ -257,6 +271,21 @@ function MessagesContent() {
       .order('created_at', { ascending: true })
     
     if (data) setMessages(data)
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Tens a certeza que queres eliminar esta mensagem?')) return
+    const res = await fetch('/api/messages/delete', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId }),
+    })
+    if (res.ok) {
+      setMessages(prev => prev.filter(msg => msg.id !== messageId))
+    } else {
+      const data = await res.json()
+      alert(data.error || 'Erro ao eliminar mensagem')
+    }
   }
 
   const clearSelectedFile = () => {
@@ -560,13 +589,15 @@ function MessagesContent() {
                   const isMine = msg.sender_id === user.id
                   return (
                     <div key={idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                      <div className={`max-w-[84%] break-words rounded-2xl p-3 text-sm shadow-sm sm:max-w-[70%] ${
+                      <div
+                        onClick={isMine ? () => setDeleteTargetId(deleteTargetId === msg.id ? null : msg.id) : undefined}
+                        className={`relative max-w-[84%] break-words rounded-2xl p-3 text-sm shadow-sm sm:max-w-[70%] ${
                         isMine
                           ? 'bg-accent text-white rounded-tr-none'
                           : `${theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} rounded-tl-none border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-100'}`
-                      }`}>
+                      } ${isMine ? 'cursor-pointer' : ''}`}>
                         {msg.file_url && (
-                          <div className="mb-1">
+                          <div className="mb-1 relative z-10" onClick={(e) => e.stopPropagation()}>
                             {msg.file_type?.startsWith('audio/') ? (
                               <div className={`rounded-xl px-2 py-2 ${isMine ? 'bg-white/20' : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-100'}`}>
                                 <audio controls src={msg.file_url} preload="metadata" className="h-9 w-56 max-w-full" />
@@ -589,12 +620,31 @@ function MessagesContent() {
                           </div>
                         )}
                         {msg.content && !isAttachmentOnlyText(msg.content) && (
-                          <p className="leading-relaxed">{msg.content}</p>
+                          <p className="leading-relaxed relative z-10">{msg.content}</p>
                         )}
-                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isMine ? 'text-white/70' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
+                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] relative z-10 ${isMine ? 'text-white/70' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {isMine && (msg.is_read ? <CheckCheck size={12} /> : <Check size={12} />)}
                         </div>
+
+                        {isMine && deleteTargetId === msg.id && (
+                          <div
+                            ref={deleteMenuRef}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute bottom-full right-0 mb-2 z-50 min-w-[180px] rounded-xl border shadow-xl bg-white dark:bg-gray-800 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in duration-200"
+                          >
+                            <button
+                              onClick={() => {
+                                handleDeleteMessage(msg.id)
+                                setDeleteTargetId(null)
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                              Eliminar mensagem
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )

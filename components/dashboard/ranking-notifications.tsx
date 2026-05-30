@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Trophy, TrendingUp, TrendingDown, Crown, X, Check } from 'lucide-react'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -123,7 +124,7 @@ export default function RankingNotifications() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 text-sm">{notification.message}</p>
                   <p className="text-xs text-gray-600 mt-1">
-                    {new Date(notification.created_at).toLocaleString('pt-BR')}
+                    {formatRelativeTime(notification.created_at)}
                   </p>
                 </div>
                 <button

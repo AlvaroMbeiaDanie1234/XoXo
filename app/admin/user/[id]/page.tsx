@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { 
   Users, Shield, Calendar, Mail, Phone, MapPin, 
-  Trash2, Eye, CheckCircle, XCircle, Loader2, ArrowLeft,
+  Trash2, Eye, CheckCircle, XCircle, Loader2, ArrowLeft, Star, PlusCircle, Ban,
   FileText, Video as VideoIcon, Image as ImageIcon, DollarSign, Play,
-  PlusCircle, Star, AlertTriangle, Ban, MessageCircle
 } from 'lucide-react'
 
 export default function AdminUserDetailPage() {
@@ -267,7 +267,7 @@ export default function AdminUserDetailPage() {
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <Calendar size={18} className="text-gray-400" />
-                    <span>Membro desde {new Date(profile.created_at).toLocaleDateString()}</span>
+                    <span>Membro desde {formatRelativeTime(profile.created_at)}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <DollarSign size={18} className="text-gray-400" />
@@ -416,7 +416,7 @@ export default function AdminUserDetailPage() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest ${post.is_free ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                           {post.is_free ? 'Grátis' : `AOA ${post.price?.toLocaleString()}`}
                         </span>
-                        <span className="text-[10px] text-gray-400 font-medium">{new Date(post.created_at).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-gray-400 font-medium">{formatRelativeTime(post.created_at)}</span>
                       </div>
                     </div>
                   </div>

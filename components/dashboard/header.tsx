@@ -11,6 +11,8 @@ import UsersPanel from './users-panel'
 import ProfileSetupBanner from './profile-setup-banner'
 import { isAdminEmail } from '@/lib/admin-emails'
 import { formatMoney, resolveProfileCurrency } from '@/lib/wallet'
+import { formatRelativeTime } from '@/lib/format-relative-time'
+import { useOnlinePresence } from '@/hooks/use-online-presence'
 
 interface HeaderProps {
   user: any
@@ -36,6 +38,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
   const router = useRouter()
   const supabase = createClient()
   const { theme, setTheme } = useTheme()
+  useOnlinePresence(user?.id ?? null)
 
   useEffect(() => setMounted(true), [])
 
@@ -282,7 +285,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                               <span className={`text-xs font-bold ${notif.type === 'message' ? 'text-red-500' : 'text-accent'}`}>
                                 {notif.type === 'message' ? '-' : '+'} AOA {notif.amount?.toLocaleString()}
                               </span>
-                              <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{new Date(notif.created_at).toLocaleDateString()}</span>
+                              <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatRelativeTime(notif.created_at)}</span>
                             </div>
                           </div>
                         </div>

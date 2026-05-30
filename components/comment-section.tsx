@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 
 interface Comment {
   id: string
@@ -153,7 +154,7 @@ export default function CommentSection({ postId, userId }: CommentSectionProps) 
                       {comment.profiles.display_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                      {formatRelativeTime(comment.created_at)}
                     </p>
                   </div>
                 </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Heart, MessageCircle, MoreHorizontal, Play, Pause, ChevronUp, ChevronDown, X, Send, Lock } from 'lucide-react'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { useRouter } from 'next/navigation'
@@ -647,7 +648,7 @@ export default function ReelsPage() {
                                 {comment.profiles?.display_name || 'Utilizador'}
                               </p>
                               <span className="text-white/40 text-[10px] whitespace-nowrap">
-                                {new Date(comment.created_at).toLocaleDateString()}
+                                {formatRelativeTime(comment.created_at)}
                               </span>
                             </div>
                             <p className="text-white/90 text-sm leading-relaxed break-words">{comment.content}</p>

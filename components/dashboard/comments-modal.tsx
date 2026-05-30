@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Send, Reply, Loader2, CheckCircle } from 'lucide-react'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { createClient } from '@/lib/supabase/client'
 
 interface CommentsModalProps {
@@ -161,7 +162,7 @@ export default function CommentsModal({ isOpen, onClose, postId, user, content_u
                     </div>
                     <div className="flex items-center gap-4 mt-1 ml-2">
                       <button onClick={() => setReplyTo(comment)} className="text-[10px] font-bold text-gray-500 hover:underline">Responder</button>
-                      <span className="text-[9px] text-gray-400 uppercase">{new Date(comment.created_at).toLocaleDateString()}</span>
+                      <span className="text-[9px] text-gray-400 uppercase">{formatRelativeTime(comment.created_at)}</span>
                     </div>
                   </div>
                 </div>

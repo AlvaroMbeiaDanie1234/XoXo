@@ -9,6 +9,7 @@ import Sidebar from '@/components/dashboard/sidebar'
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
 import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import {
   Loader2, Lock, DollarSign, Play, CheckCircle, Heart,
   MessageCircle, Bookmark, Star, ArrowRight, Send, Reply, Trash2, CheckCheck, Check
@@ -605,7 +606,7 @@ export default function PostDetailsPage() {
                         >
                           <Reply size={12} /> Responder
                         </button>
-                        <span className="text-[10px] text-gray-400 uppercase">{new Date(comment.created_at).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-gray-400 uppercase">{formatRelativeTime(comment.created_at)}</span>
                       </div>
                     </div>
                   </div>
@@ -625,7 +626,7 @@ export default function PostDetailsPage() {
                         </div>
                         <div className="flex items-center gap-4 mt-1 ml-2">
                           <button className="text-[10px] font-bold text-gray-500 hover:text-accent">Gostar</button>
-                          <span className="text-[10px] text-gray-400 uppercase">{new Date(reply.created_at).toLocaleDateString()}</span>
+                          <span className="text-[10px] text-gray-400 uppercase">{formatRelativeTime(reply.created_at)}</span>
                         </div>
                       </div>
                     </div>

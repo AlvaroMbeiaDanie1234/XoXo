@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import {
   Heart,
   MessageCircle,
@@ -68,6 +69,7 @@ export default function PostCard({
   const [isDeleted, setIsDeleted] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [customReportReason, setCustomReportReason] = useState('')
   const [isFreePlan, setIsFreePlan] = useState(false)
   const [hasPurchased, setHasPurchased] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)

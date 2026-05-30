@@ -8,6 +8,7 @@ import PostCard from '@/components/dashboard/post-card'
 import Header from '@/components/dashboard/header'
 import CreatePostModal from '@/components/dashboard/create-post-modal'
 import SuggestedCreators from '@/components/dashboard/suggested-creators'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import WithdrawableAlert from '@/components/dashboard/withdrawable-alert'
 import ConsentModal from '@/components/dashboard/consent-modal'
 import {
@@ -611,7 +612,7 @@ function DashboardContent() {
                             </div>
                             <div className="min-w-0">
                               <p className={`line-clamp-1 text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.description}</p>
-                              <p className="text-[10px] text-gray-400 uppercase font-medium">{new Date(t.created_at).toLocaleString()} • {t.type}</p>
+                              <p className="text-[10px] text-gray-400 uppercase font-medium">{formatRelativeTime(t.created_at)} • {t.type}</p>
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">

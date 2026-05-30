@@ -1,44 +1,67 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const CHANNEL_NAME = 'online-users'
 
 export function useOnlinePresence(userId: string | null) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
 
   useEffect(() => {
     if (!userId) return
 
     const supabase = createClient()
-    const channel = supabase.channel(CHANNEL_NAME, {
-      config: { presence: { key: userId } },
+
+    // Remove canais antigos com o mesmo nome
+    supabase.getChannels().forEach((channel) => {
+      if (channel.topic === `realtime:${CHANNEL_NAME}`) {
+        supabase.removeChannel(channel)
+      }
     })
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState()
-        const ids = new Set<string>(Object.keys(state))
-        setOnlineUsers(ids)
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ user_id: userId, online_at: new Date().toISOString() })
-        }
-      })
+    const channel = supabase.channel(CHANNEL_NAME, {
+      config: {
+        presence: {
+          key: userId,
+        },
+      },
+    })
 
-    channelRef.current = channel
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState()
+      const ids = new Set<string>(Object.keys(state))
+      setOnlineUsers(ids)
+    })
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        try {
+          await channel.track({
+            user_id: userId,
+            online_at: new Date().toISOString(),
+          })
+        } catch (error) {
+          console.error('Erro ao registrar presença:', error)
+        }
+      }
+    })
 
     return () => {
-      channel.untrack()
+      try {
+        channel.untrack()
+      } catch (error) {
+        console.error('Erro ao remover presença:', error)
+      }
+
       supabase.removeChannel(channel)
-      channelRef.current = null
     }
   }, [userId])
 
   const isOnline = (id: string) => onlineUsers.has(id)
 
-  return { onlineUsers, isOnline }
+  return {
+    onlineUsers,
+    isOnline,
+  }
 }

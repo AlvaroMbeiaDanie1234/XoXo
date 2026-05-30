@@ -6,19 +6,22 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff
+  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff, Settings
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
+import { useTheme } from 'next-themes'
 import Header from '@/components/dashboard/header'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
+import { formatRelativeTime } from '@/lib/format-relative-time'
+import IntelligencePanel from '@/components/dashboard/intelligence-panel'
 
 export default function AdminDashboard() {
   const { toast } = useToast()
+  const { theme } = useTheme()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [users, setUsers] = useState<any[]>([])
-  const [requests, setRequests] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [reports, setReports] = useState<any[]>([])
@@ -105,6 +108,8 @@ export default function AdminDashboard() {
   const [flutterwaveWebhookHash, setFlutterwaveWebhookHash] = useState('')
 
   const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [intelConversations, setIntelConversations] = useState<any[]>([])
+  const [intelSelectedPair, setIntelSelectedPair] = useState<{ userA: string; userB: string; messages: any[] } | null>(null)
 
   const [zegoAppId, setZegoAppId] = useState('')
   const [zegoAppSign, setZegoAppSign] = useState('')
@@ -172,7 +177,7 @@ export default function AdminDashboard() {
       
       const headers = ["Data", "Utilizador", "Email", "Tipo", "Descricao", "Valor (AOA)", "Estado"]
       const rows = transactions.map(t => [
-        new Date(t.created_at).toLocaleString(),
+        formatRelativeTime(t.created_at),
         t.profiles?.display_name || 'Desconhecido',
         t.profiles?.email || 'N/A',
         t.type,
@@ -322,12 +327,6 @@ export default function AdminDashboard() {
         setTopUsersByPosts(topByPosts)
       }
 
-      // Fetch verification requests
-      const { data: vRequests } = await supabase
-        .from('verification_requests')
-        .select('*, profiles(display_name, email)')
-        .order('created_at', { ascending: false })
-      if (vRequests) setRequests(vRequests)
 
       // Fetch ALL transactions
       const { data: transData } = await supabase
@@ -823,41 +822,14 @@ export default function AdminDashboard() {
     })
   }
 
-  const handleApprove = async (requestId: string, userId: string) => {
-    toast({
-      title: "Aprovar Verificação?",
-      description: "Deseja aprovar e verificar este utilizador?",
-      action: (
-        <ToastAction
-          altText="Confirmar"
-          onClick={async () => {
-            try {
-              await supabase.from('profiles').update({ is_verified: true }).eq('id', userId)
-              await supabase.from('verification_requests').update({ status: 'approved' }).eq('id', requestId)
-              toast({
-                title: "Utilizador verificado",
-                description: "O selo oficial foi ativado com sucesso.",
-              })
-              setTimeout(() => window.location.reload(), 1500)
-            } catch (err: any) {
-              toast({
-                title: "Erro ao verificar",
-                description: err.message,
-                variant: "destructive"
-              })
-            }
-          }}
-        >
-          Confirmar
-        </ToastAction>
-      )
-    })
-  }
-
   const handleResolveReport = async (reportId: string, status: string) => {
     try {
-      const supabaseAdmin = createAdminClient()
-      await supabaseAdmin.from('reports').update({ status, updated_at: new Date().toISOString() }).eq('id', reportId)
+      const res = await fetch('/api/admin/resolve-report', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, status }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
       setReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r))
       toast({
         title: status === 'resolved' ? "Denúncia Resolvida" : "Denúncia Ignorada",
@@ -877,8 +849,12 @@ export default function AdminDashboard() {
     if (!response) return
 
     try {
-      const supabaseAdmin = createAdminClient()
-      await supabaseAdmin.from('reports').update({ admin_response: response, status: 'resolved', updated_at: new Date().toISOString() }).eq('id', reportId)
+      const res = await fetch('/api/admin/resolve-report', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, response }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
       setReports(prev => prev.map(r => r.id === reportId ? { ...r, admin_response: response, status: 'resolved' } : r))
       toast({
         title: "Resposta Enviada",
@@ -1198,8 +1174,13 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('withdrawals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'withdrawals' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <CreditCard size={20} /> Levantamentos {pendingWithdrawals.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingWithdrawals.length}</span>}
               </button>
+              {/* {isSuperAdminEmail(currentUser?.email) && (
+                <button onClick={() => setActiveTab('intelligence')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'intelligence' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
+                  <ShieldCheck size={20} /> Inteligência
+                </button>
+              )} */}
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <ShieldCheck size={20} /> Definições
+                <Settings size={20} /> Definições
               </button>
               <button onClick={() => setActiveTab('terms')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'terms' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <FileText size={20} /> Termos e Política
@@ -1435,29 +1416,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Pedidos de Verificação Recentes */}
-              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-border bg-blue-50/50">
-                  <h2 className="text-lg font-bold flex items-center gap-2 text-blue-800"><ShieldCheck size={20} /> Pedidos de Verificação Antigos (A Eliminar)</h2>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {requests.filter(r => r.status === 'pending').map((r) => (
-                    <div key={r.id} className="p-5 bg-white border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                      <p className="font-bold text-lg mb-1">{r.profiles?.display_name}</p>
-                      <p className="text-xs text-gray-500 mb-4">{r.profiles?.email}</p>
-                      <button
-                        onClick={() => handleApprove(r.id, r.user_id)}
-                        className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors"
-                      >
-                        Aprovar Antigo Selo
-                      </button>
-                    </div>
-                  ))}
-                  {requests.filter(r => r.status === 'pending').length === 0 && (
-                    <div className="col-span-full py-8 text-center text-gray-400 font-medium">Nenhum pedido antigo pendente. (Agora é automático via Saldo)</div>
-                  )}
-                </div>
-              </div>
+              {/* Old verification requests removed */}
             </div>
           )}
 
@@ -1515,7 +1474,7 @@ export default function AdminDashboard() {
                           <span className="truncate block text-sm" title={u.email}>{u.email}</span>
                         </td>
                         <td className="px-3 py-4 text-gray-500 text-xs">{u.phone || <span className="text-gray-300">—</span>}</td>
-                        <td className="px-3 py-4 text-gray-500 text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+                        <td className="px-3 py-4 text-gray-500 text-xs">{u.created_at ? formatRelativeTime(u.created_at) : '—'}</td>
                         <td className="px-3 py-4 font-black text-accent text-sm whitespace-nowrap">AOA {u.balance?.toLocaleString() || 0}</td>
                         <td className="px-3 py-4 font-black text-green-600 text-sm whitespace-nowrap">AOA {(u.withdrawable_earnings || 0).toLocaleString()}</td>
                         <td className="px-3 py-4">
@@ -1640,7 +1599,7 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-border">
                     {transactions.map((t) => (
                       <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-xs text-gray-500">{new Date(t.created_at).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500">{formatRelativeTime(t.created_at)}</td>
                         <td className="px-6 py-4">
                           <p className="font-bold text-gray-900">{t.profiles?.display_name || t.profiles?.email || 'Desconhecido'}</p>
                           <p className="text-[10px] text-gray-400">{t.description}</p>
@@ -1828,7 +1787,7 @@ export default function AdminDashboard() {
                               {a.type === 'comunicado' ? 'Comunicado' : 'Anúncio / Ads'}
                             </span>
                             <span className="text-[10px] text-gray-400 font-semibold">
-                              {new Date(a.created_at).toLocaleDateString()}
+                              {formatRelativeTime(a.created_at)}
                             </span>
                             <span className="text-[10px] font-semibold bg-gray-200 px-2 py-0.5 rounded text-gray-700">
                               Para: {a.target ? (a.target.display_name || a.target.email) : 'Todos'}
@@ -1985,7 +1944,7 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           <p className="text-xs text-gray-400">
-                            {new Date(report.created_at).toLocaleString()}
+                            {formatRelativeTime(report.created_at)}
                           </p>
                         </div>
                         {report.description && (
@@ -2055,7 +2014,7 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="font-bold text-gray-900">{feedback.profiles?.display_name || 'Utilizador'}</h3>
                               <span className="text-xs text-gray-500">{feedback.profiles?.email || ''}</span>
-                              <span className="text-xs text-gray-400">• {new Date(feedback.created_at).toLocaleString('pt-BR')}</span>
+                              <span className="text-xs text-gray-400">• {formatRelativeTime(feedback.created_at)}</span>
                             </div>
                             <div className="flex items-center gap-1 mb-3">
                               {[1, 2, 3, 4, 5].map((star) => (
@@ -2633,6 +2592,19 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          )}
+
+
+          {/* Intelligence Tab */}
+          {activeTab === 'intelligence' && (
+            <IntelligencePanel
+              supabase={supabase}
+              theme={theme}
+              intelConversations={intelConversations}
+              setIntelConversations={setIntelConversations}
+              intelSelectedPair={intelSelectedPair}
+              setIntelSelectedPair={setIntelSelectedPair}
+            />
           )}
 
           {/* Terms and Privacy Tab */}

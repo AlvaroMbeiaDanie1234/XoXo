@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
@@ -499,75 +500,102 @@ export default function EditProfilePage() {
               </form>
             )}
           </div>
+
+          {/* VIP Badge Card — visible on mobile/tablet below form */}
+          <div className="xl:hidden mt-6">
+            <VipBadgeCard
+              profile={profile}
+              vipBadgePrice={vipBadgePrice}
+              requestingBadge={requestingBadge}
+              theme={theme}
+              onBuy={handleBuyBadge}
+            />
+          </div>
         </div>
 
-        {/* Right Sidebar (Verification Box) */}
+        {/* Right Sidebar (Verification Box) — visible on desktop */}
         <div className="hidden xl:block w-[280px] flex-shrink-0">
           <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden sticky top-24 p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                <CheckCircle size={20} className="text-blue-500 fill-blue-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 leading-tight text-sm">Selo VIP Oficial</h3>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Destaque-se</p>
-              </div>
-            </div>
-            
-            <p className="text-xs text-gray-500 mb-5 leading-relaxed">
-              Receba o selo azul, prioridade nas buscas e 5x mais visibilidade na rede.
-            </p>
-
-            <div className="space-y-2 mb-5">
-              <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                 <ShieldCheck size={14} className="text-blue-500" /> Autenticidade garantida
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                 <Star size={14} className="text-blue-500" /> Maior alcance
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-xl p-3 mb-5 border border-gray-100 flex justify-between items-center">
-              <span className="text-xs text-gray-500 font-bold">Preço</span>
-              <span className="font-black text-accent">
-                {profile?.is_free_plan ? 'Grátis 🌟' : `AOA ${Number(vipBadgePrice).toLocaleString()}`}
-              </span>
-            </div>
-
-            <button
-              onClick={handleBuyBadge}
-              disabled={requestingBadge || profile?.is_verified}
-              className={`w-full py-3 rounded-xl font-bold transition-all shadow-md text-sm flex items-center justify-center gap-2 ${
-                profile?.is_verified 
-                ? 'bg-blue-50 text-blue-600 cursor-default shadow-none border border-blue-100' 
-                : 'bg-gradient-to-r from-accent to-blue-600 hover:from-accent hover:to-blue-700 text-white active:scale-95'
-              }`}
-            >
-              {profile?.is_verified ? (
-                <>
-                  <CheckCircle size={16} className="fill-blue-600 text-white" /> Verificado
-                </>
-              ) : requestingBadge ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" /> Processando...
-                </>
-              ) : profile?.is_free_plan ? (
-                'Ativar Selo Grátis'
-              ) : (
-                'Comprar Selo'
-              )}
-            </button>
-            
-            {!profile?.is_verified && (
-               <p className="text-[9px] text-center text-gray-400 mt-3 font-medium">
-                 {profile?.is_free_plan 
-                   ? 'Plano Grátis ativo. Não haverá qualquer custo.' 
-                   : 'O valor será descontado do seu Saldo Disponível.'}
-               </p>
-            )}
+            <VipBadgeCard
+              profile={profile}
+              vipBadgePrice={vipBadgePrice}
+              requestingBadge={requestingBadge}
+              theme={theme}
+              onBuy={handleBuyBadge}
+            />
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+function VipBadgeCard({ profile, vipBadgePrice, requestingBadge, theme, onBuy }: {
+  profile: any
+  vipBadgePrice: string
+  requestingBadge: boolean
+  theme: string | undefined
+  onBuy: () => void
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+          <CheckCircle size={20} className="text-blue-500 fill-blue-500" />
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 leading-tight text-sm">Selo VIP Oficial</h3>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Destaque-se</p>
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+        Receba o selo azul, prioridade nas buscas e 5x mais visibilidade na rede.
+      </p>
+
+      <div className="space-y-2 mb-5">
+        <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
+          <ShieldCheck size={14} className="text-blue-500" /> Autenticidade garantida
+        </div>
+        <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
+          <Star size={14} className="text-blue-500" /> Maior alcance
+        </div>
+      </div>
+
+      <div className="bg-gray-50 rounded-xl p-3 mb-5 border border-gray-100 flex justify-between items-center">
+        <span className="text-xs text-gray-500 font-bold">Preço</span>
+        <span className="font-black text-accent">
+          {profile?.is_free_plan ? 'Grátis 🌟' : `AOA ${Number(vipBadgePrice).toLocaleString()}`}
+        </span>
+      </div>
+
+      <button
+        onClick={onBuy}
+        disabled={requestingBadge || profile?.is_verified}
+        className={`w-full py-3 rounded-xl font-bold transition-all shadow-md text-sm flex items-center justify-center gap-2 ${
+          profile?.is_verified
+          ? 'bg-blue-50 text-blue-600 cursor-default shadow-none border border-blue-100'
+          : 'bg-gradient-to-r from-accent to-blue-600 hover:from-accent hover:to-blue-700 text-white active:scale-95'
+        }`}
+      >
+        {profile?.is_verified ? (
+          <><CheckCircle size={16} className="fill-blue-600 text-white" /> Verificado</>
+        ) : requestingBadge ? (
+          <><Loader2 size={16} className="animate-spin" /> Processando...</>
+        ) : profile?.is_free_plan ? (
+          'Ativar Selo Grátis'
+        ) : (
+          'Comprar Selo'
+        )}
+      </button>
+
+      {!profile?.is_verified && (
+        <p className="text-[9px] text-center text-gray-400 mt-3 font-medium">
+          {profile?.is_free_plan
+            ? 'Plano Grátis ativo. Não haverá qualquer custo.'
+            : 'O valor será descontado do seu Saldo Disponível.'}
+        </p>
+      )}
+    </>
   )
 }

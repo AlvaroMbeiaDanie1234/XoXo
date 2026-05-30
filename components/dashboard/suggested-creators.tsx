@@ -238,68 +238,68 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
             {creators.map((creator) => (
               <div
                 key={creator.id}
-                className={`group flex flex-shrink-0 rounded-lg transition-colors ${isMobileVariant ? `w-[calc(100vw-2rem)] flex-col gap-3 border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-border bg-gray-50/70'}` : `items-center justify-between py-1.5 px-1 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}`}
+                className={`group flex flex-shrink-0 rounded-lg transition-colors ${isMobileVariant ? `w-[calc(100vw-2rem)] flex-col gap-3 border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-border bg-gray-50/70'}` : `items-center py-1.5 px-1 gap-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}`}
               >
                 <Link
                   href={`/dashboard/creator/${creator.id}`}
                   className="flex items-center gap-3 cursor-pointer min-w-0 flex-1"
                 >
-                  <div className="relative w-12 h-12 flex-shrink-0">
+                  <div className="relative w-10 h-10 flex-shrink-0">
                     {creator.avatar_url ? (
                       <img
                         src={creator.avatar_url}
                         alt={creator.display_name || 'Usuário'}
-                        className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm"
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-sm"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-lg font-bold shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-sm font-bold shadow-sm">
                         {creator.display_name ? creator.display_name.charAt(0).toUpperCase() : 'U'}
                       </div>
                     )}
                     {creator.is_verified && (
                       <div className={`absolute -bottom-1 -right-1 rounded-full p-0.5 ${theme === 'dark' ? 'bg-gray-800' : 'bg-background'}`}>
-                        <CheckCircle2 size={16} className="text-blue-500 fill-blue-500" />
+                        <CheckCircle2 size={14} className="text-blue-500 fill-blue-500" />
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col min-w-0">
+                  <div className="flex flex-col overflow-hidden">
                     <span className={`text-sm font-bold group-hover:text-accent transition-colors flex items-center gap-1 truncate ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
                       {creator.display_name || 'Utilizador Anónimo'}
                       {creator.is_verified && (
                         <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 flex-shrink-0" />
                       )}
                     </span>
-                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>{getPostLabel(creator.post_count)}</span>
+                    <span className={`text-xs whitespace-nowrap ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>{getPostLabel(creator.post_count)}</span>
                   </div>
                 </Link>
-                <div className={`flex flex-shrink-0 gap-2 ${isMobileVariant ? 'w-full' : 'ml-2'}`}>
-                  <Link
-                    href={`/dashboard/creator/${creator.id}`}
-                    className={`flex min-h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors ${isMobileVariant ? 'flex-1' : ''} ${theme === 'dark' ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-muted text-gray-700 hover:bg-gray-200'}`}
-                    title="Visualizar perfil"
-                  >
-                    <Eye size={14} />
-                    <span className={isMobileVariant ? '' : 'hidden 2xl:inline'}>Visualizar</span>
-                  </Link>
-
-                  {currentUserId !== creator.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleSubscribe(creator)}
-                      disabled={subscribingId === creator.id}
-                      className={`flex min-h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors disabled:opacity-60 ${isMobileVariant ? 'flex-1' : ''} ${
-                        subscribedIds.has(creator.id)
-                          ? theme === 'dark'
-                            ? 'bg-gray-700 text-gray-300 hover:bg-red-950/40 hover:text-red-300'
-                            : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
-                          : 'bg-accent text-white hover:bg-accent/90'
-                      }`}
-                      title={subscribedIds.has(creator.id) ? 'Remover subscricao' : 'Subscrever'}
+                <div className={`flex flex-shrink-0 gap-1 ${isMobileVariant ? 'w-full' : ''}`}>
+                    <Link
+                      href={`/dashboard/creator/${creator.id}`}
+                      className={`flex min-h-8 items-center justify-center rounded-full w-8 text-xs font-bold transition-colors ${isMobileVariant ? 'flex-1 px-3' : ''} ${theme === 'dark' ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-muted text-gray-700 hover:bg-gray-200'}`}
+                      title="Visualizar perfil"
                     >
-                      {subscribingId === creator.id ? <Loader2 size={14} className="animate-spin" /> : subscribedIds.has(creator.id) ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                      <span className={isMobileVariant ? '' : 'hidden 2xl:inline'}>{subscribedIds.has(creator.id) ? 'Subscrito' : 'Subscrever'}</span>
-                    </button>
-                  )}
+                      <Eye size={14} />
+                      <span className={`${isMobileVariant ? 'ml-1.5' : 'hidden'}`}>Ver</span>
+                    </Link>
+
+                    {currentUserId !== creator.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleSubscribe(creator)}
+                        disabled={subscribingId === creator.id}
+                        className={`flex min-h-8 items-center justify-center rounded-full w-8 text-xs font-bold transition-colors disabled:opacity-60 ${isMobileVariant ? 'flex-1 px-3' : ''} ${
+                          subscribedIds.has(creator.id)
+                            ? theme === 'dark'
+                              ? 'bg-gray-700 text-gray-300 hover:bg-red-950/40 hover:text-red-300'
+                              : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
+                            : 'bg-accent text-white hover:bg-accent/90'
+                        }`}
+                        title={subscribedIds.has(creator.id) ? 'Remover subscricao' : 'Subscrever'}
+                      >
+                        {subscribingId === creator.id ? <Loader2 size={14} className="animate-spin" /> : subscribedIds.has(creator.id) ? <UserMinus size={14} /> : <UserPlus size={14} />}
+                        <span className={`${isMobileVariant ? 'ml-1.5' : 'hidden'}`}>{subscribedIds.has(creator.id) ? 'Subscrito' : 'Subscrever'}</span>
+                      </button>
+                    )}
                 </div>
               </div>
             ))}

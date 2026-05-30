@@ -3,7 +3,7 @@
 import Sidebar from '@/components/dashboard/sidebar'
 import PostCard from '@/components/dashboard/post-card'
 import TopCreatorsRanking from '@/components/dashboard/top-creators-ranking'
-import { Search, UserPlus, Check, TrendingUp, Star, Sparkles, Video, Image as ImageIcon, FileText, Heart, MessageCircle, Share2 } from 'lucide-react'
+import { Search, UserPlus, Check, TrendingUp, Star, Sparkles, Video, Image as ImageIcon, FileText, Heart, MessageCircle, Share2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useRef } from 'react'
 import { useTheme } from 'next-themes'
@@ -14,6 +14,7 @@ export default function ExplorePage() {
   const EXPLORE_CACHE_TTL_MS = 60 * 1000
   const [user, setUser] = useState<any>(null)
   const [creators, setCreators] = useState<any[]>([])
+  const [allCreators, setAllCreators] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,6 +43,7 @@ export default function ExplorePage() {
 
       if (cached) {
         setCreators(cached.creators || [])
+        setAllCreators(cached.creators || [])
         setPosts(cached.posts || [])
         setFollowersCount(cached.followersCount || {})
         setOnlineUsers(new Set(cached.onlineUserIds || []))
@@ -55,11 +57,12 @@ export default function ExplorePage() {
         .from('profiles')
         .select('*')
         .neq('id', currentUser?.id || '')
-        .limit(20)
+        .limit(500)
 
       let followersMap: Record<string, number> = {}
       if (profiles) {
         setCreators(profiles)
+        setAllCreators(profiles)
 
         // Fetch followers count for each creator
         const followersPromises = profiles.map(async (profile) => {
@@ -131,15 +134,15 @@ export default function ExplorePage() {
     loadData()
   }, [supabase])
 
-  const filteredCreators = creators.filter(creator =>
+  const filteredCreators = allCreators.filter(creator =>
     creator.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    creator.username?.toLowerCase().includes(searchQuery.toLowerCase())
+    creator.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const suggestions = searchQuery.length > 0
-    ? creators.filter(creator =>
+    ? allCreators.filter(creator =>
         creator.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        creator.username?.toLowerCase().includes(searchQuery.toLowerCase())
+        creator.email?.toLowerCase().includes(searchQuery.toLowerCase())
       ).slice(0, 5)
     : []
 
@@ -194,7 +197,7 @@ export default function ExplorePage() {
         <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-accent lg:hidden">XoXo</h2>
-            <div ref={searchRef} className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md border w-64 transition-all focus-within:w-80 relative ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-[#f3f2ef] border-border'}`}>
+            <div ref={searchRef} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border w-full sm:w-64 transition-all focus-within:sm:w-80 relative ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-[#f3f2ef] border-border'}`}>
               <Search size={16} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} />
               <input
                 type="text"
@@ -205,17 +208,30 @@ export default function ExplorePage() {
                   setShowSuggestions(true)
                 }}
                 onFocus={() => setShowSuggestions(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') { setShowSuggestions(false); (e.target as HTMLInputElement).blur() }
+                  if (e.key === 'Enter' && suggestions.length > 0) {
+                    setSearchQuery(suggestions[0].display_name || suggestions[0].email || '')
+                    setShowSuggestions(false)
+                  }
+                }}
                 className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'}`}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setShowSuggestions(false) }}
+                  className={`p-0.5 rounded-full ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <X size={14} />
+                </button>
+              )}
               {showSuggestions && suggestions.length > 0 && (
                 <div className={`absolute top-full left-0 right-0 mt-2 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                   {suggestions.map((creator) => (
-                    <button
+                    <Link
                       key={creator.id}
-                      onClick={() => {
-                        setSearchQuery(creator.display_name || creator.username || '')
-                        setShowSuggestions(false)
-                      }}
+                      href={`/dashboard/creator/${creator.id}`}
+                      onClick={() => setShowSuggestions(false)}
                       className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
                     >
                       <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
@@ -227,19 +243,19 @@ export default function ExplorePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{creator.display_name || 'Sem nome'}</p>
-                        {creator.username && (
-                          <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>@{creator.username}</p>
+                        {creator.email && (
+                          <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{creator.email}</p>
                         )}
                       </div>
-                    </button>
+                    </Link>
                   ))}
                 </div>
               )}
             </div>
           </div>
           {user && (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-right">
+            <div className="hidden sm:flex items-center gap-3">
+              <div className="text-right">
                 <p className={`text-xs font-medium ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{user.email}</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs">
@@ -264,7 +280,8 @@ export default function ExplorePage() {
             <TopCreatorsRanking />
           </div>
 
-          {/* Stories Section */}
+          {/* Stories Section — show search results when query is active */}
+          {searchQuery.length === 0 && (
           <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
             <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
               <Sparkles size={18} className="text-accent" />
@@ -287,6 +304,7 @@ export default function ExplorePage() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Trending Section */}
           <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
@@ -348,7 +366,48 @@ export default function ExplorePage() {
             )}
           </div>
 
-          {/* Suggested Creators Section */}
+          {/* Search Results Section */}
+          {searchQuery.length > 0 && filteredCreators.length > 0 && (
+            <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+              <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+                <Search size={18} className="text-accent" />
+                Resultados para &ldquo;{searchQuery}&rdquo;
+              </h3>
+              <div className="space-y-3">
+                {filteredCreators.slice(0, 10).map((creator) => (
+                  <Link key={creator.id} href={`/dashboard/creator/${creator.id}`} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                        {creator.avatar_url ? (
+                          <img src={creator.avatar_url} alt={creator.display_name} className="w-full h-full object-cover" />
+                        ) : (
+                          creator.display_name?.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      {onlineUsers.has(creator.id) && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{creator.display_name || 'Sem nome'}</p>
+                      {creator.email && (
+                        <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{creator.email}</p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {searchQuery.length > 0 && filteredCreators.length === 0 && (
+            <div className={`mb-6 p-4 rounded-xl border text-center ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-border text-gray-500'}`}>
+              Nenhum resultado encontrado para &ldquo;{searchQuery}&rdquo;
+            </div>
+          )}
+
+          {/* Suggested Creators Section — hide when searching */}
+          {searchQuery.length === 0 && (
           <div className={`mt-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
             <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
               <UserPlus size={18} className="text-accent" />
@@ -372,9 +431,6 @@ export default function ExplorePage() {
                   <div className="flex-1 min-w-0">
                     <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{creator.display_name || 'Sem nome'}</p>
                     <div className="flex items-center gap-2">
-                      {creator.username && (
-                        <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>@{creator.username}</p>
-                      )}
                       <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         {followersCount[creator.id] || 0} seguidores
                       </p>
@@ -394,6 +450,7 @@ export default function ExplorePage() {
               ))}
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
