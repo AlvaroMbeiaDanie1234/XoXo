@@ -45,6 +45,19 @@ export default function LoginForm() {
       }
 
       if (data?.user) {
+        // Check if user is suspended
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('suspended, suspension_reason')
+          .eq('id', data.user.id)
+          .single()
+
+        if (profile?.suspended) {
+          setError(profile.suspension_reason || 'A sua conta foi suspensa.')
+          setLoading(false)
+          return
+        }
+
         setSuccess(true)
         setError(null)
         

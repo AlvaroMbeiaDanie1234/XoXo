@@ -57,7 +57,12 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       if (data) {
         const val = Number(data.balance);
         setBalance(isNaN(val) ? 0 : val)
-        setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+        const email = user.email?.toLowerCase() || ''
+        if (email === 'admin.xoxo@gmail.com' || email === 'superadmin.xoxo@gmail.com') {
+          setDisplayName('XoXo')
+        } else {
+          setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
+        }
         setAvatarUrl(data.avatar_url || null)
         setPhone(data.phone || null)
         setPreferredCurrency(resolveProfileCurrency(data))
@@ -310,6 +315,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                   <p className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'} flex items-center gap-1`}>
                     {displayName}
                     {isVerified && <CheckCircle size={12} className="text-blue-500 fill-blue-500" />}
+                    {isAdminEmail(user?.email || '') && <span className="text-[8px] font-black bg-accent text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</span>}
                   </p>
                   <p className="text-[10px] font-bold text-accent">{formatMoney(balance, preferredCurrency)}</p>
                 </div>
@@ -328,7 +334,10 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               {dropdownOpen && (
                 <div className={`absolute right-0 mt-2 w-64 rounded-md shadow-lg border overflow-hidden z-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
                   <div className={`p-4 border-b ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-border'}`}>
-                    <p className={`font-bold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{displayName}</p>
+                    <p className={`font-bold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-foreground'} flex items-center gap-1`}>
+                      {displayName}
+                      {isAdminEmail(user?.email || '') && <span className="text-[8px] font-black bg-accent text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</span>}
+                    </p>
                     <p className={`text-[10px] truncate mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>{user.email}</p>
                     <div className={`flex items-center justify-between mt-2 pt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
                       <p className={`text-[10px] uppercase font-bold tracking-tighter ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>Saldo Disponível</p>

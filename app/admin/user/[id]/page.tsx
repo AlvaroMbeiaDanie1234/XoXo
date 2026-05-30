@@ -8,7 +8,7 @@ import {
   Users, Shield, Calendar, Mail, Phone, MapPin, 
   Trash2, Eye, CheckCircle, XCircle, Loader2, ArrowLeft,
   FileText, Video as VideoIcon, Image as ImageIcon, DollarSign, Play,
-  PlusCircle, Star
+  PlusCircle, Star, AlertTriangle, Ban, MessageCircle
 } from 'lucide-react'
 
 export default function AdminUserDetailPage() {
@@ -22,6 +22,9 @@ export default function AdminUserDetailPage() {
   const [creditDescription, setCreditDescription] = useState('')
   const [crediting, setCrediting] = useState(false)
   const [updatingPlan, setUpdatingPlan] = useState(false)
+  const [showSuspendModal, setShowSuspendModal] = useState(false)
+  const [suspendReason, setSuspendReason] = useState('')
+  const [suspending, setSuspending] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
@@ -133,6 +136,56 @@ export default function AdminUserDetailPage() {
     }
   }
 
+  const handleUnsuspend = async () => {
+    if (!confirm('Deseja realmente reativar esta conta?')) return
+    setSuspending(true)
+    try {
+      const res = await fetch('/api/admin/suspend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id, action: 'unsuspend' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setProfile((prev: any) => ({ ...prev, suspended: false, suspension_reason: null, suspended_at: null }))
+      alert('Conta reativada com sucesso!')
+    } catch (err: any) {
+      alert('Erro ao reativar: ' + err.message)
+    } finally {
+      setSuspending(false)
+    }
+  }
+
+  const handleSuspend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!suspendReason || suspendReason.trim().length < 10) {
+      alert('O motivo deve ter pelo menos 10 caracteres')
+      return
+    }
+    setSuspending(true)
+    try {
+      const res = await fetch('/api/admin/suspend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: id,
+          reason: suspendReason,
+          action: 'suspend',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setProfile((prev: any) => ({ ...prev, suspended: true, suspension_reason: suspendReason, suspended_at: new Date().toISOString() }))
+      setShowSuspendModal(false)
+      setSuspendReason('')
+      alert('Conta suspensa com sucesso! SMS e notificação enviados.')
+    } catch (err: any) {
+      alert('Erro ao suspender: ' + err.message)
+    } finally {
+      setSuspending(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -192,6 +245,18 @@ export default function AdminUserDetailPage() {
                     <Shield size={18} className="text-gray-400" />
                     <span>Status: <strong>{profile.is_verified ? 'Verificado (VIP)' : 'Standard'}</strong></span>
                   </div>
+                  {profile.suspended && (
+                    <div className="flex items-center gap-3 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+                      <Ban size={18} />
+                      <span><strong>Conta Suspensa</strong></span>
+                    </div>
+                  )}
+                  {profile.suspension_reason && profile.suspended && (
+                    <div className="flex items-center gap-3 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+                      <MessageCircle size={18} />
+                      <span>{profile.suspension_reason}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <Mail size={18} className="text-gray-400" />
                     <span>{profile.email || 'Email não disponível'}</span>
@@ -282,8 +347,22 @@ export default function AdminUserDetailPage() {
                 {updatingPlan ? 'A processar...' : profile.is_free_plan ? 'Remover Plano Grátis' : 'Atribuir Plano Grátis'}
               </button>
 
-              <button className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200">
-                Suspender Conta
+              <button
+                onClick={() => {
+                  if (profile.suspended) {
+                    handleUnsuspend()
+                  } else {
+                    setShowSuspendModal(true)
+                  }
+                }}
+                className={`w-full py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm ${
+                  profile.suspended
+                    ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-200'
+                    : 'bg-red-600 text-white hover:bg-red-700 shadow-red-200'
+                }`}
+              >
+                {profile.suspended ? <CheckCircle size={18} /> : <Ban size={18} />}
+                {profile.suspended ? 'Reativar Conta' : 'Suspender Conta'}
               </button>
             </div>
           </div>
@@ -353,6 +432,56 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Suspend Modal */}
+      {showSuspendModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowSuspendModal(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <Ban size={28} className="text-red-500" />
+            </div>
+            <h4 className="text-lg font-extrabold text-gray-900 mb-2">Suspender Conta</h4>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Esta ação irá suspender a conta de <strong>{profile.display_name}</strong>.
+              O utilizador receberá uma notificação e SMS com o motivo.
+            </p>
+            <form onSubmit={handleSuspend} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1 text-left">
+                  Motivo da Suspensão <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={suspendReason}
+                  onChange={(e) => setSuspendReason(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl text-sm outline-none focus:border-accent transition-colors resize-none"
+                  placeholder="Ex: Violação dos termos de uso - Publicação de conteúdo inapropriado..."
+                  required
+                  minLength={10}
+                />
+                <p className="text-[10px] text-gray-400 mt-1 text-left">{suspendReason.length} caracteres (mín. 10)</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSuspendModal(false)}
+                  className="flex-1 font-bold py-3 rounded-xl text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={suspending || suspendReason.trim().length < 10}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-red-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {suspending ? <Loader2 className="animate-spin w-4 h-4" /> : <Ban size={16} />}
+                  Suspender
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

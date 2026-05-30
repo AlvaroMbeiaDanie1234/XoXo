@@ -16,7 +16,8 @@ import {
   Lock,
   Trash2,
   Loader2,
-  Flag
+  Flag,
+  Shield
 } from 'lucide-react'
 import CommentsModal from './comments-modal'
 import { useTheme } from 'next-themes'
@@ -34,6 +35,7 @@ interface PostCardProps {
   creator_id?: string
   price?: number
   is_free?: boolean
+  is_admin_post?: boolean
 }
 
 export default function PostCard({
@@ -49,6 +51,7 @@ export default function PostCard({
   creator_id,
   price,
   is_free = true,
+  is_admin_post = false,
 }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
@@ -281,7 +284,7 @@ export default function PostCard({
   if (isDeleted) return null
 
   return (
-    <div ref={containerRef} className={`-mx-4 mb-6 w-[calc(100%+2rem)] rounded-none shadow-sm transition-shadow duration-300 hover:shadow-md sm:mx-0 sm:w-full sm:rounded-xl overflow-visible ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+    <div ref={containerRef} className={`-mx-4 mb-6 w-[calc(100%+2rem)] rounded-none shadow-sm transition-shadow duration-300 hover:shadow-md sm:mx-0 sm:w-full sm:rounded-xl overflow-visible ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'} ${is_admin_post ? (theme === 'dark' ? 'ring-1 ring-accent/30' : 'ring-1 ring-accent/20') : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
@@ -305,10 +308,11 @@ export default function PostCard({
           <div>
             <Link href={`/dashboard/creator/${creator_id}`} className={`font-bold text-sm hover:text-accent transition-colors flex items-center gap-1 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
               {creator_name}
-              {creatorVerified && <span className="text-blue-500 text-[10px] font-bold bg-blue-50 px-1.5 py-0.5 rounded uppercase">Verificado</span>}
+              {is_admin_post && <span className="text-[8px] font-black bg-accent text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</span>}
+              {!is_admin_post && creatorVerified && <span className="text-blue-500 text-[10px] font-bold bg-blue-50 px-1.5 py-0.5 rounded uppercase">Verificado</span>}
             </Link>
             <p className={`text-[11px] font-medium uppercase tracking-wider mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>
-              Criador de Conteúdo • Agora
+              {is_admin_post ? 'XoXo • Staff' : 'Criador de Conteúdo • Agora'}
             </p>
           </div>
         </div>

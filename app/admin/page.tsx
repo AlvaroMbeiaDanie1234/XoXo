@@ -6,7 +6,7 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star
+  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
 import Header from '@/components/dashboard/header'
@@ -1487,6 +1487,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
                       <th className="px-6 py-4 font-bold">Ganhos (Saque)</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
+                      <th className="px-6 py-4 font-bold">Suspenso</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
                     </tr>
                   </thead>
@@ -1529,6 +1530,15 @@ export default function AdminDashboard() {
                             {u.is_free_plan ? 'Plano Grátis 🌟' : 'Standard'}
                           </button>
                         </td>
+                        <td className="px-3 py-4">
+                          {u.suspended ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                              <Ban size={10} /> Suspenso
+                            </span>
+                          ) : (
+                            <span className="text-gray-300 text-[10px]">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-0.5">
                             <button
@@ -1567,6 +1577,32 @@ export default function AdminDashboard() {
                               title="Resetar Senha"
                             >
                               <KeyRound size={16} />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                const reason = prompt('Motivo da suspensão (mín. 10 caracteres):')
+                                if (!reason || reason.trim().length < 10) {
+                                  alert('O motivo deve ter pelo menos 10 caracteres')
+                                  return
+                                }
+                                try {
+                                  const res = await fetch('/api/admin/suspend', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ userId: u.id, reason, action: 'suspend' }),
+                                  })
+                                  const data = await res.json()
+                                  if (!res.ok) throw new Error(data.error)
+                                  alert('Conta suspensa! SMS e notificação enviados.')
+                                  setTimeout(() => window.location.reload(), 1000)
+                                } catch (err: any) {
+                                  alert('Erro: ' + err.message)
+                                }
+                              }}
+                              className="p-1.5 text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
+                              title="Suspender Conta"
+                            >
+                              <Ban size={16} />
                             </button>
                             <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
                           </div>

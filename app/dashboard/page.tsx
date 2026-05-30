@@ -48,6 +48,7 @@ interface Post {
     display_name: string | null
     avatar_url: string | null
     is_verified?: boolean
+    email?: string
   }
 }
 
@@ -112,7 +113,7 @@ function DashboardContent() {
       
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url, is_verified)')
+        .select('*, profiles(display_name, avatar_url, is_verified, email)')
         .order('created_at', { ascending: false })
         .range(from, to)
 
@@ -227,7 +228,7 @@ function DashboardContent() {
           // Fetch posts with pagination
           const { data: postsData, error: postsError } = await supabase
             .from('posts')
-            .select('*, profiles(display_name, avatar_url, is_verified)')
+            .select('*, profiles(display_name, avatar_url, is_verified, email)')
             .order('created_at', { ascending: false })
             .range(0, POSTS_PER_PAGE - 1)
 
@@ -691,16 +692,23 @@ function DashboardContent() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 w-full overflow-visible">
-                  {posts.map((post) => (
-                    <PostCard
-                      key={post.id}
-                      {...post}
-                      creator_name={post.profiles?.display_name || 'Usuário'}
-                      creator_avatar={post.profiles?.avatar_url || undefined}
-                      creator_verified={post.profiles?.is_verified || false}
-                      creator_id={post.user_id}
-                    />
-                  ))}
+                  {posts.map((post) => {
+                    const isAdminCreator = post.profiles?.email && (
+                      post.profiles.email.toLowerCase() === 'admin.xoxo@gmail.com' ||
+                      post.profiles.email.toLowerCase() === 'superadmin.xoxo@gmail.com'
+                    )
+                    return (
+                      <PostCard
+                        key={post.id}
+                        {...post}
+                        creator_name={isAdminCreator ? 'XoXo' : (post.profiles?.display_name || 'Usuário')}
+                        creator_avatar={post.profiles?.avatar_url || undefined}
+                        creator_verified={isAdminCreator ? true : (post.profiles?.is_verified || false)}
+                        creator_id={post.user_id}
+                        is_admin_post={isAdminCreator || false}
+                      />
+                    )
+                  })}
                   {hasMore && (
                     <div id="infinite-scroll-sentinel" className="flex items-center justify-center py-8">
                       {loadingMore && <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>}
