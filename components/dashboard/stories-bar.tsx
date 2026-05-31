@@ -250,7 +250,15 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
           <>
             {currentUserId && (
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  const ownIdx = storyUsers.findIndex(u => u.id === currentUserId)
+                  if (ownIdx >= 0) {
+                    setViewingIndex(ownIdx)
+                    setViewingStoryIndex(0)
+                  } else {
+                    setShowCreateModal(true)
+                  }
+                }}
                 className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16 group"
               >
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center text-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">
@@ -338,6 +346,14 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
                 >
                   <Eye size={14} />
                   {getViewCount(storyUsers[viewingIndex].stories[viewingStoryIndex])}
+                </button>
+              )}
+              {storyUsers[viewingIndex].id === currentUserId && (
+                <button
+                  onClick={() => { closeViewer(); setTimeout(() => setShowCreateModal(true), 100) }}
+                  className="p-1.5 rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors backdrop-blur-sm"
+                >
+                  <Plus size={16} />
                 </button>
               )}
               {storyUsers[viewingIndex].id === currentUserId && (
