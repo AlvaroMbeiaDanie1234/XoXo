@@ -60,12 +60,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       if (data) {
         const val = Number(data.balance);
         setBalance(isNaN(val) ? 0 : val)
-        const email = user.email?.toLowerCase() || ''
-        if (email === 'admin.xoxo@gmail.com' || email === 'superadmin.xoxo@gmail.com') {
-          setDisplayName('XoXo')
-        } else {
-          setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
-        }
+        setDisplayName(data.display_name || user.email?.split('@')[0] || 'Usuário')
         setAvatarUrl(data.avatar_url || null)
         setPhone(data.phone || null)
         setPreferredCurrency(resolveProfileCurrency(data))

@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import UserInfoModal from '@/components/dashboard/user-info-modal'
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000
 
 export default function SessionTracker() {
-  useEffect(() => {
-    const supabase = createClient()
-    let interval: ReturnType<typeof setInterval> | null = null
-    let stopped = false
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const supabase = createClient()
 
+  useEffect(() => {
     const updateSession = async () => {
       try {
         await fetch('/api/session', { method: 'POST', cache: 'no-store' })
@@ -20,18 +20,11 @@ export default function SessionTracker() {
     }
 
     const stopHeartbeat = () => {
-      if (interval) {
-        clearInterval(interval)
-        interval = null
-      }
+      // Cleanup handled by the effect
     }
 
     const startHeartbeat = () => {
       updateSession()
-
-      if (!interval) {
-        interval = setInterval(updateSession, HEARTBEAT_INTERVAL_MS)
-      }
     }
 
     const handleVisibilityChange = () => {
@@ -42,8 +35,8 @@ export default function SessionTracker() {
 
     const loadCurrentSession = async () => {
       const { data } = await supabase.auth.getSession()
-
-      if (!stopped && data.session) {
+      if (data.session?.user) {
+        setCurrentUserId(data.session.user.id)
         startHeartbeat()
       }
     }
@@ -53,10 +46,11 @@ export default function SessionTracker() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
+      if (session?.user) {
+        setCurrentUserId(session.user.id)
         startHeartbeat()
       } else {
-        stopHeartbeat()
+        setCurrentUserId(null)
       }
     })
 
@@ -64,13 +58,16 @@ export default function SessionTracker() {
     window.addEventListener('focus', updateSession)
 
     return () => {
-      stopped = true
       stopHeartbeat()
       subscription.unsubscribe()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', updateSession)
     }
-  }, [])
+  }, [supabase])
 
-  return null
+  return (
+    <>
+      {currentUserId && <UserInfoModal userId={currentUserId} />}
+    </>
+  )
 }

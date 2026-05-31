@@ -82,10 +82,6 @@ export default function CreatorProfileActions({ creatorId, currentUserId }: Crea
   }
 
   const handleMessage = () => {
-    if (!isSubscribed && creatorId !== currentUserId) {
-      alert('Precisas de subscrever a este criador para enviar mensagens!')
-      return
-    }
     router.push(`/dashboard/messages?user=${creatorId}`)
   }
 

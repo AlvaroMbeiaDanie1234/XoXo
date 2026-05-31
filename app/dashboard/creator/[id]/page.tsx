@@ -2,10 +2,37 @@ import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import PostCard from '@/components/dashboard/post-card'
-import { Users, PlaySquare } from 'lucide-react'
+import { Users, PlaySquare, Globe, MapPin, User, CheckCircle2, Crown } from 'lucide-react'
 import CreatorProfileActions from '@/components/dashboard/creator-profile-actions'
 import CreatorProfileBackButton from '@/components/dashboard/creator-profile-back-button'
 import ProfilePhotoModal from '@/components/dashboard/profile-photo-modal'
+import { isAdminEmail } from '@/lib/admin-emails'
+
+// Mapeamento de códigos de país para nomes
+const COUNTRY_NAMES: Record<string, string> = {
+  AO: 'Angola',
+  BR: 'Brasil',
+  PT: 'Portugal',
+  US: 'Estados Unidos',
+  UK: 'Reino Unido',
+  MZ: 'Moçambique',
+  CV: 'Cabo Verde',
+  GW: 'Guiné-Bissau',
+  TL: 'Timor-Leste',
+  ST: 'São Tomé e Príncipe',
+  FR: 'França',
+  DE: 'Alemanha',
+  ES: 'Espanha',
+  IT: 'Itália',
+  Other: 'Outro',
+}
+
+// Mapeamento de gênero para exibição
+const GENDER_LABELS = {
+  male: 'Masculino',
+  female: 'Feminino',
+  other: 'Outro',
+}
 
 export default async function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -96,6 +123,12 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
               <div className="mt-5 sm:mt-6">
                 <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2 sm:text-3xl">
                   {creator.display_name || 'Usuário'}
+                  {creator.email && isAdminEmail(creator.email) && (
+                    <Crown size={24} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  )}
+                  {!isAdminEmail(creator.email) && creator.is_verified && (
+                    <CheckCircle2 size={22} className="text-blue-500 fill-blue-500" />
+                  )}
                 </h1>
 
                 {creator.phone && (
@@ -107,6 +140,28 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
                 <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                   {creator.bio ? creator.bio : 'Bem-vindo ao meu espaçXoXo. Aqui partilho os meus melhores conteúdos, tutoriais avançados e bastidores que não vais encontrar em mais lado nenhum. Subscreve para acederes a tudo!'}
                 </p>
+
+                {/* User Info (Gender, Country, Location) - only shown if public */}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {creator.show_gender && creator.gender && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-medium">
+                      <User size={14} />
+                      {GENDER_LABELS[creator.gender as keyof typeof GENDER_LABELS] || creator.gender}
+                    </div>
+                  )}
+                  {creator.show_country && creator.country && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-medium">
+                      <Globe size={14} />
+                      {COUNTRY_NAMES[creator.country] || creator.country}
+                    </div>
+                  )}
+                  {creator.show_location && creator.location && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-medium">
+                      <MapPin size={14} />
+                      {creator.location}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Stats */}

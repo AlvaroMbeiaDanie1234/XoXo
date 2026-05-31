@@ -300,7 +300,12 @@ export default function PostCard({
                 )}
               </div>
             </div>
-            {creatorVerified && (
+            {is_admin_post && (
+              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                <CheckCircle2 size={16} className="text-amber-500 fill-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+              </div>
+            )}
+            {!is_admin_post && creatorVerified && (
               <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
                 <CheckCircle2 size={16} className="text-blue-500 fill-blue-500" />
               </div>
@@ -310,11 +315,11 @@ export default function PostCard({
           <div>
             <Link href={`/dashboard/creator/${creator_id}`} className={`font-bold text-sm hover:text-accent transition-colors flex items-center gap-1 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
               {creator_name}
-              {is_admin_post && <span className="text-[8px] font-black bg-accent text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</span>}
+              {is_admin_post && <span className="text-[8px] font-black bg-gradient-to-r from-amber-400 to-yellow-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wider shadow-[0_0_8px_rgba(251,191,36,0.4)]">Staff</span>}
               {!is_admin_post && creatorVerified && <span className="text-blue-500 text-[10px] font-bold bg-blue-50 px-1.5 py-0.5 rounded uppercase">Verificado</span>}
             </Link>
             <p className={`text-[11px] font-medium uppercase tracking-wider mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>
-              {is_admin_post ? 'XoXo • Staff' : 'Criador de Conteúdo • Agora'}
+              {is_admin_post ? `${creator_name} • Staff` : 'Criador de Conteúdo • Agora'}
             </p>
           </div>
         </div>

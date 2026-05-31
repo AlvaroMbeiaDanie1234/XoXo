@@ -6,9 +6,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users } from 'lucide-react'
+import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users, Globe, MapPin, Crown } from 'lucide-react'
 import { buildReferralCode } from '@/lib/referrals'
 import { useTheme } from 'next-themes'
+import { isAdminEmail } from '@/lib/admin-emails'
 
 export default function EditProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -30,6 +31,16 @@ export default function EditProfilePage() {
   const [bio, setBio] = useState('')
   const [phone, setPhone] = useState('')
   const [smsEnabled, setSmsEnabled] = useState(true)
+  
+  // User info fields
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('')
+  const [age, setAge] = useState('')
+  const [country, setCountry] = useState('AO')
+  const [province, setProvince] = useState('')
+  const [location, setLocation] = useState('')
+  const [showGender, setShowGender] = useState(true)
+  const [showCountry, setShowCountry] = useState(true)
+  const [showLocation, setShowLocation] = useState(true)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
@@ -84,6 +95,16 @@ export default function EditProfilePage() {
         setPhone(profileData.phone || '')
         setSmsEnabled(profileData.sms_notifications_enabled !== false) // default true
         setAvatarPreview(profileData.avatar_url || null)
+        
+        // Load user info fields
+        setGender(profileData.gender || '')
+        setAge(profileData.age ? String(profileData.age) : '')
+        setCountry(profileData.country || 'AO')
+        setProvince(profileData.province || '')
+        setLocation(profileData.location || '')
+        setShowGender(profileData.show_gender !== false)
+        setShowCountry(profileData.show_country !== false)
+        setShowLocation(profileData.show_location !== false)
 
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
         setReferralLink(`${origin}/auth/sign-up?ref=${code}`)
@@ -235,6 +256,14 @@ export default function EditProfilePage() {
           phone: phone,
           avatar_url: finalAvatarUrl,
           sms_notifications_enabled: smsEnabled,
+          gender: gender || null,
+          age: age ? parseInt(age, 10) : null,
+          country: country || null,
+          province: province || null,
+          location: location || null,
+          show_gender: showGender,
+          show_country: showCountry,
+          show_location: showLocation,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
@@ -299,7 +328,10 @@ export default function EditProfilePage() {
                 
                 <h1 className={`text-2xl font-black flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   {profile?.display_name || user?.email?.split('@')[0]}
-                  {profile?.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500" />}
+                  {user?.email && isAdminEmail(user.email) && (
+                    <Crown size={24} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  )}
+                  {!(user?.email && isAdminEmail(user.email)) && profile?.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500" />}
                 </h1>
 
                 <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{user?.email}</p>
@@ -309,9 +341,31 @@ export default function EditProfilePage() {
                    <p className={`text-sm whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                      {profile?.bio || <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>Sem biografia. Adiciona uma descrição para que as pessoas te conheçam melhor.</span>}
                    </p>
-                </div>
+                 </div>
 
-                {/* Referral Link Card */}
+                 {/* User Info Display - View Mode */}
+                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                   {profile?.show_gender && profile?.gender && (
+                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                       <UserIcon size={12} />
+                       {profile.gender === 'male' ? 'Masculino' : profile.gender === 'female' ? 'Feminino' : 'Outro'}
+                     </span>
+                   )}
+                   {profile?.show_country && profile?.country && (
+                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                       <Globe size={12} />
+                       {profile.country === 'AO' ? 'Angola' : profile.country === 'PT' ? 'Portugal' : profile.country === 'BR' ? 'Brasil' : profile.country === 'US' ? 'Estados Unidos' : profile.country === 'UK' ? 'Reino Unido' : profile.country}
+                     </span>
+                   )}
+                   {profile?.show_location && profile?.location && (
+                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                       <MapPin size={12} />
+                       {profile.location}
+                     </span>
+                   )}
+                 </div>
+
+                 {/* Referral Link Card */}
                 <div className={`mt-4 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'border-accent/20 bg-gradient-to-br from-accent/5 to-purple-50'}`}>
                   <p className={`text-sm font-bold flex items-center gap-2 mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                     <Link2 size={15} className="text-accent" /> Link de Referência
@@ -433,21 +487,169 @@ export default function EditProfilePage() {
                   </div>
 
                   <div>
-                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <FileText size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
-                      Descrição / Bio
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder="Ex: Fodedor, Safado, Criador Premium..."
-                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
-                    />
-                  </div>
+                     <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                       <FileText size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
+                       Descrição / Bio
+                     </label>
+                     <textarea
+                       rows={4}
+                       value={bio}
+                       onChange={(e) => setBio(e.target.value)}
+                       placeholder="Ex: Fodedor, Safado, Criador Premium..."
+                       className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                     />
+                   </div>
 
-                  {/* SMS Opt-in Toggle */}
-                  <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
+                   {/* User Info Section */}
+                   <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
+                     <p className={`text-sm font-bold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                       <UserIcon size={16} className="text-accent" /> Informações Pessoais
+                     </p>
+                     
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       {/* Gender */}
+                       <div>
+                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                           Gênero
+                         </label>
+                         <select
+                           value={gender}
+                           onChange={(e) => setGender(e.target.value as 'male' | 'female' | 'other' | '')}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'border-gray-300'}`}
+                         >
+                           <option value="">Selecionar...</option>
+                           <option value="male">Masculino</option>
+                           <option value="female">Feminino</option>
+                           <option value="other">Outro</option>
+                         </select>
+                       </div>
+
+                       {/* Age */}
+                       <div>
+                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                           Idade
+                         </label>
+                         <input
+                           type="number"
+                           min="18"
+                           max="100"
+                           value={age}
+                           onChange={(e) => setAge(e.target.value)}
+                           placeholder="18-100"
+                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                         />
+                       </div>
+
+                       {/* Country */}
+                       <div>
+                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                           País
+                         </label>
+                         <select
+                           value={country}
+                           onChange={(e) => {
+                             setCountry(e.target.value)
+                             if (e.target.value !== 'AO') setProvince('')
+                           }}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'border-gray-300'}`}
+                         >
+                           <option value="AO">Angola</option>
+                           <option value="PT">Portugal</option>
+                           <option value="BR">Brasil</option>
+                           <option value="US">Estados Unidos</option>
+                           <option value="UK">Reino Unido</option>
+                           <option value="Other">Outro</option>
+                         </select>
+                       </div>
+
+                       {/* Province (only for Angola) */}
+                       {country === 'AO' && (
+                         <div>
+                           <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                             Província
+                           </label>
+                           <select
+                             value={province}
+                             onChange={(e) => setProvince(e.target.value)}
+                             className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'border-gray-300'}`}
+                           >
+                             <option value="">Selecionar província...</option>
+                             <option value="Luanda">Luanda</option>
+                             <option value="Bengo">Bengo</option>
+                             <option value="Benguela">Benguela</option>
+                             <option value="Huambo">Huambo</option>
+                             <option value="Lubango">Lubango</option>
+                             <option value="Cabinda">Cabinda</option>
+                             <option value="Kuando Kubango">Kuando Kubango</option>
+                             <option value="Cunene">Cunene</option>
+                             <option value="Namibe">Namibe</option>
+                             <option value="Huíla">Huíla</option>
+                             <option value="Bié">Bié</option>
+                             <option value="Moxico">Moxico</option>
+                             <option value="Zaire">Zaire</option>
+                             <option value="Cuanza Norte">Cuanza Norte</option>
+                             <option value="Cuanza Sul">Cuanza Sul</option>
+                             <option value="Malanje">Malanje</option>
+                             <option value="Uíge">Uíge</option>
+                             <option value="Cuanza">Cuanza</option>
+                           </select>
+                         </div>
+                       )}
+
+                       {/* Location */}
+                       <div className="sm:col-span-2">
+                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                           Localidade / Cidade
+                         </label>
+                         <input
+                           type="text"
+                           value={location}
+                           onChange={(e) => setLocation(e.target.value)}
+                           placeholder="Ex: Luanda, Benguela, Huambo..."
+                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                         />
+                       </div>
+                     </div>
+
+                     {/* Visibility Toggles */}
+                     <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                       <p className={`text-xs font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                         Visibilidade no Perfil
+                       </p>
+                       <div className="flex flex-wrap gap-3">
+                         <label className="flex items-center gap-2 cursor-pointer">
+                           <input
+                             type="checkbox"
+                             checked={showGender}
+                             onChange={(e) => setShowGender(e.target.checked)}
+                             className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                           />
+                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mostrar Gênero</span>
+                         </label>
+                         <label className="flex items-center gap-2 cursor-pointer">
+                           <input
+                             type="checkbox"
+                             checked={showCountry}
+                             onChange={(e) => setShowCountry(e.target.checked)}
+                             className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                           />
+                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mostrar País</span>
+                         </label>
+                         <label className="flex items-center gap-2 cursor-pointer">
+                           <input
+                             type="checkbox"
+                             checked={showLocation}
+                             onChange={(e) => setShowLocation(e.target.checked)}
+                             className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                           />
+                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mostrar Localidade</span>
+                         </label>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* SMS Opt-in Toggle */}
+                   <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className={`text-sm font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
@@ -475,14 +677,23 @@ export default function EditProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setIsEditing(false)
-                      // Revert fields
-                      setDisplayName(profile?.display_name || '')
-                      setBio(profile?.bio || '')
-                      setPhone(profile?.phone || '')
-                      setSmsEnabled(profile?.sms_notifications_enabled !== false)
-                      setAvatarPreview(profile?.avatar_url || null)
-                    }}
+                       setIsEditing(false)
+                       // Revert fields
+                       setDisplayName(profile?.display_name || '')
+                       setBio(profile?.bio || '')
+                       setPhone(profile?.phone || '')
+                       setSmsEnabled(profile?.sms_notifications_enabled !== false)
+                       setAvatarPreview(profile?.avatar_url || null)
+                       // Revert user info fields
+                       setGender(profile?.gender || '')
+                       setAge(profile?.age ? String(profile.age) : '')
+                       setCountry(profile?.country || 'AO')
+                       setProvince(profile?.province || '')
+                       setLocation(profile?.location || '')
+                       setShowGender(profile?.show_gender !== false)
+                       setShowCountry(profile?.show_country !== false)
+                       setShowLocation(profile?.show_location !== false)
+                     }}
                     disabled={saving}
                     className={`px-6 py-3 rounded-full font-bold transition-colors w-full sm:w-auto ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
@@ -502,28 +713,32 @@ export default function EditProfilePage() {
           </div>
 
           {/* VIP Badge Card — visible on mobile/tablet below form */}
-          <div className="xl:hidden mt-6">
-            <VipBadgeCard
-              profile={profile}
-              vipBadgePrice={vipBadgePrice}
-              requestingBadge={requestingBadge}
-              theme={theme}
-              onBuy={handleBuyBadge}
-            />
-          </div>
+          {!(user?.email && isAdminEmail(user.email)) && (
+            <div className="xl:hidden mt-6">
+              <VipBadgeCard
+                profile={profile}
+                vipBadgePrice={vipBadgePrice}
+                requestingBadge={requestingBadge}
+                theme={theme}
+                onBuy={handleBuyBadge}
+              />
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar (Verification Box) — visible on desktop */}
         <div className="hidden xl:block w-[280px] flex-shrink-0">
-          <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden sticky top-24 p-5">
-            <VipBadgeCard
-              profile={profile}
-              vipBadgePrice={vipBadgePrice}
-              requestingBadge={requestingBadge}
-              theme={theme}
-              onBuy={handleBuyBadge}
-            />
-          </div>
+          {!(user?.email && isAdminEmail(user.email)) && (
+            <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden sticky top-24 p-5">
+              <VipBadgeCard
+                profile={profile}
+                vipBadgePrice={vipBadgePrice}
+                requestingBadge={requestingBadge}
+                theme={theme}
+                onBuy={handleBuyBadge}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

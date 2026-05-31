@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
@@ -36,6 +37,7 @@ function MessagesContent() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const deleteMenuRef = useRef<HTMLDivElement>(null)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [recordingAudio, setRecordingAudio] = useState(false)
@@ -573,13 +575,15 @@ function MessagesContent() {
               <div className={`sticky top-0 z-10 flex items-center justify-between border-b border-border p-3 backdrop-blur-md transition-colors duration-300 sm:p-4 ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80'}`}>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setSelectedContact(null)} className={`md:hidden p-2 -ml-2 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-accent'}`}><ArrowLeft size={20} /></button>
-                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold overflow-hidden shadow-sm">
-                    {selectedContact.avatar_url ? <img src={selectedContact.avatar_url} className="w-full h-full object-cover" /> : selectedContact.display_name?.charAt(0)}
-                  </div>
-                  <div>
-                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{selectedContact.display_name}</p>
-                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isOnline(selectedContact.id) ? 'text-green-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>{isOnline(selectedContact.id) ? 'Online agora' : 'Offline'}</p>
-                  </div>
+                  <Link href={`/dashboard/creator/${selectedContact.id}`} className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold overflow-hidden shadow-sm">
+                      {selectedContact.avatar_url ? <img src={selectedContact.avatar_url} className="w-full h-full object-cover" /> : selectedContact.display_name?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className={`font-bold hover:text-accent transition-colors ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{selectedContact.display_name}</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wider ${isOnline(selectedContact.id) ? 'text-green-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>{isOnline(selectedContact.id) ? 'Online agora' : 'Offline'}</p>
+                    </div>
+                  </Link>
                 </div>
               </div>
 
@@ -603,9 +607,9 @@ function MessagesContent() {
                                 <audio controls src={msg.file_url} preload="metadata" className="h-9 w-56 max-w-full" />
                               </div>
                             ) : msg.file_type?.startsWith('image/') ? (
-                              <a href={msg.file_url} target="_blank" rel="noopener noreferrer">
+                              <button onClick={() => setPreviewImageUrl(msg.file_url)} className="block w-full text-left">
                                 <img src={msg.file_url} alt={msg.file_name || 'Imagem'} className="max-w-full rounded-lg max-h-48 object-cover" />
-                              </a>
+                              </button>
                             ) : (
                               <a
                                 href={msg.file_url}
@@ -770,6 +774,27 @@ function MessagesContent() {
           )}
         </div>
       </div>
+
+      {/* Image Lightbox */}
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <button
+            onClick={() => setPreviewImageUrl(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={previewImageUrl}
+            alt="Preview"
+            className="max-w-[90vw] max-h-[90vh] rounded-2xl shadow-2xl animate-in zoom-in duration-300"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

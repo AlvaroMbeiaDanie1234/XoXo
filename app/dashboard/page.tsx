@@ -11,6 +11,7 @@ import SuggestedCreators from '@/components/dashboard/suggested-creators'
 import { formatRelativeTime } from '@/lib/format-relative-time'
 import WithdrawableAlert from '@/components/dashboard/withdrawable-alert'
 import ConsentModal from '@/components/dashboard/consent-modal'
+import StoriesBar from '@/components/dashboard/stories-bar'
 import {
   Search, Wallet, PlusCircle, List, ArrowLeft, Loader2,
   CheckCircle2, ExternalLink, ArrowUpRight, ArrowDownLeft,
@@ -660,6 +661,11 @@ function DashboardContent() {
               {/* Withdrawable Alert */}
               <WithdrawableAlert />
 
+              {/* Stories */}
+              <div className="-mx-4 w-[calc(100%+2rem)] sm:mx-0 sm:w-full">
+                <StoriesBar currentUserId={user?.id || null} />
+              </div>
+
               <div className="-mx-4 mb-4 w-[calc(100%+2rem)] xl:hidden">
                 <SuggestedCreators variant="mobile" />
               </div>
@@ -702,7 +708,7 @@ function DashboardContent() {
                       <PostCard
                         key={post.id}
                         {...post}
-                        creator_name={isAdminCreator ? 'XoXo' : (post.profiles?.display_name || 'Usuário')}
+                        creator_name={post.profiles?.display_name || 'Usuário'}
                         creator_avatar={post.profiles?.avatar_url || undefined}
                         creator_verified={isAdminCreator ? true : (post.profiles?.is_verified || false)}
                         creator_id={post.user_id}

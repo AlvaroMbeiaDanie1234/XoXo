@@ -141,7 +141,26 @@ export const translations = {
 
     // Notifications
     "notif.title": "Notificações",
-    "notif.empty": "Nenhuma notificação no momento."
+    "notif.empty": "Nenhuma notificação no momento.",
+
+    // User Info Modal
+    "userInfo.title": "Completa o teu perfil",
+    "userInfo.gender": "Gênero",
+    "userInfo.age": "Idade",
+    "userInfo.country": "País",
+    "userInfo.province": "Província / Estado",
+    "userInfo.location": "Local de residência",
+    "userInfo.gender.male": "Masculino",
+    "userInfo.gender.female": "Feminino",
+    "userInfo.gender.other": "Outro",
+    "userInfo.save": "Guardar",
+    "userInfo.saving": "A guardar...",
+    "userInfo.required": "Por favor, preenche todos os campos obrigatórios.",
+    "userInfo.visibility.title": "Visibilidade do Perfil",
+    "userInfo.visibility.gender": "Mostrar gênero publicamente",
+    "userInfo.visibility.country": "Mostrar país publicamente",
+    "userInfo.visibility.location": "Mostrar local de residência publicamente",
+    "userInfo.visibility.hint": "Controla quem pode ver esta informação no teu perfil."
   },
   EN: {
     // Navigation
@@ -285,7 +304,26 @@ export const translations = {
 
     // Notifications
     "notif.title": "Notifications",
-    "notif.empty": "No notifications at the moment."
+    "notif.empty": "No notifications at the moment.",
+
+    // User Info Modal
+    "userInfo.title": "Complete your profile",
+    "userInfo.gender": "Gender",
+    "userInfo.age": "Age",
+    "userInfo.country": "Country",
+    "userInfo.province": "Province / State",
+    "userInfo.location": "Residence location",
+    "userInfo.gender.male": "Male",
+    "userInfo.gender.female": "Female",
+    "userInfo.gender.other": "Other",
+    "userInfo.save": "Save",
+    "userInfo.saving": "Saving...",
+    "userInfo.required": "Please fill in all required fields.",
+    "userInfo.visibility.title": "Profile Visibility",
+    "userInfo.visibility.gender": "Show gender publicly",
+    "userInfo.visibility.country": "Show country publicly",
+    "userInfo.visibility.location": "Show residence location publicly",
+    "userInfo.visibility.hint": "Controls who can see this information on your profile."
   }
 } as const;
 
