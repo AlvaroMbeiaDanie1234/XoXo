@@ -2,18 +2,31 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Loader2, X, Image as ImageIcon, Send } from 'lucide-react'
+import { Plus, Loader2, X, Image as ImageIcon, Send, Eye, ChevronLeft } from 'lucide-react'
+import { formatRelativeTime } from '@/lib/format-relative-time'
+
+interface StoryItem {
+  id: string
+  media_url: string | null
+  content: string | null
+  created_at: string
+  story_views: { count: number }[]
+}
 
 interface StoryUser {
   id: string
   display_name: string
   avatar_url: string | null
-  stories: {
-    id: string
-    media_url: string | null
-    content: string | null
-    created_at: string
-  }[]
+  stories: StoryItem[]
+}
+
+interface Viewer {
+  user_id: string
+  created_at: string
+  profiles: {
+    display_name: string
+    avatar_url: string | null
+  }
 }
 
 export default function StoriesBar({ currentUserId }: { currentUserId: string | null }) {
@@ -26,6 +39,9 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
   const [newStoryFile, setNewStoryFile] = useState<File | null>(null)
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [viewers, setViewers] = useState<Viewer[]>([])
+  const [showViewers, setShowViewers] = useState(false)
+  const [loadingViewers, setLoadingViewers] = useState(false)
   const progressRef = useRef<number>(0)
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const supabase = createClient()
@@ -37,6 +53,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
   useEffect(() => {
     if (viewingIndex !== null) {
       startProgress()
+      recordView()
     }
     return () => {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current)
@@ -62,6 +79,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
           media_url: s.media_url,
           content: s.content,
           created_at: s.created_at,
+          story_views: s.story_views || [],
         })
       }
       const ownFirst = [...grouped.values()].sort((a, b) => {
@@ -72,6 +90,13 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
       setStoryUsers(ownFirst)
     }
     setLoading(false)
+  }
+
+  const recordView = async () => {
+    if (viewingIndex === null) return
+    const story = storyUsers[viewingIndex]?.stories[viewingStoryIndex]
+    if (!story || storyUsers[viewingIndex]?.id === currentUserId) return
+    await fetch(`/api/stories/${story.id}/view`, { method: 'POST' })
   }
 
   const startProgress = () => {
@@ -93,6 +118,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
         } else {
           setViewingIndex(null)
           setViewingStoryIndex(0)
+          setShowViewers(false)
         }
       }
     }, interval)
@@ -107,6 +133,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
       setViewingIndex(prev => prev! - 1)
       setViewingStoryIndex(prevUser ? prevUser.stories.length - 1 : 0)
     }
+    setShowViewers(false)
   }
 
   const handleNextStory = () => {
@@ -122,6 +149,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
       setViewingIndex(null)
       setViewingStoryIndex(0)
     }
+    setShowViewers(false)
   }
 
   const handleCreateStory = async () => {
@@ -179,11 +207,35 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
       loadStories()
       setViewingIndex(null)
       setViewingStoryIndex(0)
+      setShowViewers(false)
     }
+  }
+
+  const handleOpenViewers = async () => {
+    const story = storyUsers[viewingIndex!]?.stories[viewingStoryIndex]
+    if (!story) return
+    setLoadingViewers(true)
+    setShowViewers(true)
+    const res = await fetch(`/api/stories/${story.id}/views`)
+    if (res.ok) {
+      setViewers(await res.json())
+    }
+    setLoadingViewers(false)
+  }
+
+  const closeViewer = () => {
+    setViewingIndex(null)
+    setViewingStoryIndex(0)
+    setShowViewers(false)
+  }
+
+  const getViewCount = (story: StoryItem): number => {
+    return story.story_views?.[0]?.count || 0
   }
 
   return (
     <>
+      {/* Stories Bar */}
       <div className="flex gap-3 overflow-x-auto py-3 px-1 scrollbar-thin">
         {loading ? (
           <div className="flex gap-3">
@@ -243,11 +295,12 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
       {viewingIndex !== null && storyUsers[viewingIndex] && (
         <div
           className="fixed inset-0 z-[100] bg-black flex flex-col"
-          onClick={(e) => { if (e.target === e.currentTarget) { setViewingIndex(null); setViewingStoryIndex(0) } }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeViewer() }}
         >
-          <div className="absolute top-0 left-0 right-0 z-10 flex gap-1 p-2">
+          {/* Progress bars */}
+          <div className="absolute top-0 left-0 right-0 z-20 flex gap-0.5 px-1 pt-1">
             {storyUsers[viewingIndex].stories.map((story, i) => (
-              <div key={story.id} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
+              <div key={story.id} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-white rounded-full transition-all duration-75"
                   style={{
@@ -258,55 +311,126 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
             ))}
           </div>
 
-          <div className="absolute top-3 right-3 z-10 flex gap-2">
-            {storyUsers[viewingIndex].id === currentUserId && (
-              <button
-                onClick={() => handleDeleteStory(storyUsers[viewingIndex].stories[viewingStoryIndex]?.id)}
-                disabled={deletingId !== null}
-                className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-50"
-              >
-                {deletingId ? <Loader2 size={18} className="animate-spin" /> : <X size={18} />}
-              </button>
-            )}
-            <button
-              onClick={() => { setViewingIndex(null); setViewingStoryIndex(0) }}
-              className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
-            >
-              <X size={22} />
-            </button>
-          </div>
-
-          <div className="absolute top-12 left-3 z-10 flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-white/20 overflow-hidden border-2 border-white/50">
-              {storyUsers[viewingIndex].avatar_url ? (
-                <img src={storyUsers[viewingIndex].avatar_url} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white font-bold">
-                  {storyUsers[viewingIndex].display_name?.charAt(0)}
-                </div>
-              )}
+          {/* Top bar */}
+          <div className="absolute top-2 left-0 right-0 z-20 flex items-center justify-between px-3 pt-2">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/50 flex-shrink-0 shadow-lg">
+                {storyUsers[viewingIndex].avatar_url ? (
+                  <img src={storyUsers[viewingIndex].avatar_url} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm bg-gray-600">
+                    {storyUsers[viewingIndex].display_name?.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm drop-shadow-lg leading-tight">{storyUsers[viewingIndex].display_name}</p>
+                <p className="text-white/60 text-[10px] font-medium">
+                  {formatRelativeTime(storyUsers[viewingIndex].stories[viewingStoryIndex]?.created_at)}
+                </p>
+              </div>
             </div>
-            <span className="text-white font-bold text-sm drop-shadow-lg">{storyUsers[viewingIndex].display_name}</span>
+            <div className="flex items-center gap-2">
+              {storyUsers[viewingIndex].id === currentUserId && (
+                <button
+                  onClick={handleOpenViewers}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold hover:bg-white/25 transition-all backdrop-blur-sm"
+                >
+                  <Eye size={14} />
+                  {getViewCount(storyUsers[viewingIndex].stories[viewingStoryIndex])}
+                </button>
+              )}
+              {storyUsers[viewingIndex].id === currentUserId && (
+                <button
+                  onClick={() => handleDeleteStory(storyUsers[viewingIndex].stories[viewingStoryIndex]?.id)}
+                  disabled={deletingId !== null}
+                  className="p-1.5 rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors disabled:opacity-50 backdrop-blur-sm"
+                >
+                  {deletingId ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
+                </button>
+              )}
+              <button
+                onClick={closeViewer}
+                className="p-1.5 rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors backdrop-blur-sm"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          <div
-            className="absolute inset-0 z-0 flex items-center justify-center"
-            onClick={handleNextStory}
-          >
+          {/* Content area */}
+          <div className="flex-1 relative flex items-center justify-center">
+            {/* Left tap area */}
             <div className="absolute left-0 top-0 bottom-0 w-1/3 z-10" onClick={(e) => { e.stopPropagation(); handlePrevStory() }} />
+            {/* Right tap area */}
             <div className="absolute right-0 top-0 bottom-0 w-1/3 z-10" onClick={(e) => { e.stopPropagation(); handleNextStory() }} />
+            {/* Center tap / content */}
             {storyUsers[viewingIndex].stories[viewingStoryIndex]?.media_url ? (
-              <img
-                src={storyUsers[viewingIndex].stories[viewingStoryIndex].media_url}
-                alt="Story"
-                className="max-w-full max-h-full object-contain"
-              />
+              <div className="w-full h-full flex items-center justify-center">
+                <img
+                  src={storyUsers[viewingIndex].stories[viewingStoryIndex].media_url}
+                  alt="Story"
+                  className="max-w-full max-h-full object-contain"
+                  onClick={(e) => { e.stopPropagation(); handleNextStory() }}
+                />
+              </div>
             ) : (
-              <div className="text-white text-2xl font-bold text-center px-8 max-w-lg">
+              <div
+                className="text-white text-2xl font-bold text-center px-8 max-w-lg"
+                onClick={(e) => { e.stopPropagation(); handleNextStory() }}
+              >
                 {storyUsers[viewingIndex].stories[viewingStoryIndex]?.content}
               </div>
             )}
           </div>
+
+          {/* Bottom gradient */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
+
+          {/* Viewers Panel */}
+          {showViewers && (
+            <div
+              className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+              onClick={(e) => { if (e.target === e.currentTarget) setShowViewers(false) }}
+            >
+              <div className="bg-gray-900 rounded-2xl w-full max-w-sm mx-4 max-h-[60vh] overflow-hidden shadow-2xl border border-white/10">
+                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                  <button onClick={() => setShowViewers(false)} className="text-white/60 hover:text-white transition-colors">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h3 className="text-white font-bold text-sm">Visualizações</h3>
+                  <div className="w-5" />
+                </div>
+                <div className="overflow-y-auto max-h-[50vh] p-2">
+                  {loadingViewers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 size={20} className="animate-spin text-white/40" />
+                    </div>
+                  ) : viewers.length === 0 ? (
+                    <p className="text-white/40 text-sm text-center py-8 font-medium">Ninguém viu ainda</p>
+                  ) : (
+                    viewers.map((v) => (
+                      <div key={v.user_id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-xl transition-colors">
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                          {v.profiles?.avatar_url ? (
+                            <img src={v.profiles.avatar_url} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white/60 text-xs font-bold">
+                              {v.profiles?.display_name?.charAt(0) || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-semibold text-sm truncate">{v.profiles?.display_name || 'Usuário'}</p>
+                          <p className="text-white/40 text-[10px]">{formatRelativeTime(v.created_at)}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

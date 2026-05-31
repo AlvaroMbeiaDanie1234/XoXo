@@ -138,23 +138,28 @@ function MessagesContent() {
         }
       })
 
-      // Fetch last message for each contact to sort by most recent
-      const contactsWithLastMessage = await Promise.all(
-        allContacts.map(async (contact: any) => {
-          const { data: lastMsg } = await supabase
-            .from('messages')
-            .select('created_at')
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${contact.id}),and(sender_id.eq.${contact.id},receiver_id.eq.${currentUser.id})`)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
+      // Fetch last message for each contact using a single query
+      const { data: userMessages } = await supabase
+        .from('messages')
+        .select('sender_id, receiver_id, created_at')
+        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+        .order('created_at', { ascending: false })
+        .limit(1000)
 
-          return {
-            ...contact,
-            lastMessageAt: lastMsg?.created_at || null
+      const lastMsgMap = new Map<string, string>()
+      if (userMessages) {
+        userMessages.forEach(msg => {
+          const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
+          if (!lastMsgMap.has(otherId)) {
+            lastMsgMap.set(otherId, msg.created_at)
           }
         })
-      )
+      }
+
+      const contactsWithLastMessage = allContacts.map(contact => ({
+        ...contact,
+        lastMessageAt: lastMsgMap.get(contact.id) || null
+      }))
 
       // Sort contacts by last message date (most recent first)
       const sortedContacts = contactsWithLastMessage.sort((a: any, b: any) => {

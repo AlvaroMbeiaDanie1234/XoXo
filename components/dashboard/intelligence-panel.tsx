@@ -31,9 +31,11 @@ export default function IntelligencePanel({
 
   const loadConversations = async () => {
     setLoading(true)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: messages } = await supabase
       .from('messages')
       .select('sender_id, receiver_id, created_at')
+      .gte('created_at', thirtyDaysAgo)
       .order('created_at', { ascending: false })
 
     if (!messages) { setLoading(false); return }
@@ -116,7 +118,7 @@ export default function IntelligencePanel({
                       ? (userAProfile?.profileA?.display_name || 'User A')
                       : (userAProfile?.profileB?.display_name || 'User B')}
                   </span>
-                  <span className="text-[10px] text-gray-400">{new Date(msg.created_at).toLocaleString('pt-PT')}</span>
+                  <span className="text-[10px] text-gray-400">{formatRelativeTime(msg.created_at)}</span>
                 </div>
                 <p className="text-gray-800">{msg.content}</p>
                 {msg.file_url && (

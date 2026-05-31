@@ -487,13 +487,7 @@ export default function PostCard({
           >
             <MessageSquare size={14} /> {commentsCount > 0 ? `${commentsCount} comentários` : 'Comentar'}
           </button>
-          <span>{createdAt ? createdAt.toLocaleString('pt-PT', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }) : 'Agora'}</span>
+          <span>{createdAt ? formatRelativeTime(createdAt.toISOString()) : 'Agora'}</span>
         </div>
       </div>
 

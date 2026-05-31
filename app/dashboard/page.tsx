@@ -98,7 +98,7 @@ function DashboardContent() {
   const minDeposit = minDepositForCurrency(preferredCurrency)
 
   const reloadProfile = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    const { data } = await supabase.from('profiles').select('id, display_name, avatar_url, balance, is_verified, is_free_plan, preferred_currency').eq('id', userId).single()
     if (data) {
       setUserProfile(data)
       setBalance(Number(data.balance) || 0)
@@ -186,7 +186,7 @@ function DashboardContent() {
         }
 
         // Fetch User Profile
-        const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('id, display_name, avatar_url, balance, is_verified, is_free_plan, preferred_currency').eq('id', currentUser.id).single()
         if (profileError) {
           console.error("XoXo Dashboard: Error fetching user profile:", profileError)
         }

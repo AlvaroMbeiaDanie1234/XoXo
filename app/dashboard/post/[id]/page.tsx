@@ -17,7 +17,6 @@ import {
 
 export default function PostDetailsPage() {
   const POST_DETAILS_CACHE_TTL_MS = 60 * 1000
-  const PAID_PREVIEW_SECONDS = 1
   const { toast } = useToast()
   const params = useParams()
   const id = params.id as string
@@ -185,13 +184,6 @@ export default function PostDetailsPage() {
     } finally {
       setDeleting(false)
       setShowDeleteModal(false)
-    }
-  }
-
-  const handleTimeUpdate = () => {
-    if (!hasAccess && videoRef.current && videoRef.current.currentTime >= PAID_PREVIEW_SECONDS) {
-      videoRef.current.pause()
-      setShowPaywall(true)
     }
   }
 
@@ -425,15 +417,14 @@ export default function PostDetailsPage() {
           <div className="bg-white rounded-none border-y border-border shadow-sm overflow-hidden mb-6 relative z-10 sm:rounded-xl sm:border">
             <div className={`relative flex items-center justify-center overflow-hidden ${showPaywall && !hasAccess ? 'min-h-[520px] sm:aspect-video sm:min-h-0' : 'aspect-video'} ${post.content_type === 'article' && !post.thumbnail_url ? 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50' : 'bg-black'}`}>
               {post.content_type === 'video' ? (
-                <video
-                  ref={videoRef}
-                  src={post.content_url}
-                  controls={hasAccess || !showPaywall}
-                  onTimeUpdate={handleTimeUpdate}
-                  className="w-full h-full object-contain"
-                  autoPlay={!showPaywall}
-                  muted={!hasAccess}
-                />
+                  <video
+                    ref={videoRef}
+                    src={post.content_url}
+                    controls={hasAccess}
+                    className="w-full h-full object-contain"
+                    autoPlay={false}
+                    muted
+                  />
               ) : post.content_type === 'article' && !post.thumbnail_url ? (
                 <div className="text-center p-6 max-w-lg relative bg-gray-100">
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 bg-[url('/xoxo.png')] bg-center bg-contain bg-no-repeat"></div>
@@ -456,7 +447,7 @@ export default function PostDetailsPage() {
                   <div className="text-center px-4 max-w-sm flex-shrink-0">
                     <h2 className="text-2xl md:text-3xl font-black text-white mb-2 tracking-tighter uppercase">Quer continuar a ver?</h2>
                     <p className="text-gray-300 text-xs md:text-sm mb-4 md:mb-8">
-                      O tempo de curiosidade de {PAID_PREVIEW_SECONDS} segundo{PAID_PREVIEW_SECONDS > 1 ? 's' : ''} acabou. Desbloqueia agora para assistir ao conteúdo completo.
+                      Conteúdo pago. Desbloqueia agora para assistir ao conteúdo completo.
                     </p>
                   </div>
                   <div className="flex flex-col items-center w-full max-w-xs flex-shrink-0">

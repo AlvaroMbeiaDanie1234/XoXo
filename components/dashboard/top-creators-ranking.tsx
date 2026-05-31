@@ -20,27 +20,30 @@ export default function TopCreatorsRanking() {
   useEffect(() => {
     async function fetchTopCreators() {
       try {
-        // Fetch all profiles
+        // Fetch profiles with limit
         const { data: profiles, error } = await supabase
           .from('profiles')
           .select('id, display_name, avatar_url, is_verified')
+          .limit(100)
 
         if (error) throw error
 
-        // Fetch subscriber counts for each creator
-        const creatorsWithCounts = await Promise.all(
-          (profiles || []).map(async (creator) => {
-            const { count } = await supabase
-              .from('subscriptions')
-              .select('id', { count: 'exact', head: true })
-              .eq('following_id', creator.id)
+        // Single query for all subscriber counts
+        const { data: allSubs } = await supabase
+          .from('subscriptions')
+          .select('following_id')
 
-            return {
-              ...creator,
-              subscriber_count: count || 0
-            }
+        const countMap: Record<string, number> = {}
+        if (allSubs) {
+          allSubs.forEach(sub => {
+            countMap[sub.following_id] = (countMap[sub.following_id] || 0) + 1
           })
-        )
+        }
+
+        const creatorsWithCounts = (profiles || []).map(creator => ({
+          ...creator,
+          subscriber_count: countMap[creator.id] || 0
+        }))
 
         // Sort by subscriber count and get top 3
         const sorted = creatorsWithCounts.sort((a, b) => b.subscriber_count - a.subscriber_count)

@@ -259,10 +259,15 @@ export default function AdminDashboard() {
       setCurrentUser(user)
 
       // Fetch users
-      const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
-      
-      // Fetch all transactions to calculate withdrawable earnings
-      const { data: allTransactions } = await supabase.from('transactions').select('*')
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, avatar_url, balance, is_verified, is_free_plan, created_at')
+        .order('created_at', { ascending: false })
+
+      // Fetch all transactions for withdrawable calculation
+      const { data: allTransactions } = await supabase
+        .from('transactions')
+        .select('user_id, type, amount, status')
       
       if (profiles) {
         // Calculate withdrawable earnings for each user
@@ -290,38 +295,41 @@ export default function AdminDashboard() {
           .slice(0, 10)
         setTopUsersByBalance(topByBalance)
 
-        // Calculate top users by followers
-        const followersPromises = profiles.map(async (profile) => {
-          const { count } = await supabase
-            .from('subscriptions')
-            .select('*', { count: 'exact', head: true })
-            .eq('creator_id', profile.id)
-          return { id: profile.id, count: count || 0 }
-        })
-        const followersData = await Promise.all(followersPromises)
-        const usersWithFollowers = profiles.map(profile => ({
-          ...profile,
-          followers_count: followersData.find(f => f.id === profile.id)?.count || 0
-        }))
-        const topByFollowers = usersWithFollowers
+        // Single query for follower counts
+        const { data: allFollowers } = await supabase
+          .from('subscriptions')
+          .select('following_id')
+        const followerMap: Record<string, number> = {}
+        if (allFollowers) {
+          allFollowers.forEach(sub => {
+            followerMap[sub.following_id] = (followerMap[sub.following_id] || 0) + 1
+          })
+        }
+        const topByFollowers = usersWithEarnings
+          .map(profile => ({
+            ...profile,
+            followers_count: followerMap[profile.id] || 0
+          }))
           .sort((a, b) => b.followers_count - a.followers_count)
           .slice(0, 10)
         setTopUsersByFollowers(topByFollowers)
 
-        // Calculate top users by posts
-        const postsPromises = profiles.map(async (profile) => {
-          const { count } = await supabase
-            .from('posts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.id)
-          return { id: profile.id, count: count || 0 }
-        })
-        const postsData = await Promise.all(postsPromises)
-        const usersWithPosts = profiles.map(profile => ({
-          ...profile,
-          posts_count: postsData.find(p => p.id === profile.id)?.count || 0
-        }))
-        const topByPosts = usersWithPosts
+        // Single query for post counts
+        const { data: allPostCounts } = await supabase
+          .from('posts')
+          .select('user_id')
+          .limit(5000)
+        const postCountMap: Record<string, number> = {}
+        if (allPostCounts) {
+          allPostCounts.forEach(p => {
+            postCountMap[p.user_id] = (postCountMap[p.user_id] || 0) + 1
+          })
+        }
+        const topByPosts = usersWithEarnings
+          .map(profile => ({
+            ...profile,
+            posts_count: postCountMap[profile.id] || 0
+          }))
           .sort((a, b) => b.posts_count - a.posts_count)
           .slice(0, 10)
         setTopUsersByPosts(topByPosts)
@@ -340,16 +348,18 @@ export default function AdminDashboard() {
         .from('system_announcements')
         .select('*, target:profiles(display_name, email)')
         .order('created_at', { ascending: false })
+        .limit(100)
       if (annData) setAnnouncements(annData)
 
-      // Fetch feedbacks
+      // Fetch recent feedbacks
       const { data: feedbacksData } = await supabase
         .from('feedbacks')
         .select('*, profiles(display_name, email, avatar_url)')
         .order('created_at', { ascending: false })
+        .limit(100)
       if (feedbacksData) setFeedbacks(feedbacksData)
 
-      // Fetch reports
+      // Fetch recent reports
       const { data: reportsData } = await supabase
         .from('reports')
         .select(`
@@ -359,6 +369,7 @@ export default function AdminDashboard() {
           posts:post_id(id, title)
         `)
         .order('created_at', { ascending: false })
+        .limit(100)
       if (reportsData) setReports(reportsData)
 
       // Fetch online users through the admin API so RLS does not hide sessions.
@@ -1174,7 +1185,7 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('withdrawals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'withdrawals' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <CreditCard size={20} /> Levantamentos {pendingWithdrawals.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingWithdrawals.length}</span>}
               </button>
-             
+              
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Settings size={20} /> Definições
               </button>

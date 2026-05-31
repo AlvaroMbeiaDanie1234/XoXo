@@ -55,7 +55,7 @@ export default function ExplorePage() {
       // Fetch all creators (profiles)
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, display_name, avatar_url, is_verified, bio, created_at')
         .neq('id', currentUser?.id || '')
         .limit(500)
 
@@ -64,20 +64,18 @@ export default function ExplorePage() {
         setCreators(profiles)
         setAllCreators(profiles)
 
-        // Fetch followers count for each creator
-        const followersPromises = profiles.map(async (profile) => {
-          const { count } = await supabase
-            .from('subscriptions')
-            .select('*', { count: 'exact', head: true })
-            .eq('following_id', profile.id)
-          return { id: profile.id, count: count || 0 }
-        })
+        // Single query for all follower counts
+        const { data: allSubs } = await supabase
+          .from('subscriptions')
+          .select('following_id')
+          .in('following_id', profiles.map(p => p.id))
 
-        const followersData = await Promise.all(followersPromises)
         followersMap = {}
-        followersData.forEach(({ id, count }) => {
-          followersMap[id] = count
-        })
+        if (allSubs) {
+          allSubs.forEach(sub => {
+            followersMap[sub.following_id] = (followersMap[sub.following_id] || 0) + 1
+          })
+        }
         setFollowersCount(followersMap)
       }
 

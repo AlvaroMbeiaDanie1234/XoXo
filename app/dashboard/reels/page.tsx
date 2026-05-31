@@ -83,10 +83,8 @@ export default function ReelsPage() {
 
           if (entry.isIntersecting) {
             if (video) {
-              // Check if video is paid and user hasn't paid
               if (isLockedVideo(videoData)) {
                 video.play().catch(console.error)
-                // Pause after paid preview window
                 clearVideoTimer(videoData.id)
                 const timer = setTimeout(() => {
                   video.pause()
@@ -124,32 +122,14 @@ export default function ReelsPage() {
 
       // Check if video is paid and user hasn't paid
       if (isLockedVideo(videoData)) {
-        videoRef.current.play().catch(console.error)
-        setIsPlaying(true)
-        // Pause after paid preview window
-        clearVideoTimer(videoData.id)
-        const timer = setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.pause()
-            videoRef.current.currentTime = 0
-            setIsPlaying(false)
-            setPreviewExpired(prev => new Set(prev).add(videoData.id))
-          }
-        }, PAID_PREVIEW_SECONDS * 1000)
-        videoTimersRef.current[videoData.id] = timer
+        setIsPlaying(false)
       } else {
         videoRef.current.play().catch(console.error)
         setIsPlaying(true)
       }
     }
 
-    // Cleanup timer when switching videos
-    return () => {
-      if (selectedVideoIndex !== null && videos[selectedVideoIndex]) {
-        const videoData = videos[selectedVideoIndex]
-        clearVideoTimer(videoData.id)
-      }
-    }
+    return () => {}
   }, [selectedVideoIndex, videos, paidVideos])
 
   const loadVideos = async () => {
@@ -237,7 +217,7 @@ export default function ReelsPage() {
   const togglePlay = () => {
     if (videoRef.current) {
       const activeVideo = selectedVideoIndex !== null ? videos[selectedVideoIndex] : null
-      if (isLockedVideo(activeVideo) && activeVideo && previewExpired.has(activeVideo.id)) {
+      if (isLockedVideo(activeVideo) && activeVideo) {
         return
       }
       if (videoRef.current.paused) {
@@ -429,17 +409,9 @@ export default function ReelsPage() {
                     </div>
 
                     {isLockedVideo(video) && (
-                      <div
-                        className={`absolute inset-0 flex flex-col items-center justify-center p-4 transition-colors ${
-                          previewExpired.has(video.id) ? 'bg-black/85' : 'bg-black/45'
-                        }`}
-                      >
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-black/85 transition-colors">
                         <Lock size={28} className="text-white mb-2" />
-                        <p className="text-white text-xs font-semibold text-center">
-                          {previewExpired.has(video.id)
-                            ? 'Pré-visualização terminada. Paga para continuar.'
-                            : `Conteúdo pago: pré-visualização de ${PAID_PREVIEW_SECONDS} segundo${PAID_PREVIEW_SECONDS > 1 ? 's' : ''}.`}
-                        </p>
+                        <p className="text-white text-xs font-semibold text-center">Conteúdo pago. Paga para continuar.</p>
                       </div>
                     )}
 
@@ -681,15 +653,10 @@ export default function ReelsPage() {
               )}
             </div>
 
-            {isLockedVideo(currentVideo) && previewExpired.has(currentVideo.id) && (
+            {isLockedVideo(currentVideo) && (
               <div className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-20">
                 <Lock size={34} className="text-white mb-3" />
-                <p className="text-white font-bold text-center mb-2">
-                  Pré-visualização de {PAID_PREVIEW_SECONDS} segundo{PAID_PREVIEW_SECONDS > 1 ? 's' : ''} concluída
-                </p>
-                <p className="text-white/80 text-xs text-center mb-5">
-                  Este reel é pago. Desbloqueia para assistir ao vídeo completo.
-                </p>
+                <p className="text-white font-bold text-center mb-2">Conteúdo pago. Paga para aceder.</p>
                 {formatDuration(videoDurations[currentVideo.id]) && (
                   <p className="text-white text-xs font-semibold mb-4">
                     Duração do conteúdo: {formatDuration(videoDurations[currentVideo.id])}
