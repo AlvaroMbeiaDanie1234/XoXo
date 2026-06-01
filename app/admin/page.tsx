@@ -1093,7 +1093,7 @@ export default function AdminDashboard() {
     try {
       const amount = parseFloat(earningsAmount)
 
-      // Insert earnings_credit transaction
+      // Insert earnings_credit transaction (increases earningsCredits)
       const { error: txError } = await supabase.from('transactions').insert({
         user_id: selectedUserForEarnings.id,
         type: 'earnings_credit',
@@ -1103,16 +1103,28 @@ export default function AdminDashboard() {
       })
       if (txError) throw txError
 
-      // Deduct from available balance
+      // Insert purchase transaction to offset the deposit,
+      // so unspentDeposits goes to 0 and earnings_credit appears in withdrawable
+      const { error: purchaseError } = await supabase.from('transactions').insert({
+        user_id: selectedUserForEarnings.id,
+        type: 'purchase',
+        amount,
+        status: 'completed',
+        description: `Offset de depósito para conversão em ganhos`,
+      })
+      if (purchaseError) throw purchaseError
+
+      // Recalculate and store new balance
+      const newBalance = (selectedUserForEarnings.balance || 0) - amount
       const { error: balanceError } = await supabase
         .from('profiles')
-        .update({ balance: (selectedUserForEarnings.balance || 0) - amount })
+        .update({ balance: newBalance })
         .eq('id', selectedUserForEarnings.id)
       if (balanceError) throw balanceError
 
       setUsers(prev => prev.map(u => u.id === selectedUserForEarnings.id ? {
         ...u,
-        balance: (u.balance || 0) - amount,
+        balance: newBalance,
         withdrawable_earnings: (u.withdrawable_earnings || 0) + amount,
       } : u))
 
