@@ -6,7 +6,7 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff, Settings, Building2, Save, X, Loader2
+  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff, Settings, Building2, Save, X, Loader2, MoreHorizontal
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
 import { useTheme } from 'next-themes'
@@ -43,8 +43,9 @@ export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [financialResetPhrase, setFinancialResetPhrase] = useState('')
   const [resettingFinancials, setResettingFinancials] = useState(false)
+  const [openActionsUserId, setOpenActionsUserId] = useState<string | null>(null)
 
-  // Credit Modal States
+  // Close actions dropdown on outside click
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [selectedUserForCredit, setSelectedUserForCredit] = useState<any>(null)
   const [adminCreditAmount, setAdminCreditAmount] = useState('')
@@ -61,6 +62,10 @@ export default function AdminDashboard() {
     withdrawal_country: 'AO',
   })
   const [savingBank, setSavingBank] = useState(false)
+  const [showEarningsModal, setShowEarningsModal] = useState(false)
+  const [selectedUserForEarnings, setSelectedUserForEarnings] = useState<any>(null)
+  const [earningsAmount, setEarningsAmount] = useState('')
+  const [convertingEarnings, setConvertingEarnings] = useState(false)
 
   // Announcement Form states
   const [annType, setAnnType] = useState('comunicado') // 'comunicado' or 'anuncio'
@@ -252,6 +257,19 @@ export default function AdminDashboard() {
   const supabase = createClient()
   const router = useRouter()
 
+  // Close actions dropdown on outside click
+  useEffect(() => {
+    if (!openActionsUserId) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-actions-dropdown]') && !target.closest('[data-actions-button]')) {
+        setOpenActionsUserId(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [openActionsUserId])
+
   useEffect(() => {
     async function refreshOnlineUsers() {
       const onlineRes = await fetch('/api/admin/online-users', { cache: 'no-store' })
@@ -282,13 +300,14 @@ export default function AdminDashboard() {
       
       if (profiles) {
         // Calculate withdrawable earnings for each user
-        const usersWithEarnings = profiles.map(profile => {
+        const usersWithEarnings: any[] = profiles.map(profile => {
           const userTransactions = allTransactions?.filter(t => t.user_id === profile.id) || []
           const totalDeposits = userTransactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
           const totalPurchases = userTransactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
           const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
           const pendingWithdrawals = userTransactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
-          const withdrawable = Math.max(0, (profile.balance || 0) - unspentDeposits - pendingWithdrawals)
+          const earningsCredits = userTransactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+          const withdrawable = Math.max(0, (profile.balance || 0) + earningsCredits - unspentDeposits - pendingWithdrawals)
           
           return {
             ...profile,
@@ -1060,6 +1079,53 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleConvertToEarnings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUserForEarnings || !earningsAmount || parseFloat(earningsAmount) <= 0) return
+    setConvertingEarnings(true)
+    try {
+      const amount = parseFloat(earningsAmount)
+
+      // Insert earnings_credit transaction
+      const { error: txError } = await supabase.from('transactions').insert({
+        user_id: selectedUserForEarnings.id,
+        type: 'earnings_credit',
+        amount,
+        status: 'completed',
+        description: `Conversão administrativa de saldo para ganhos (${currentUser?.email})`,
+      })
+      if (txError) throw txError
+
+      // Deduct from available balance
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ balance: (selectedUserForEarnings.balance || 0) - amount })
+        .eq('id', selectedUserForEarnings.id)
+      if (balanceError) throw balanceError
+
+      setUsers(prev => prev.map(u => u.id === selectedUserForEarnings.id ? {
+        ...u,
+        balance: (u.balance || 0) - amount,
+        withdrawable_earnings: (u.withdrawable_earnings || 0) + amount,
+      } : u))
+
+      setShowEarningsModal(false)
+      setEarningsAmount('')
+      toast({
+        title: "Saldo convertido",
+        description: `AOA ${amount.toLocaleString()} foram convertidos de saldo disponível para ganhos de ${selectedUserForEarnings.display_name || 'utilizador'}.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      })
+    } finally {
+      setConvertingEarnings(false)
+    }
+  }
+
   const handleResetPassword = async (userId: string, userEmail: string) => {
     console.log('[Reset Password] userId:', userId, 'userEmail:', userEmail)
     toast({
@@ -1242,7 +1308,7 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('withdrawals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'withdrawals' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <CreditCard size={20} /> Levantamentos {pendingWithdrawals.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingWithdrawals.length}</span>}
               </button>
-              
+               
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Settings size={20} /> Definições
               </button>
@@ -1509,7 +1575,6 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 font-bold">Registo</th>
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
                       <th className="px-6 py-4 font-bold">Ganhos (Saque)</th>
-                      <th className="px-6 py-4 font-bold">Banco</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold">Suspenso</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
@@ -1544,26 +1609,6 @@ export default function AdminDashboard() {
                         <td className="px-3 py-4 font-black text-green-600 text-sm whitespace-nowrap">AOA {(u.withdrawable_earnings || 0).toLocaleString()}</td>
                         <td className="px-3 py-4">
                           <button
-                            onClick={() => {
-                              setSelectedUserForBank(u)
-                              setBankForm({
-                                bank_account_name: u.bank_account_name || '',
-                                bank_name: u.bank_name || '',
-                                bank_account_number: u.bank_account_number || '',
-                                bank_branch: u.bank_branch || '',
-                                bank_pix: u.bank_pix || '',
-                                withdrawal_country: u.withdrawal_country || 'AO',
-                              })
-                              setShowBankModal(true)
-                            }}
-                            className={`p-1.5 rounded-md transition-colors ${u.bank_account_name ? 'text-green-600 bg-green-50 hover:bg-green-100' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'}`}
-                            title={u.bank_account_name ? 'Ver coordenadas bancárias' : 'Adicionar coordenadas bancárias'}
-                          >
-                            <Building2 size={16} />
-                          </button>
-                        </td>
-                        <td className="px-3 py-4">
-                          <button
                             onClick={() => handleToggleFreePlan(u.id, !!u.is_free_plan)}
                             className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all ${
                               u.is_free_plan
@@ -1583,73 +1628,128 @@ export default function AdminDashboard() {
                             <span className="text-gray-300 text-[10px]">—</span>
                           )}
                         </td>
-                        <td className="px-3 py-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-0.5">
-                            <button
-                              onClick={() => handleToggleVerification(u.id, !!u.is_verified)}
-                              className={`p-1.5 rounded-md transition-colors ${
-                                u.is_verified ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'
-                              }`}
-                              title={u.is_verified ? 'Remover Selo VIP' : 'Atribuir Selo VIP (Grátis)'}
+                        <td className="px-3 py-4 text-right whitespace-nowrap relative">
+                          <button
+                            data-actions-button
+                            onClick={() => setOpenActionsUserId(openActionsUserId === u.id ? null : u.id)}
+                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700"
+                            title="Ações"
+                          >
+                            <MoreHorizontal size={18} />
+                          </button>
+                          {openActionsUserId === u.id && (
+                            <div
+                              data-actions-dropdown
+                              className="absolute right-0 top-full mt-1 z-50 bg-white border border-border rounded-xl shadow-xl py-1.5 min-w-[200px] animate-in fade-in slide-in-from-top-1 duration-150"
                             >
-                              <ShieldCheck size={16} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedUserForCredit(u)
-                                setShowCreditModal(true)
-                              }}
-                              className="p-1.5 text-green-600 bg-green-50 rounded-md hover:bg-green-100 transition-colors"
-                              title="Carregar Saldo"
-                            >
-                              <Banknote size={16} />
-                            </button>
-                            <button onClick={() => router.push(`/admin/user/${u.id}`)} className="p-1.5 text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"><Edit size={16} /></button>
-                            <button
-                              onClick={() => handleToggleUserSms(u.id, !!u.sms_suspended_by_admin)}
-                              className={`p-1.5 rounded-md transition-colors ${u.sms_suspended_by_admin ? 'text-gray-400 bg-gray-100 hover:bg-gray-200' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
-                              title={u.sms_suspended_by_admin ? 'Reativar SMS' : 'Suspender SMS'}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12 19.79 19.79 0 0 1 1.21 3.15 2 2 0 0 1 3.22 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/>
-                                {u.sms_suspended_by_admin && <line x1="1" y1="1" x2="23" y2="23"/>}
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleResetPassword(u.id, u.email)}
-                              className="p-1.5 text-orange-600 bg-orange-50 rounded-md hover:bg-orange-100 transition-colors"
-                              title="Resetar Senha"
-                            >
-                              <KeyRound size={16} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                const reason = prompt('Motivo da suspensão (mín. 10 caracteres):')
-                                if (!reason || reason.trim().length < 10) {
-                                  alert('O motivo deve ter pelo menos 10 caracteres')
-                                  return
-                                }
-                                try {
-                                  const res = await fetch('/api/admin/suspend', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ userId: u.id, reason, action: 'suspend' }),
-                                  })
-                                  const data = await res.json()
-                                  if (!res.ok) throw new Error(data.error)
-                                  alert('Conta suspensa! SMS e notificação enviados.')
-                                  setTimeout(() => window.location.reload(), 1000)
-                                } catch (err: any) {
-                                  alert('Erro: ' + err.message)
-                                }
-                              }}
-                              className="p-1.5 text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
-                              title="Suspender Conta"
-                            >
-                              <Ban size={16} />
-                            </button>
-                            <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
-                          </div>
+                              {/* VIP */}
+                              <button
+                                onClick={() => { handleToggleVerification(u.id, !!u.is_verified); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                              >
+                                <ShieldCheck size={14} className={u.is_verified ? 'text-blue-600' : 'text-gray-400'} />
+                                {u.is_verified ? 'Remover Selo VIP' : 'Atribuir Selo VIP'}
+                              </button>
+
+                              {/* Carregar Saldo */}
+                              <button
+                                onClick={() => { setSelectedUserForCredit(u); setShowCreditModal(true); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                              >
+                                <Banknote size={14} className="text-green-600" />
+                                Carregar Saldo
+                              </button>
+
+                              {/* Converter para Ganhos (only superadmin) */}
+                              {isSuperAdminEmail(currentUser?.email) && (
+                                <button
+                                  onClick={() => { setSelectedUserForEarnings(u); setEarningsAmount(''); setShowEarningsModal(true); setOpenActionsUserId(null) }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                                >
+                                  <ArrowUpRight size={14} className="text-amber-600" />
+                                  Converter para Ganhos
+                                </button>
+                              )}
+
+                              {/* Coordenadas Bancárias */}
+                              <button
+                                onClick={() => { setSelectedUserForBank(u); setBankForm({ bank_account_name: u.bank_account_name || '', bank_name: u.bank_name || '', bank_account_number: u.bank_account_number || '', bank_branch: u.bank_branch || '', bank_pix: u.bank_pix || '', withdrawal_country: u.withdrawal_country || 'AO' }); setShowBankModal(true); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                              >
+                                <Building2 size={14} className="text-blue-600" />
+                                Coordenadas Bancárias
+                              </button>
+
+                              {/* Editar Perfil */}
+                              <button
+                                onClick={() => { router.push(`/admin/user/${u.id}`); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                              >
+                                <Edit size={14} className="text-blue-600" />
+                                Editar Perfil
+                              </button>
+
+                              <div className="border-t border-border my-1" />
+
+                              {/* SMS */}
+                              <button
+                                onClick={() => { handleToggleUserSms(u.id, !!u.sms_suspended_by_admin); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                              >
+                                <MessageCircle size={14} className={u.sms_suspended_by_admin ? 'text-gray-400' : 'text-green-600'} />
+                                {u.sms_suspended_by_admin ? 'Reativar SMS' : 'Suspender SMS'}
+                              </button>
+
+                              {/* Resetar Senha */}
+                              <button
+                                onClick={() => { handleResetPassword(u.id, u.email); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-gray-50 transition-colors"
+                              >
+                                <KeyRound size={14} className="text-orange-600" />
+                                Resetar Senha
+                              </button>
+
+                              <div className="border-t border-border my-1" />
+
+                              {/* Suspender Conta */}
+                              <button
+                                onClick={async () => {
+                                  setOpenActionsUserId(null)
+                                  const reason = prompt('Motivo da suspensão (mín. 10 caracteres):')
+                                  if (!reason || reason.trim().length < 10) {
+                                    alert('O motivo deve ter pelo menos 10 caracteres')
+                                    return
+                                  }
+                                  try {
+                                    const res = await fetch('/api/admin/suspend', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ userId: u.id, reason, action: 'suspend' }),
+                                    })
+                                    const data = await res.json()
+                                    if (!res.ok) throw new Error(data.error)
+                                    alert('Conta suspensa! SMS e notificação enviados.')
+                                    setTimeout(() => window.location.reload(), 1000)
+                                  } catch (err: any) {
+                                    alert('Erro: ' + err.message)
+                                  }
+                                }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-red-50 transition-colors text-red-600"
+                              >
+                                <Ban size={14} />
+                                Suspender Conta
+                              </button>
+
+                              {/* Eliminar Conta */}
+                              <button
+                                onClick={() => { handleDeleteUser(u.id); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-red-50 transition-colors text-red-600"
+                              >
+                                <Trash2 size={14} />
+                                Eliminar Conta
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -2940,6 +3040,73 @@ export default function AdminDashboard() {
                     </div>
                   </form>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Earnings Conversion Modal */}
+          {showEarningsModal && selectedUserForEarnings && (
+            <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="bg-white border border-border w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in scale-in duration-300 relative overflow-hidden">
+                <div className="absolute -top-10 -left-10 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl" />
+                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl" />
+
+                <div className="relative z-10 text-center mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 shadow-md">
+                    <ArrowUpRight size={24} />
+                  </div>
+                  <h3 className="text-lg font-black text-gray-900 leading-tight">Converter para Ganhos</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Converter saldo disponível de <strong className="text-gray-800">{selectedUserForEarnings.display_name || 'Utilizador'}</strong> para ganhos de saque
+                  </p>
+                </div>
+
+                <form onSubmit={handleConvertToEarnings} className="space-y-4 relative z-10">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
+                      Saldo atual: <span className="text-accent">AOA {((selectedUserForEarnings as any).balance || 0).toLocaleString()}</span>
+                      {' | '}Ganhos atuais: <span className="text-green-600">AOA {((selectedUserForEarnings as any).withdrawable_earnings || 0).toLocaleString()}</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="Valor a converter"
+                        value={earningsAmount}
+                        onChange={(e) => setEarningsAmount(e.target.value)}
+                        className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-lg font-black text-foreground outline-none focus:border-accent transition-colors pl-16"
+                        required
+                        min="1"
+                        max={((selectedUserForEarnings as any).balance || 0)}
+                      />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">AOA</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEarningsModal(false)
+                        setEarningsAmount('')
+                        setSelectedUserForEarnings(null)
+                      }}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-3 rounded-xl transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={convertingEarnings || !earningsAmount || parseFloat(earningsAmount) <= 0}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-black py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      {convertingEarnings ? (
+                        <><Loader2 size={16} className="animate-spin" /> Convertendo...</>
+                      ) : (
+                        <>Converter para Ganhos</>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
