@@ -41,7 +41,9 @@ export default function WithdrawableAlert() {
         const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
         const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
         const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
-        const withdrawableAmount = Math.max(0, (profile.balance || 0) - unspentDeposits - pendingWithdrawals)
+        const earningsCredits = transactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+        const earningsDebits = transactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+        const withdrawableAmount = Math.max(0, (profile.balance || 0) + earningsCredits - earningsDebits - unspentDeposits - pendingWithdrawals)
 
         setWithdrawable(withdrawableAmount)
         setShowAlert(withdrawableAmount > 0)

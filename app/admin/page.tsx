@@ -314,7 +314,8 @@ export default function AdminDashboard() {
           const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
           const pendingWithdrawals = userTransactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
           const earningsCredits = userTransactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-          const withdrawable = Math.max(0, (profile.balance || 0) + earningsCredits - unspentDeposits - pendingWithdrawals)
+          const earningsDebits = userTransactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+          const withdrawable = Math.max(0, (profile.balance || 0) + earningsCredits - earningsDebits - unspentDeposits - pendingWithdrawals)
           
           return {
             ...profile,

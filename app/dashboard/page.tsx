@@ -301,7 +301,9 @@ function DashboardContent() {
     const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
     const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
     const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
-    const withdrawable = Math.max(0, balance - unspentDeposits - pendingWithdrawals)
+    const earningsCredits = transactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+    const earningsDebits = transactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+    const withdrawable = Math.max(0, balance + earningsCredits - earningsDebits - unspentDeposits - pendingWithdrawals)
 
     if (amount > withdrawable) {
       return alert('Saldo insuficiente para levantamento! Apenas ganhos podem ser levantados.')
@@ -394,7 +396,9 @@ function DashboardContent() {
                             const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
                             const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
                             const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
-                            return Math.max(0, balance - unspentDeposits)
+                            const earningsCredits = transactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+                            const earningsDebits = transactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
+                            return Math.max(0, balance + earningsCredits - earningsDebits - unspentDeposits)
                           })(),
                           preferredCurrency
                         )}
