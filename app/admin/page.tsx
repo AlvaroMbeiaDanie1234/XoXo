@@ -6,7 +6,7 @@ import {
   Users, CreditCard, Activity, Search, Edit, Trash2,
   CheckCircle, XCircle, Link as LinkIcon, ShieldCheck,
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
-  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff, Settings
+  ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff, Settings, Building2, Save, X, Loader2
 } from 'lucide-react'
 import { isSuperAdminEmail } from '@/lib/admin-emails'
 import { useTheme } from 'next-themes'
@@ -50,6 +50,17 @@ export default function AdminDashboard() {
   const [adminCreditAmount, setAdminCreditAmount] = useState('')
   const [adminCreditReason, setAdminCreditReason] = useState('')
   const [loadingCredit, setLoadingCredit] = useState(false)
+  const [showBankModal, setShowBankModal] = useState(false)
+  const [selectedUserForBank, setSelectedUserForBank] = useState<any>(null)
+  const [bankForm, setBankForm] = useState({
+    bank_account_name: '',
+    bank_name: '',
+    bank_account_number: '',
+    bank_branch: '',
+    bank_pix: '',
+    withdrawal_country: 'AO',
+  })
+  const [savingBank, setSavingBank] = useState(false)
 
   // Announcement Form states
   const [annType, setAnnType] = useState('comunicado') // 'comunicado' or 'anuncio'
@@ -261,7 +272,7 @@ export default function AdminDashboard() {
       // Fetch users
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, display_name, email, avatar_url, balance, is_verified, is_free_plan, created_at')
+        .select('id, display_name, email, avatar_url, balance, is_verified, is_free_plan, created_at, phone, bank_account_name, bank_name, bank_account_number, bank_branch, bank_pix, withdrawal_country')
         .order('created_at', { ascending: false })
 
       // Fetch all transactions for withdrawable calculation
@@ -1003,6 +1014,52 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleSaveBank = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUserForBank) return
+    setSavingBank(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          bank_account_name: bankForm.bank_account_name.trim(),
+          bank_name: bankForm.bank_name.trim(),
+          bank_account_number: bankForm.bank_account_number.trim(),
+          bank_branch: bankForm.bank_branch.trim() || null,
+          bank_pix: bankForm.bank_pix.trim() || null,
+          withdrawal_country: bankForm.withdrawal_country,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedUserForBank.id)
+
+      if (error) throw error
+
+      setUsers(prev => prev.map(u => u.id === selectedUserForBank.id ? {
+        ...u,
+        bank_account_name: bankForm.bank_account_name.trim(),
+        bank_name: bankForm.bank_name.trim(),
+        bank_account_number: bankForm.bank_account_number.trim(),
+        bank_branch: bankForm.bank_branch.trim() || null,
+        bank_pix: bankForm.bank_pix.trim() || null,
+        withdrawal_country: bankForm.withdrawal_country,
+      } : u))
+
+      setShowBankModal(false)
+      toast({
+        title: "Coordenadas bancárias guardadas",
+        description: `As coordenadas de ${selectedUserForBank.display_name || 'utilizador'} foram atualizadas.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      })
+    } finally {
+      setSavingBank(false)
+    }
+  }
+
   const handleResetPassword = async (userId: string, userEmail: string) => {
     console.log('[Reset Password] userId:', userId, 'userEmail:', userEmail)
     toast({
@@ -1185,7 +1242,7 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('withdrawals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'withdrawals' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <CreditCard size={20} /> Levantamentos {pendingWithdrawals.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingWithdrawals.length}</span>}
               </button>
-             
+              
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Settings size={20} /> Definições
               </button>
@@ -1452,6 +1509,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 font-bold">Registo</th>
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
                       <th className="px-6 py-4 font-bold">Ganhos (Saque)</th>
+                      <th className="px-6 py-4 font-bold">Banco</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold">Suspenso</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
@@ -1484,6 +1542,26 @@ export default function AdminDashboard() {
                         <td className="px-3 py-4 text-gray-500 text-xs">{u.created_at ? formatRelativeTime(u.created_at) : '—'}</td>
                         <td className="px-3 py-4 font-black text-accent text-sm whitespace-nowrap">AOA {u.balance?.toLocaleString() || 0}</td>
                         <td className="px-3 py-4 font-black text-green-600 text-sm whitespace-nowrap">AOA {(u.withdrawable_earnings || 0).toLocaleString()}</td>
+                        <td className="px-3 py-4">
+                          <button
+                            onClick={() => {
+                              setSelectedUserForBank(u)
+                              setBankForm({
+                                bank_account_name: u.bank_account_name || '',
+                                bank_name: u.bank_name || '',
+                                bank_account_number: u.bank_account_number || '',
+                                bank_branch: u.bank_branch || '',
+                                bank_pix: u.bank_pix || '',
+                                withdrawal_country: u.withdrawal_country || 'AO',
+                              })
+                              setShowBankModal(true)
+                            }}
+                            className={`p-1.5 rounded-md transition-colors ${u.bank_account_name ? 'text-green-600 bg-green-50 hover:bg-green-100' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'}`}
+                            title={u.bank_account_name ? 'Ver coordenadas bancárias' : 'Adicionar coordenadas bancárias'}
+                          >
+                            <Building2 size={16} />
+                          </button>
+                        </td>
                         <td className="px-3 py-4">
                           <button
                             onClick={() => handleToggleFreePlan(u.id, !!u.is_free_plan)}
@@ -2741,6 +2819,127 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Bank Details Modal */}
+          {showBankModal && selectedUserForBank && (
+            <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="bg-white border border-border w-full max-w-lg rounded-3xl p-6 shadow-2xl animate-in scale-in duration-300 relative overflow-hidden">
+                <div className="absolute -top-10 -left-10 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl" />
+                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl" />
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-md">
+                        <Building2 size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-gray-900 leading-tight">Coordenadas Bancárias</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {selectedUserForBank.display_name || 'Utilizador'} ({selectedUserForBank.email})
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowBankModal(false)}
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveBank} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Titular da Conta</label>
+                        <input
+                          type="text"
+                          value={bankForm.bank_account_name}
+                          onChange={(e) => setBankForm(p => ({ ...p, bank_account_name: e.target.value }))}
+                          placeholder="Nome completo do titular"
+                          className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-sm font-medium text-foreground outline-none focus:border-accent transition-colors"
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Banco</label>
+                        <input
+                          type="text"
+                          value={bankForm.bank_name}
+                          onChange={(e) => setBankForm(p => ({ ...p, bank_name: e.target.value }))}
+                          placeholder="Ex: BAI, BFA, Nubank"
+                          className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-sm font-medium text-foreground outline-none focus:border-accent transition-colors"
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Nº Conta / IBAN</label>
+                        <input
+                          type="text"
+                          value={bankForm.bank_account_number}
+                          onChange={(e) => setBankForm(p => ({ ...p, bank_account_number: e.target.value }))}
+                          placeholder="IBAN ou número da conta"
+                          className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-sm font-medium text-foreground outline-none focus:border-accent transition-colors"
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Agência</label>
+                        <input
+                          type="text"
+                          value={bankForm.bank_branch}
+                          onChange={(e) => setBankForm(p => ({ ...p, bank_branch: e.target.value }))}
+                          placeholder="Agência (opcional)"
+                          className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-sm font-medium text-foreground outline-none focus:border-accent transition-colors"
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">PIX (Brasil)</label>
+                        <input
+                          type="text"
+                          value={bankForm.bank_pix}
+                          onChange={(e) => setBankForm(p => ({ ...p, bank_pix: e.target.value }))}
+                          placeholder="Chave PIX (opcional)"
+                          className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-sm font-medium text-foreground outline-none focus:border-accent transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">País</label>
+                      <select
+                        value={bankForm.withdrawal_country}
+                        onChange={(e) => setBankForm(p => ({ ...p, withdrawal_country: e.target.value }))}
+                        className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-sm font-medium text-foreground outline-none focus:border-accent transition-colors"
+                      >
+                        <option value="AO">Angola (AOA)</option>
+                        <option value="BR">Brasil (BRL)</option>
+                        <option value="MZ">Moçambique (MZN)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowBankModal(false)}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-3 rounded-xl transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingBank}
+                        className="flex-1 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-xs font-black py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                      >
+                        {savingBank ? (
+                          <><Loader2 size={16} className="animate-spin" /> Guardando...</>
+                        ) : (
+                          <><Save size={16} /> Guardar Coordenadas</>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
           )}
