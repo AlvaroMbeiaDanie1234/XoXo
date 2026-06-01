@@ -142,6 +142,14 @@
   background: transparent;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Pré-visualização da câmara ao gravar */
 .video-mirror {
   transform: scaleX(-1);

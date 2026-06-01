@@ -22,12 +22,14 @@ export async function syncProfileBalance(
     return sum
   }, 0)
 
+  const safeBalance = Math.max(0, balance)
+
   const { error: updateError } = await supabaseAdmin
     .from('profiles')
-    .update({ balance })
+    .update({ balance: safeBalance })
     .eq('id', userId)
 
   if (updateError) throw updateError
 
-  return balance
+  return safeBalance
 }

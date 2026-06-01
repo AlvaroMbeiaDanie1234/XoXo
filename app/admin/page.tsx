@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [freeTierMessageLimit, setFreeTierMessageLimit] = useState('3') // Default 3
   const [minWithdrawAmount, setMinWithdrawAmount] = useState('1000') // Default 1000 AOA
   const [depositFeePercent, setDepositFeePercent] = useState('0') // Default 0%
+  const [depositEntityNumber, setDepositEntityNumber] = useState('00930')
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [financialResetPhrase, setFinancialResetPhrase] = useState('')
@@ -279,10 +280,14 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function refreshOnlineUsers() {
-      const onlineRes = await fetch('/api/admin/online-users', { cache: 'no-store' })
-      if (onlineRes.ok) {
-        const onlineData = await onlineRes.json()
-        setOnlineUsersCount(Number(onlineData.count) || 0)
+      try {
+        const onlineRes = await fetch('/api/admin/online-users', { cache: 'no-store' })
+        if (onlineRes.ok) {
+          const onlineData = await onlineRes.json()
+          setOnlineUsersCount(Number(onlineData.count) || 0)
+        }
+      } catch {
+        // network error — ignore, will retry on next interval
       }
     }
 
@@ -309,13 +314,8 @@ export default function AdminDashboard() {
         // Calculate withdrawable earnings for each user
         const usersWithEarnings: any[] = profiles.map(profile => {
           const userTransactions = allTransactions?.filter(t => t.user_id === profile.id) || []
-          const totalDeposits = userTransactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
-          const totalPurchases = userTransactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
-          const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
           const pendingWithdrawals = userTransactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
-          const earningsCredits = userTransactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-          const earningsDebits = userTransactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-          const withdrawable = Math.max(0, (profile.balance || 0) + earningsCredits - earningsDebits - unspentDeposits - pendingWithdrawals)
+          const withdrawable = Math.max(0, (profile.balance || 0) - pendingWithdrawals)
           
           return {
             ...profile,
@@ -440,6 +440,9 @@ export default function AdminDashboard() {
         const depositFeeSetting = settings.find(s => s.key === 'deposit_fee_percent')
         if (depositFeeSetting) setDepositFeePercent(depositFeeSetting.value)
 
+        const entitySetting = settings.find(s => s.key === 'deposit_entity_number')
+        if (entitySetting) setDepositEntityNumber(entitySetting.value)
+
         // Load Terms and Privacy
         const termsSetting = settings.find(s => s.key === 'terms_of_use')
         if (termsSetting) setTermsOfUse(termsSetting.value)
@@ -504,7 +507,8 @@ export default function AdminDashboard() {
         { key: 'free_tier_message_limit', value: freeTierMessageLimit },
         { key: 'min_withdraw_amount', value: minWithdrawAmount },
         { key: 'deposit_fee_percent', value: depositFeePercent },
-        
+        { key: 'deposit_entity_number', value: depositEntityNumber },
+
         { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
         { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
         { key: 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', value: supabasePublishableKey },
@@ -959,14 +963,27 @@ export default function AdminDashboard() {
           altText="Confirmar"
           onClick={async () => {
             try {
-              // 1. Mark transaction as completed
-              await supabase.from('transactions').update({ status: 'completed' }).eq('id', txId)
-              toast({
-                title: "Levantamento Pago",
-                description: "O levantamento foi marcado como concluído.",
+              const res = await fetch('/api/admin/process-withdrawal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ txId, userId, amount }),
               })
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.error || 'Erro ao processar')
 
-              // 2. Send SMS to user
+              // Send in-app notification
+              fetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  user_id: userId,
+                  title: 'Levantamento Processado',
+                  message: `O seu pedido de levantamento de AOA ${amount.toLocaleString()} foi processado! O valor foi transferido para a sua conta bancária.`,
+                  type: 'system'
+                })
+              }).catch(console.warn)
+
+              // Send SMS to user
               fetch('/api/sms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -986,7 +1003,7 @@ export default function AdminDashboard() {
             }
           }}
         >
-          Confirmar
+          Cancelar
         </ToastAction>
       )
     })
@@ -1001,21 +1018,27 @@ export default function AdminDashboard() {
           altText="Cancelar"
           onClick={async () => {
             try {
-              // 1. Mark transaction as cancelled
-              await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', txId)
-
-              // 2. Return amount to user's balance
-              const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single()
-              if (profile) {
-                await supabase.from('profiles').update({ balance: (profile.balance || 0) + amount }).eq('id', userId)
-              }
-
-              toast({
-                title: "Levantamento Cancelado",
-                description: "O levantamento foi cancelado e o valor devolvido ao utilizador.",
+              const res = await fetch('/api/admin/process-withdrawal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ txId, userId, amount, action: 'cancel' }),
               })
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.error || 'Erro ao cancelar')
 
-              // 3. Send SMS to user
+              // Send in-app notification
+              fetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  user_id: userId,
+                  title: 'Levantamento Cancelado',
+                  message: `O seu pedido de levantamento de AOA ${amount.toLocaleString()} foi cancelado. O valor foi devolvido ao seu saldo.`,
+                  type: 'system'
+                })
+              }).catch(console.warn)
+
+              // Send SMS to user
               fetch('/api/sms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1039,6 +1062,44 @@ export default function AdminDashboard() {
         </ToastAction>
       )
     })
+  }
+
+  const handleApproveDeposit = async (txId: string, userId: string) => {
+    try {
+      const res = await fetch('/api/admin/process-deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txId, userId, action: 'approve' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao aprovar')
+
+      fetch('/api/sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, body: 'O seu depósito foi aprovado e o saldo já está disponível na sua conta!' }),
+      }).catch(() => {})
+
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" })
+    }
+  }
+
+  const handleCancelDeposit = async (txId: string, userId: string) => {
+    try {
+      const res = await fetch('/api/admin/process-deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txId, userId, action: 'cancel' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao cancelar')
+
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" })
+    }
   }
 
   const handleSaveBank = async (e: React.FormEvent) => {
@@ -1279,6 +1340,7 @@ export default function AdminDashboard() {
   if (loading) return <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center"><p>Carregando painel admin...</p></div>
 
   const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending')
+  const pendingDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'pending')
 
   // Financial Calculations
   const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
@@ -1377,7 +1439,10 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('withdrawals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'withdrawals' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <CreditCard size={20} /> Levantamentos {pendingWithdrawals.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingWithdrawals.length}</span>}
               </button>
-               
+              <button onClick={() => setActiveTab('deposits')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'deposits' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <Wallet size={20} /> Depósitos {pendingDeposits.length > 0 && <span className="bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingDeposits.length}</span>}
+              </button>
+              
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Settings size={20} /> Definições
               </button>
@@ -1643,7 +1708,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 font-bold">Telefone</th>
                       <th className="px-6 py-4 font-bold">Registo</th>
                       <th className="px-6 py-4 font-bold">Saldo Disponível</th>
-                      <th className="px-6 py-4 font-bold">Ganhos (Saque)</th>
+                      <th className="px-6 py-4 font-bold">Disponível (Saque)</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold">Suspenso</th>
                       <th className="px-6 py-4 font-bold text-right">Ações</th>
@@ -1943,10 +2008,60 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === 'deposits' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-border bg-green-50/50">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-green-800"><Wallet /> Depósitos Pendentes</h2>
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {pendingDeposits.map((t: any) => (
+                    <div key={t.id} className="p-6 bg-white border border-border rounded-xl shadow-lg relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Wallet size={100} /></div>
+                      <div className="relative z-10">
+                        <p className="text-xs text-green-600 font-bold uppercase tracking-widest mb-1">Por Aprovar</p>
+                        <p className="font-black text-3xl mb-4">AOA {t.amount.toLocaleString()}</p>
+
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 mb-6">
+                          <p className="text-xs text-gray-500 font-medium mb-1">Utilizador: <span className="font-bold text-gray-900">{t.profiles?.display_name || t.profiles?.email}</span></p>
+                          <p className="text-xs text-gray-500 font-medium">Detalhes:</p>
+                          <p className="text-sm font-bold text-gray-900 mt-1 whitespace-pre-wrap">{t.description}</p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApproveDeposit(t.id, t.user_id)}
+                            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle size={18} /> Aprovar
+                          </button>
+                          <button
+                            onClick={() => handleCancelDeposit(t.id, t.user_id)}
+                            className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <XCircle size={18} /> Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingDeposits.length === 0 && (
+                    <div className="col-span-full py-12 text-center">
+                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                        <CheckCircle size={32} />
+                      </div>
+                      <p className="text-gray-500 font-medium">Não há depósitos pendentes.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'announcements' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
+                
                 {/* Form to create */}
                 <div className="lg:col-span-1 bg-white rounded-2xl border border-border shadow-sm overflow-hidden p-6 h-fit">
                   <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2 text-accent">
@@ -2453,6 +2568,21 @@ export default function AdminDashboard() {
                           Percentagem de lucro do admin em cada depósito (0-10%).
                         </p>
                       </div>
+                      {/* Card 9: Entidade de Depósito */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Entidade de Depósito</label>
+                        <input
+                          type="text"
+                          value={depositEntityNumber}
+                          onChange={(e) => setDepositEntityNumber(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="00930"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Número da entidade para pagamentos por referência (Multicaixa).
+                        </p>
+                      </div>
+
                     </div>
                   )}
                 </div>

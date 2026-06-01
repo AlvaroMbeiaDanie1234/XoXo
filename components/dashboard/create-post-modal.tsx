@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useTheme } from 'next-themes'
 import { X, Image as ImageIcon, Video, Calendar, Settings, DollarSign, Loader2, Circle, Square, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'

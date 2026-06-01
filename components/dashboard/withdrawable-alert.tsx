@@ -19,7 +19,13 @@ export default function WithdrawableAlert() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        // Fetch user's balance
+        const { data: settings } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'min_withdraw_amount')
+          .single()
+        const minWithdraw = Number(settings?.value) || 1000
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('balance')
@@ -28,25 +34,18 @@ export default function WithdrawableAlert() {
 
         if (!profile) return
 
-        // Fetch user's transactions
         const { data: transactions } = await supabase
           .from('transactions')
-          .select('*')
+          .select('amount, type, status')
           .eq('user_id', user.id)
 
         if (!transactions) return
 
-        // Calculate withdrawable earnings
-        const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
-        const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
-        const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
         const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
-        const earningsCredits = transactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-        const earningsDebits = transactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-        const withdrawableAmount = Math.max(0, (profile.balance || 0) + earningsCredits - earningsDebits - unspentDeposits - pendingWithdrawals)
+        const withdrawableAmount = Math.max(0, (profile.balance || 0) - pendingWithdrawals)
 
         setWithdrawable(withdrawableAmount)
-        setShowAlert(withdrawableAmount > 0)
+        setShowAlert(withdrawableAmount >= minWithdraw)
       } catch (error) {
         console.error('Error loading withdrawable:', error)
       } finally {
@@ -69,7 +68,7 @@ export default function WithdrawableAlert() {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h4 className={`font-bold text-sm ${theme === 'dark' ? 'text-green-200' : 'text-green-900'}`}>
-                Tens ganhos disponíveis para levantar!
+                Tens saldo disponível para levantar!
               </h4>
               <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-green-300' : 'text-green-800'}`}>
                 AOA {withdrawable.toLocaleString()} podem ser levantados para a tua conta bancária.

@@ -212,7 +212,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   return (
     <>
-    <div className={`sticky top-0 z-40 border-b border-border shadow-sm w-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white'}`}>
+    <div className="sticky top-0 z-40 border-b border-border shadow-sm w-full transition-colors duration-300 bg-background">
       <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-xl font-bold text-accent">XoXo</Link>
@@ -226,7 +226,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={langRef}>
               <button
                 onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className={`flex items-center gap-1 p-2 rounded-full transition-colors font-bold text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
+                className="flex items-center gap-1 p-2 rounded-full transition-colors font-bold text-xs text-muted-foreground dark:hover:text-white hover:text-accent hover:bg-accent"
                 title="Mudar Idioma / Change Language"
               >
                 <Globe size={18} />
@@ -234,18 +234,18 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {langDropdownOpen && (
-                <div className={`absolute right-0 mt-2 w-36 rounded-xl shadow-lg border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                <div className="absolute right-0 mt-2 w-36 rounded-xl shadow-lg border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 bg-card border-border">
                   <div className="p-1">
                     <button
                       onClick={() => handleLangChange('PT')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/10 text-accent' : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'PT' ? 'bg-accent/10 text-accent' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
                     >
                       <span className="text-sm">🇵🇹</span>
                       Português (PT)
                     </button>
                     <button
                       onClick={() => handleLangChange('EN')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/10 text-accent' : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors text-left ${lang === 'EN' ? 'bg-accent/10 text-accent' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
                     >
                       <span className="text-sm">🇬🇧</span>
                       English (EN)
@@ -259,7 +259,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={usersPanelRef}>
   <button
     onClick={() => router.push('/dashboard/explore')}
-    className={`relative p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
+    className="relative p-2 rounded-full transition-colors text-muted-foreground dark:hover:text-white hover:text-accent hover:bg-accent"
     title="Utilizadores"
   >
     <Users size={20} />
@@ -270,7 +270,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             {mounted && (
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
+                className="p-2 rounded-full transition-colors text-muted-foreground dark:hover:text-white hover:text-accent hover:bg-accent"
                 title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
               >
                 {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -281,7 +281,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={notifRef}>
               <button
                 onClick={toggleNotif}
-                className={`relative p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-accent hover:bg-gray-100'}`}
+                className="relative p-2 rounded-full transition-colors text-muted-foreground dark:hover:text-white hover:text-accent hover:bg-accent"
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
@@ -292,9 +292,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {notifOpen && (
-                <div className={`fixed left-3 right-3 top-[64px] z-50 max-h-[70vh] overflow-hidden rounded-xl border shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-                  <div className={`p-3 border-b flex justify-between items-center ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-border'}`}>
-                    <p className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>Notificações</p>
+                <div className="fixed left-3 right-3 top-[64px] z-50 max-h-[70vh] overflow-hidden rounded-xl border shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 bg-card border-border">
+                  <div className="p-3 border-b flex justify-between items-center bg-muted dark:bg-background border-border">
+                    <p className="font-bold text-sm text-foreground">Notificações</p>
                   </div>
                   <div className="max-h-[calc(70vh-48px)] overflow-y-auto sm:max-h-[300px]">
                     {notifications.length > 0 ? (
@@ -315,7 +315,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                                   }).then(() => loadNotifications())
                                 }
                               }}
-                              className={`p-3 border-b flex gap-3 items-start transition-colors cursor-pointer ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'} ${!notif.is_read ? (theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-50/50') : ''}`}
+                              className={`p-3 border-b flex gap-3 items-start transition-colors cursor-pointer border-border hover:bg-accent hover:text-accent-foreground ${!notif.is_read ? 'bg-blue-50/50 dark:bg-muted/50' : ''}`}
                             >
                               <div className="mt-1 flex-shrink-0">
                                 {notif.type === 'comment' ? (
@@ -327,32 +327,32 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className={`break-words text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.title}</p>
-                                <p className={`break-words text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{notif.message}</p>
-                                <span className={`text-[10px] mt-1 block ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatRelativeTime(notif.created_at)}</span>
+                                <p className="break-words text-xs font-semibold text-foreground">{notif.title}</p>
+                                <p className="break-words text-xs mt-0.5 text-muted-foreground">{notif.message}</p>
+                                <span className="text-[10px] mt-1 block text-muted-foreground">{formatRelativeTime(notif.created_at)}</span>
                               </div>
                             </div>
                           )
                         }
                         return (
-                          <div key={notif.id} className={`p-3 border-b flex gap-3 items-start transition-colors ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'}`}>
+                          <div key={notif.id} className="p-3 border-b flex gap-3 items-start transition-colors border-border hover:bg-accent hover:text-accent-foreground">
                             <div className="mt-1 flex-shrink-0 text-accent">
                               <DollarSign size={16} className="bg-accent/10 rounded-full p-0.5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className={`break-words text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
+                              <p className="break-words text-sm text-foreground">{notif.description}</p>
                               <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                                 <span className={`text-xs font-bold ${notif.type === 'message' ? 'text-red-500' : 'text-accent'}`}>
                                   {notif.type === 'message' ? '-' : '+'} AOA {notif.amount?.toLocaleString()}
                                 </span>
-                                <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatRelativeTime(notif.created_at)}</span>
+                                <span className="text-[10px] text-muted-foreground">{formatRelativeTime(notif.created_at)}</span>
                               </div>
                             </div>
                           </div>
                         )
                       })
                     ) : (
-                      <div className={`p-4 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className="p-4 text-center text-sm text-muted-foreground">
                         Nenhuma notificação no momento.
                       </div>
                     )}
@@ -373,10 +373,10 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className={`flex items-center gap-3 p-1 pr-2 rounded-full transition-colors border ${theme === 'dark' ? 'hover:bg-gray-800 border-transparent' : 'hover:bg-gray-50 border-transparent'}`}
+                className="flex items-center gap-3 p-1 pr-2 rounded-full transition-colors border hover:bg-accent border-transparent"
               >
                 <div className="hidden sm:block text-right">
-                  <p className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-foreground'} flex items-center gap-1`}>
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1">
                     {displayName}
                     {isVerified && <CheckCircle size={12} className="text-blue-500 fill-blue-500" />}
                     {isAdminEmail(user?.email || '') && <span className="text-[8px] font-black bg-accent text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</span>}
@@ -396,36 +396,36 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               </button>
 
               {dropdownOpen && (
-                <div className={`absolute right-0 mt-2 w-64 rounded-md shadow-lg border overflow-hidden z-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-                  <div className={`p-4 border-b ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-border'}`}>
-                    <p className={`font-bold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-foreground'} flex items-center gap-1`}>
+                <div className="absolute right-0 mt-2 w-64 rounded-md shadow-lg border overflow-hidden z-50 bg-card border-border">
+                  <div className="p-4 border-b bg-muted dark:bg-background border-border">
+                    <p className="font-bold text-sm truncate text-foreground flex items-center gap-1">
                       {displayName}
                       {isAdminEmail(user?.email || '') && <span className="text-[8px] font-black bg-accent text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</span>}
                     </p>
-                    <p className={`text-[10px] truncate mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>{user.email}</p>
-                    <div className={`flex items-center justify-between mt-2 pt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
-                      <p className={`text-[10px] uppercase font-bold tracking-tighter ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>Saldo Disponível</p>
+                    <p className="text-[10px] truncate mb-2 text-muted-foreground">{user.email}</p>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+                      <p className="text-[10px] uppercase font-bold tracking-tighter text-muted-foreground">Saldo Disponível</p>
                       <p className="text-sm font-black text-accent">{formatMoney(balance, preferredCurrency)}</p>
                     </div>
                   </div>
                   <div className="p-2">
                     <button
                       onClick={() => { router.push('/dashboard?mode=wallet'); setDropdownOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-accent' : 'text-gray-700 hover:bg-gray-50 hover:text-accent'}`}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left text-muted-foreground hover:bg-accent hover:text-accent"
                     >
                       <Wallet size={16} />
                       Minha Carteira
                     </button>
                     <button
                       onClick={() => { setDepositRequired(false); setIsDepositOpen(true); setDropdownOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-accent' : 'text-gray-700 hover:bg-gray-50 hover:text-accent'}`}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left text-muted-foreground hover:bg-accent hover:text-accent"
                     >
                       <DollarSign size={16} />
                       Depositar (Canal em atualização)
                     </button>
                   </div>
-                  <div className={`p-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>
-                    <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-red-900/30 hover:text-red-400' : 'text-gray-700 hover:bg-red-50 hover:text-red-600'}`}>
+                  <div className="p-2 border-t border-border">
+                    <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400">
                       <LogOut size={16} />
                       Terminar Sessão
                     </button>

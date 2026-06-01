@@ -96,9 +96,9 @@ export default function IntelligencePanel({
     )
 
     return (
-      <div className={`rounded-2xl border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-        <div className={`p-6 border-b flex items-center gap-3 ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>
-          <button onClick={() => setIntelSelectedPair(null)} className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
+      <div className={`rounded-2xl border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 bg-card border-border`}>
+        <div className={`p-6 border-b flex items-center gap-3 border-border`}>
+          <button onClick={() => setIntelSelectedPair(null)} className={`p-2 rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400`}>
             <ArrowLeft size={18} />
           </button>
           <div>
@@ -135,8 +135,8 @@ export default function IntelligencePanel({
   }
 
   return (
-    <div className={`rounded-2xl border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-      <div className={`p-6 border-b flex items-center justify-between ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>
+    <div className={`rounded-2xl border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 bg-card border-border`}>
+      <div className={`p-6 border-b flex items-center justify-between border-border`}>
         <h2 className="text-xl font-black flex items-center gap-2">
           <ShieldCheck size={24} className="text-accent" />
           Análise de Inteligência
@@ -153,7 +153,7 @@ export default function IntelligencePanel({
             <button
               key={i}
               onClick={() => loadMessages(pair.userA, pair.userB)}
-              className={`w-full flex items-center gap-4 p-4 sm:p-5 text-left transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
+              className={`w-full flex items-center gap-4 p-4 sm:p-5 text-left transition-colors hover:bg-accent hover:text-accent-foreground`}
             >
               <div className="flex items-center -space-x-2 flex-shrink-0">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs border-2 border-white">

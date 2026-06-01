@@ -7,7 +7,6 @@ import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
-import { useTheme } from 'next-themes'
 
 function SidebarContent() {
   const [isOpen, setIsOpen] = useState(false)
@@ -16,7 +15,6 @@ function SidebarContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const mode = searchParams.get('mode')
-  const { theme } = useTheme()
 
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -132,17 +130,17 @@ function SidebarContent() {
       {/* Sidebar Content (Desktop only) */}
       <div className="hidden lg:block sticky top-24">
         {/* Profile Card / Main Nav Card */}
-        <div className={`border rounded-md overflow-hidden shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+        <div className="border rounded-md overflow-hidden shadow-sm transition-colors duration-300 bg-card border-border">
           {/* Logo Section */}
-          <div className={`px-4 py-5 border-b flex flex-col items-center gap-3 transition-colors duration-300 ${theme === 'dark' ? 'border-gray-700' : 'border-border'}`}>
+          <div className="px-4 py-5 border-b flex flex-col items-center gap-3 transition-colors duration-300 border-border">
              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] shadow-lg">
                 <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-muted flex items-center justify-center text-white font-bold text-xl">
                    {profile?.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : (profile?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U')}
                 </div>
              </div>
              <div className="text-center">
-                <h3 className={`font-bold text-sm truncate max-w-[180px] ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{profile?.display_name || user?.email?.split('@')[0]}</h3>
-                <p className={`text-[10px] font-bold uppercase tracking-tighter ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>Membro Premium</p>
+                 <h3 className="font-bold text-sm truncate max-w-[180px] text-foreground">{profile?.display_name || user?.email?.split('@')[0]}</h3>
+                 <p className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">Membro Premium</p>
              </div>
           </div>
 
@@ -158,7 +156,7 @@ function SidebarContent() {
                   className={`flex items-center gap-3 px-4 py-3 transition-colors ${
                     isActive
                       ? 'border-l-2 border-accent bg-accent/5 text-accent font-semibold'
-                      : `border-l-2 border-transparent ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`
+                      : 'border-l-2 border-transparent text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground hover:bg-muted/50 hover:text-foreground'
                   }`}
                 >
                   <Icon size={18} className="flex-shrink-0" />
@@ -183,12 +181,12 @@ function SidebarContent() {
           </nav>
 
           {/* Divider */}
-          <div className={`h-px my-1 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-700' : 'bg-border'}`} />
+          <div className="h-px my-1 transition-colors duration-300 dark:bg-muted bg-border" />
 
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 px-4 py-3 transition-colors w-full text-sm font-medium ${theme === 'dark' ? 'text-gray-400 hover:text-red-400 hover:bg-red-900/30' : 'text-muted-foreground hover:text-destructive hover:bg-destructive/5'}`}
+            className="flex items-center gap-3 px-4 py-3 transition-colors w-full text-sm font-medium text-muted-foreground dark:hover:text-red-400 dark:hover:bg-red-900/30 hover:text-destructive hover:bg-destructive/5"
           >
             <LogOut size={18} />
             <span>Sair</span>
@@ -198,7 +196,7 @@ function SidebarContent() {
 
       {/* Floating Bottom Navigation Bar for Mobile - Rendered via React Portal */}
       {mounted && typeof document !== 'undefined' && createPortal(
-        <div className={`fixed bottom-4 left-3 right-3 z-50 mx-auto flex h-16 max-w-md items-center justify-around rounded-[1.75rem] border px-2 shadow-[0_18px_45px_rgba(0,0,0,0.20)] backdrop-blur-xl animate-in slide-in-from-bottom duration-300 transition-colors lg:hidden ${theme === 'dark' ? 'border-gray-700/80 bg-gray-950/90' : 'border-white/70 bg-white/90'}`}>
+        <div className="fixed bottom-4 left-3 right-3 z-50 mx-auto flex h-16 max-w-md items-center justify-around rounded-[1.75rem] border px-2 shadow-[0_18px_45px_rgba(0,0,0,0.20)] backdrop-blur-xl animate-in slide-in-from-bottom duration-300 transition-colors lg:hidden dark:border-border/80 dark:bg-background/90 border-white/70 bg-card/90">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -211,11 +209,11 @@ function SidebarContent() {
                 className={`flex h-12 min-w-0 flex-1 items-center justify-center rounded-2xl transition-all active:scale-95 ${
                   isActive
                     ? 'bg-accent/10 text-accent shadow-inner shadow-accent/5'
-                    : `${theme === 'dark' ? 'text-gray-400 hover:bg-white/5 hover:text-white' : 'text-muted-foreground hover:bg-gray-100 hover:text-foreground'}`
+                    : 'text-muted-foreground dark:hover:bg-white/5 dark:hover:text-white hover:bg-muted hover:text-foreground'
                 }`}
               >
                 <div className="relative">
-                  <Icon size={22} className={isActive ? 'text-accent' : theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'} />
+                  <Icon size={22} className={isActive ? 'text-accent' : 'text-muted-foreground'} />
                   {item.label === 'Chat' && unreadGlobalCount > 0 && (
                     <span className="absolute -top-2 -right-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-accent px-1 text-[8px] font-black text-white shadow-sm animate-in zoom-in duration-300">
                       {unreadGlobalCount}

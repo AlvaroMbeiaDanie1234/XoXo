@@ -45,6 +45,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
   const [loadingViewers, setLoadingViewers] = useState(false)
   const progressRef = useRef<number>(0)
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   const checkProfileReady = async (): Promise<boolean> => {
@@ -254,75 +255,80 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
   return (
     <>
       {/* Stories Bar */}
-      <div className="flex gap-3 overflow-x-auto py-3 px-1 scrollbar-thin">
-        {loading ? (
-          <div className="flex gap-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
-                <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
-                <div className="w-12 h-2 bg-gray-200 animate-pulse rounded" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            {currentUserId && (
-              <button
-                onClick={async () => {
-                  const ownIdx = storyUsers.findIndex(u => u.id === currentUserId)
-                  if (ownIdx >= 0) {
-                    setViewingIndex(ownIdx)
-                    setViewingStoryIndex(0)
-                  } else {
-                    const ready = await checkProfileReady()
-                    if (ready) setShowCreateModal(true)
-                  }
-                }}
-                className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16 group"
-              >
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center text-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">
-                  <Plus size={24} />
+      <div className="w-full max-w-[530px]">
+        <div ref={scrollRef} className="flex gap-3 overflow-x-auto py-3 px-1 scrollbar-hide flex-nowrap w-full max-w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {loading ? (
+            <div className="flex gap-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
+                  <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
+                  <div className="w-12 h-2 bg-gray-200 animate-pulse rounded" />
                 </div>
-                <span className="text-[10px] font-bold text-gray-400 truncate w-full text-center">O teu estado</span>
-              </button>
-            )}
-            {storyUsers
-              .filter(u => u.id !== currentUserId)
-              .map((user) => {
-                const isAdmin = user.email?.toLowerCase() === 'superadmin.xoxo@gmail.com'
-                return (
+              ))}
+            </div>
+          ) : (
+            <>
+              {currentUserId && (
                 <button
-                  key={user.id}
-                  onClick={() => {
-                    const idx = storyUsers.findIndex(u => u.id === user.id)
-                    setViewingIndex(idx)
-                    setViewingStoryIndex(0)
+                  onClick={async () => {
+                    const ownIdx = storyUsers.findIndex(u => u.id === currentUserId)
+                    if (ownIdx >= 0) {
+                      setViewingIndex(ownIdx)
+                      setViewingStoryIndex(0)
+                    } else {
+                      const ready = await checkProfileReady()
+                      if (ready) setShowCreateModal(true)
+                    }
                   }}
                   className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16 group"
                 >
-                  <div className={`relative w-16 h-16 rounded-full p-[3px] shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all ${isAdmin ? 'bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 shadow-amber-400/40' : 'bg-gradient-to-br from-accent to-purple-500'}`}>
-                    <div className="w-full h-full rounded-full bg-white overflow-hidden">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg">
-                          {user.display_name?.charAt(0)}
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center text-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">
+                    <Plus size={24} />
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 truncate w-full text-center">O teu estado</span>
+                </button>
+              )}
+              {storyUsers
+                .filter(u => u.id !== currentUserId)
+                .map((user) => {
+                  const isAdmin = user.email?.toLowerCase() === 'superadmin.xoxo@gmail.com'
+                  const storyThumb = user.stories[0]?.media_url
+                  return (
+                  <button
+                    key={user.id}
+                    onClick={() => {
+                      const idx = storyUsers.findIndex(u => u.id === user.id)
+                      setViewingIndex(idx)
+                      setViewingStoryIndex(0)
+                    }}
+                    className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16 group"
+                  >
+                    <div className={`relative w-16 h-16 rounded-full p-[3px] shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all ${isAdmin ? 'bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 shadow-amber-400/40' : 'bg-gradient-to-br from-accent to-purple-500'}`}>
+                      <div className="w-full h-full rounded-full overflow-hidden">
+                        {storyThumb ? (
+                          <img src={storyThumb} className="w-full h-full object-cover" />
+                        ) : user.avatar_url ? (
+                          <img src={user.avatar_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg">
+                            {user.display_name?.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <div className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full p-0.5 shadow-md shadow-amber-500/50 ring-2 ring-white">
+                          <Crown size={12} className="text-white" />
                         </div>
                       )}
                     </div>
-                    {isAdmin && (
-                      <div className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full p-0.5 shadow-md shadow-amber-500/50 ring-2 ring-white">
-                        <Crown size={12} className="text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-bold truncate w-full text-center dark:text-gray-400 ${isAdmin ? 'text-amber-600' : 'text-gray-500'}`}>
-                    {user.display_name?.split(' ')[0]}
-                  </span>
-                </button>
-              )})}
-          </>
-        )}
+                    <span className={`text-[10px] font-bold truncate w-full text-center dark:text-gray-400 ${isAdmin ? 'text-amber-600' : 'text-gray-500'}`}>
+                      {user.display_name?.split(' ')[0]}
+                    </span>
+                  </button>
+                )})}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Story Viewer */}

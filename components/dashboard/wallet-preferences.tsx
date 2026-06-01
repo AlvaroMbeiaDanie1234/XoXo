@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useTheme } from 'next-themes'
 import {
   WITHDRAWAL_COUNTRIES,
   getBankFieldsForCountry,
@@ -23,7 +22,6 @@ interface WalletPreferencesProps {
 
 export default function WalletPreferences({ profile, userId, onSaved }: WalletPreferencesProps) {
   const supabase = createClient()
-  const { theme } = useTheme()
   const [saving, setSaving] = useState(false)
 
   const [country, setCountry] = useState<WithdrawalCountryCode>('AO')
@@ -78,7 +76,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
 
   return (
     <form onSubmit={handleSave} className="space-y-4">
-      <div className={`flex gap-3 rounded-xl border p-3 text-sm ${theme === 'dark' ? 'border-blue-900/70 bg-blue-950/30 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-900'}`}>
+      <div className={`flex gap-3 rounded-xl border p-3 text-sm border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-200`}>
         <Info className="flex-shrink-0 text-blue-600 mt-0.5" size={18} />
         <p>
           Os levantamentos serão creditados na conta bancária que indicares abaixo. Confirma que o
@@ -86,8 +84,8 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
         </p>
       </div>
 
-      <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
-        <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
+      <div className={`overflow-hidden rounded-2xl border shadow-sm border-border bg-card`}>
+        <div className={`border-b p-4 border-border bg-muted/50`}>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Globe className="text-accent" size={22} />
             País e moeda
@@ -107,16 +105,16 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
                 className={`rounded-xl border-2 p-3 text-left transition-all ${
                   country === c.code
                     ? 'border-accent bg-accent/5 shadow-sm'
-                    : theme === 'dark' ? 'border-gray-700 bg-gray-900 hover:border-accent/40' : 'border-border hover:border-accent/40'
+                    : 'border-border bg-background hover:border-accent/40'
                 }`}
               >
                 <span className="text-2xl">{c.flag}</span>
-                <p className={`mt-2 text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{c.name}</p>
+                <p className={`mt-2 text-sm font-bold text-foreground`}>{c.name}</p>
                 <p className="text-[10px] text-gray-500">Moeda: {c.defaultCurrency}</p>
               </button>
             ))}
           </div>
-          <div className={`flex items-center justify-between rounded-lg border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-border bg-gray-50'}`}>
+          <div className={`flex items-center justify-between rounded-lg border p-3 border-border bg-muted`}>
             <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
               Moeda ativa
             </span>
@@ -125,17 +123,17 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
             </span>
           </div>
           {countryInfo && (
-            <p className={`rounded-lg border p-3 text-xs ${theme === 'dark' ? 'border-gray-700 bg-gray-900 text-gray-300' : 'border-border bg-gray-50 text-gray-600'}`}>
+            <p className={`rounded-lg border p-3 text-xs border-border bg-muted text-muted-foreground dark:text-foreground`}>
               {countryInfo.hint}
             </p>
           )}
         </div>
       </div>
 
-      <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
-        <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <Building2 className="text-orange-600" size={22} />
+        <div className={`overflow-hidden rounded-2xl border shadow-sm border-border bg-card`}>
+          <div className={`border-b p-4 border-border bg-muted/50`}>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Building2 className="text-orange-600" size={22} />
             Dados bancários para saque
           </h2>
           <p className="text-xs text-gray-500 mt-1">
@@ -156,7 +154,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
                   placeholder={field.placeholder}
                   required={field.required}
                   rows={3}
-                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-accent border-border bg-muted text-foreground`}
                 />
               ) : (
                 <input
@@ -165,7 +163,7 @@ export default function WalletPreferences({ profile, userId, onSaved }: WalletPr
                   onChange={(e) => setBank((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   placeholder={field.placeholder}
                   required={field.required}
-                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-accent border-border bg-muted text-foreground`}
                 />
               )}
             </div>

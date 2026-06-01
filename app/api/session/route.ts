@@ -41,15 +41,6 @@ export async function POST() {
       }
     }
 
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({ last_online: now })
-      .eq('id', user.id)
-
-    if (profileError) {
-      console.warn('Session update - Profile last_online ignored:', profileError.message)
-    }
-
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
     console.error('Error updating session:', error)

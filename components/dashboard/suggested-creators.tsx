@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { CheckCircle2, UserPlus, UserMinus, RefreshCw, ChevronDown, Eye, X, Loader2 } from 'lucide-react'
 import type { CreatorProfile } from '@/lib/creators'
-import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 
 interface SuggestedCreatorsProps {
@@ -21,7 +20,6 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [subscribingId, setSubscribingId] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const { theme } = useTheme()
   const isMobileVariant = variant === 'mobile'
   const supabase = useMemo(() => createClient(), [])
 
@@ -180,9 +178,9 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
   if (isMobileVariant && dismissed) return null
 
   return (
-    <div className={`${isMobileVariant ? 'flex w-full flex-col rounded-none border-x-0 border-y p-4 shadow-sm transition-colors duration-300 sm:rounded-md sm:border' : 'rounded-md border p-6 shadow-sm sticky top-24 flex flex-col max-h-[min(520px,calc(100vh-120px))] transition-colors duration-300'} ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'} ${className}`}>
+    <div className={`${isMobileVariant ? 'flex w-full flex-col rounded-none border-x-0 border-y p-4 shadow-sm transition-colors duration-300 sm:rounded-md sm:border' : 'rounded-md border p-6 shadow-sm sticky top-24 flex flex-col max-h-[min(520px,calc(100vh-120px))] transition-colors duration-300'} bg-card border-border ${className}`}>
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <h3 className={`${isMobileVariant ? 'text-base' : 'text-lg'} font-bold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>Criadores Recomendados</h3>
+        <h3 className={`${isMobileVariant ? 'text-base' : 'text-lg'} font-bold tracking-tight text-foreground`}>Criadores Recomendados</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -190,7 +188,7 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
               setLoading(true)
               fetchCreators()
             }}
-            className={`p-1.5 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-accent hover:bg-gray-700' : 'text-gray-400 hover:text-accent hover:bg-gray-100'}`}
+            className={`p-1.5 rounded-full transition-colors text-muted-foreground hover:text-accent hover:bg-accent`}
             title="Atualizar lista"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -202,7 +200,7 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
             <button
               type="button"
               onClick={handleDismiss}
-              className={`p-1.5 rounded-full transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
+              className={`p-1.5 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-accent`}
               title="Fechar recomendados"
             >
               <X size={14} />
@@ -215,10 +213,10 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
         <div className="space-y-4 animate-pulse flex-shrink-0">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-muted'}`} />
+              <div className="w-12 h-12 rounded-full bg-muted" />
               <div className="flex-1">
-                <div className={`h-4 w-24 mb-2 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-muted'}`} />
-                <div className={`h-3 w-16 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-muted'}`} />
+                <div className="h-4 w-24 mb-2 rounded bg-muted" />
+                <div className="h-3 w-16 rounded bg-muted" />
               </div>
             </div>
           ))}
@@ -226,7 +224,7 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
       )}
 
       {!loading && creators.length === 0 && (
-        <p className={`text-sm flex-shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>Nenhum criador encontrado</p>
+        <p className="text-sm flex-shrink-0 text-muted-foreground">Nenhum criador encontrado</p>
       )}
 
       {creators.length > 0 && (
@@ -238,7 +236,7 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
             {creators.map((creator) => (
               <div
                 key={creator.id}
-                className={`group flex flex-shrink-0 rounded-lg transition-colors ${isMobileVariant ? `w-[calc(100vw-2rem)] flex-col gap-3 border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-border bg-gray-50/70'}` : `items-center py-1.5 px-1 gap-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}`}
+                className={`group flex flex-shrink-0 rounded-lg transition-colors ${isMobileVariant ? `w-[calc(100vw-2rem)] flex-col gap-3 border p-3 border-border bg-muted` : `items-center py-1.5 px-1 gap-2 hover:bg-accent hover:text-accent-foreground`}`}
               >
                 <Link
                   href={`/dashboard/creator/${creator.id}`}
@@ -257,25 +255,25 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
                       </div>
                     )}
                     {creator.is_verified && (
-                      <div className={`absolute -bottom-1 -right-1 rounded-full p-0.5 ${theme === 'dark' ? 'bg-gray-800' : 'bg-background'}`}>
+                      <div className={`absolute -bottom-1 -right-1 rounded-full p-0.5 bg-background dark:bg-card`}>
                         <CheckCircle2 size={14} className="text-blue-500 fill-blue-500" />
                       </div>
                     )}
                   </div>
                   <div className="flex flex-col overflow-hidden">
-                    <span className={`text-sm font-bold group-hover:text-accent transition-colors flex items-center gap-1 truncate ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+                    <span className={`text-sm font-bold group-hover:text-accent transition-colors flex items-center gap-1 truncate text-foreground`}>
                       {creator.display_name || 'Utilizador Anónimo'}
                       {creator.is_verified && (
                         <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 flex-shrink-0" />
                       )}
                     </span>
-                    <span className={`text-xs whitespace-nowrap ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>{getPostLabel(creator.post_count)}</span>
+                    <span className={`text-xs whitespace-nowrap text-muted-foreground`}>{getPostLabel(creator.post_count)}</span>
                   </div>
                 </Link>
                 <div className={`flex flex-shrink-0 gap-1 ${isMobileVariant ? 'w-full' : ''}`}>
                     <Link
                       href={`/dashboard/creator/${creator.id}`}
-                      className={`flex min-h-8 items-center justify-center rounded-full w-8 text-xs font-bold transition-colors ${isMobileVariant ? 'flex-1 px-3' : ''} ${theme === 'dark' ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-muted text-gray-700 hover:bg-gray-200'}`}
+                      className={`flex min-h-8 items-center justify-center rounded-full w-8 text-xs font-bold transition-colors ${isMobileVariant ? 'flex-1 px-3' : ''} bg-muted text-foreground hover:bg-accent hover:text-accent-foreground`}
                       title="Visualizar perfil"
                     >
                       <Eye size={14} />
@@ -289,9 +287,7 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
                         disabled={subscribingId === creator.id}
                         className={`flex min-h-8 items-center justify-center rounded-full w-8 text-xs font-bold transition-colors disabled:opacity-60 ${isMobileVariant ? 'flex-1 px-3' : ''} ${
                           subscribedIds.has(creator.id)
-                            ? theme === 'dark'
-                              ? 'bg-gray-700 text-gray-300 hover:bg-red-950/40 hover:text-red-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
+                            ? 'bg-muted text-muted-foreground dark:text-foreground hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-300'
                             : 'bg-accent text-white hover:bg-accent/90'
                         }`}
                         title={subscribedIds.has(creator.id) ? 'Remover subscricao' : 'Subscrever'}
@@ -306,8 +302,8 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
           </div>
 
           {showScrollHint && (
-            <div className={`pointer-events-none absolute bottom-0 left-0 right-0 h-12 flex items-end justify-center pb-1 flex-shrink-0 ${theme === 'dark' ? 'bg-gradient-to-t from-gray-800 via-gray-800/80 to-transparent' : 'bg-gradient-to-t from-white via-white/80 to-transparent'}`}>
-              <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
+            <div className={`pointer-events-none absolute bottom-0 left-0 right-0 h-12 flex items-end justify-center pb-1 flex-shrink-0 bg-gradient-to-t from-card via-card/80 to-transparent`}>
+              <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground`}>
                 <ChevronDown size={12} className="animate-bounce" />
                 Desliza para ver mais
               </span>

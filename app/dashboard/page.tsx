@@ -19,7 +19,6 @@ import {
 } from 'lucide-react'
 import { Suspense } from 'react'
 import WalletPreferences from '@/components/dashboard/wallet-preferences'
-import { useTheme } from 'next-themes'
 import {
   formatMoney,
   bankDetailsFromProfile,
@@ -67,8 +66,6 @@ function DashboardContent() {
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [minWithdrawAmount, setMinWithdrawAmount] = useState(1000)
-  const { theme } = useTheme()
-  
   // Infinite scroll states
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -82,6 +79,12 @@ function DashboardContent() {
   const [depositLoading, setDepositLoading] = useState(false)
   const [depositSuccess, setDepositSuccess] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [depositStep, setDepositStep] = useState<'amount' | 'payment' | 'confirming'>('amount')
+  const [depositEntity, setDepositEntity] = useState('')
+  const [depositReference, setDepositReference] = useState('')
+  const [depositRefPhone, setDepositRefPhone] = useState('')
+  const [depositTxnId, setDepositTxnId] = useState('')
+  const [depositSubmitting, setDepositSubmitting] = useState(false)
 
   const supabase = createClient()
   const router = useRouter()
@@ -258,7 +261,28 @@ function DashboardContent() {
     fetchData()
   }, [supabase, router, mode, view])
 
-  const handleFlutterwaveDeposit = async () => {
+  // Prevent navigation during deposit payment step
+  useEffect(() => {
+    if (depositStep === 'payment') {
+      const onBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault()
+      }
+      const onPopState = () => {
+        if (!confirm('Tens um depósito pendente. Se saíres sem confirmar, o pedido será perdido. Deseja continuar?')) {
+          window.history.pushState(null, '', window.location.href)
+        }
+      }
+      window.addEventListener('beforeunload', onBeforeUnload)
+      window.addEventListener('popstate', onPopState)
+      window.history.pushState(null, '', window.location.href)
+      return () => {
+        window.removeEventListener('beforeunload', onBeforeUnload)
+        window.removeEventListener('popstate', onPopState)
+      }
+    }
+  }, [depositStep])
+
+  const handleRequestDeposit = async () => {
     const minDep = minDepositForCurrency(preferredCurrency)
     if (!depositAmount || parseFloat(depositAmount) < minDep) {
       alert(`O valor mínimo de depósito é ${formatMoney(minDep, preferredCurrency)}`)
@@ -266,19 +290,36 @@ function DashboardContent() {
     }
     setDepositLoading(true)
     try {
-      await fetch('/api/payments/flutterwave/initialize', {
+      const res = await fetch('/api/deposits/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: parseFloat(depositAmount),
-          currency: preferredCurrency,
-        }),
+        body: JSON.stringify({ amount: parseFloat(depositAmount) }),
       })
-      alert('Canal de depósito em atualização. Aguarde a disponibilização da API de pagamentos.')
-    } catch {
-      alert('Canal de depósito em atualização. Aguarde a disponibilização da API de pagamentos.')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setDepositEntity(data.entity)
+      setDepositReference(data.reference)
+      setDepositRefPhone(data.phone)
+      setDepositTxnId(data.transaction.id)
+      setDepositStep('payment')
+    } catch (err: any) {
+      alert('Erro: ' + err.message)
     } finally {
       setDepositLoading(false)
+    }
+  }
+
+  const handleConfirmDeposit = async () => {
+    if (!confirm('ATENÇÃO: Ao confirmar, declara que realizou o pagamento. Se confirmar sem efectuar o pagamento, a sua conta poderá ser banida. Deseja continuar?')) return
+    setDepositSubmitting(true)
+    try {
+      alert('Pedido de depósito enviado! O administrador irá aprovar o seu depósito em breve.')
+      setDepositStep('amount')
+      setDepositAmount('')
+    } catch (err: any) {
+      alert('Erro: ' + err.message)
+    } finally {
+      setDepositSubmitting(false)
     }
   }
 
@@ -297,16 +338,14 @@ function DashboardContent() {
       return alert(`O valor mínimo de levantamento é AOA ${minWithdrawAmount.toLocaleString()}.`)
     }
 
-    const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
-    const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
-    const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
     const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
-    const earningsCredits = transactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-    const earningsDebits = transactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-    const withdrawable = Math.max(0, balance + earningsCredits - earningsDebits - unspentDeposits - pendingWithdrawals)
 
-    if (amount > withdrawable) {
-      return alert('Saldo insuficiente para levantamento! Apenas ganhos podem ser levantados.')
+    if (pendingWithdrawals > 0) {
+      return alert('Já tens um pedido de levantamento pendente. Aguarda até ser processado antes de solicitar outro.')
+    }
+
+    if (amount > balance - pendingWithdrawals) {
+      return alert('Saldo insuficiente para levantamento.')
     }
 
     setIsProcessing(true)
@@ -322,21 +361,17 @@ function DashboardContent() {
         await supabase.from('profiles').update({ phone: withdrawPhone }).eq('id', user.id)
       }
 
-      // Deduct amount from balance immediately (cativar valor)
-      const { error: balanceError } = await supabase
-        .from('profiles')
-        .update({ balance: balance - amount })
-        .eq('id', user.id)
-
-      if (balanceError) throw balanceError
-
-      await supabase.from('transactions').insert({
+      const { data: newTxn } = await supabase.from('transactions').insert({
         user_id: user.id,
         amount: amount,
         type: 'withdraw',
         description,
         status: 'pending',
-      })
+      }).select().single()
+
+      if (newTxn) {
+        setTransactions(prev => [newTxn, ...(prev || [])])
+      }
 
       const { data: profile } = await supabase.from('profiles').select('balance, phone').eq('id', user.id).single()
       if (profile) {
@@ -364,7 +399,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-background'}`}>
+    <div className={`min-h-screen transition-colors duration-300 bg-background`}>
       <Header user={user} />
       
       <div className={`max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4 ${mode === 'wallet' ? 'flex-col lg:flex-row' : ''}`}>
@@ -376,46 +411,23 @@ function DashboardContent() {
           {mode === 'wallet' ? (
             <div className="space-y-4">
               {view === 'balance' || !view ? (
-                <div className={`overflow-hidden rounded-2xl border shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                <div className={`overflow-hidden rounded-2xl border shadow-sm transition-colors duration-300 bg-card border-border`}>
                   <div className="bg-[linear-gradient(135deg,#111827_0%,#e31e24_65%,#7f1d1d_100%)] p-6 text-white sm:p-7">
                     <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white/80">
-                      <Wallet size={18} /> Saldo Disponível
+                      <Wallet size={18} /> Saldo
                     </h2>
                     <p className="text-3xl font-black tracking-tight sm:text-4xl">{formatMoney(balance, preferredCurrency)}</p>
-                    <p className="mt-2 text-xs font-medium text-white/70">Para compras, mensagens e conteúdos premium.</p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5">
-                    <div className={`rounded-xl border p-4 ${theme === 'dark' ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-100'}`}>
-                      <div className="flex items-center gap-3 mb-2 text-green-600">
-                        <ArrowDownLeft size={18} />
-                        <p className="text-[11px] font-bold uppercase tracking-widest">Ganhos a levantar</p>
-                      </div>
-                      <p className={`text-xl font-black sm:text-2xl ${theme === 'dark' ? 'text-green-400' : 'text-green-700'}`}>
-                        {formatMoney(
-                          (() => {
-                            const totalDeposits = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + Number(t.amount), 0)
-                            const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0)
-                            const unspentDeposits = Math.max(0, totalDeposits - totalPurchases)
-                            const earningsCredits = transactions.filter(t => t.type === 'earnings_credit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-                            const earningsDebits = transactions.filter(t => t.type === 'earnings_debit' && t.status === 'completed').reduce((s, t) => s + Number(t.amount), 0)
-                            return Math.max(0, balance + earningsCredits - earningsDebits - unspentDeposits)
-                          })(),
-                          preferredCurrency
-                        )}
-                      </p>
-                    </div>
-                    <div className={`rounded-xl border p-4 ${theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-100'}`}>
-                      <div className="flex items-center gap-3 mb-2 text-red-600">
-                        <ArrowUpRight size={18} />
-                        <p className="text-[11px] font-bold uppercase tracking-widest">Despesas</p>
-                      </div>
-                      <p className={`text-xl font-black sm:text-2xl ${theme === 'dark' ? 'text-red-400' : 'text-red-700'}`}>
-                        {formatMoney(
-                          transactions.filter(t => t.type === 'purchase').reduce((s, t) => s + Number(t.amount), 0),
-                          preferredCurrency
-                        )}
-                      </p>
-                    </div>
+                    {(() => {
+                      const pending = (transactions || []).filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0)
+                      if (pending > 0) {
+                        return (
+                          <p className="mt-2 text-xs font-medium text-white/70">
+                            {formatMoney(pending, preferredCurrency)} em levantamento
+                          </p>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </div>
               ) : view === 'payment-settings' ? (
@@ -427,8 +439,8 @@ function DashboardContent() {
                   />
                 )
               ) : view === 'deposit' ? (
-                <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
-                  <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
+                <div className="overflow-hidden rounded-2xl border shadow-sm border-border bg-card">
+                  <div className="border-b p-4 border-border bg-muted/50">
                     <h2 className="flex items-center gap-2 text-lg font-bold">
                       <PlusCircle className="text-accent" /> Carregar Carteira
                     </h2>
@@ -437,71 +449,149 @@ function DashboardContent() {
                   <div className="p-5 sm:p-6">
                     <div className="mx-auto max-w-sm space-y-4">
                       {searchParams.get('required') === '1' && (
-                        <div className={`rounded-xl border p-3 text-center text-xs font-medium ${theme === 'dark' ? 'border-orange-900/70 bg-orange-950/30 text-orange-200' : 'border-orange-200 bg-orange-50 text-orange-800'}`}>
+                        <div className="rounded-xl border p-3 text-center text-xs font-medium bg-orange-50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-900/70">
                           Atingiste o limite gratuito (3 publicações, 3 mensagens, 3 comentários). Realiza um depósito para continuar.
                         </div>
                       )}
                       {depositSuccess && (
-                        <div className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-center text-xs font-medium ${theme === 'dark' ? 'border-green-900/70 bg-green-950/30 text-green-200' : 'border-green-200 bg-green-50 text-green-800'}`}>
+                        <div className="flex items-center justify-center gap-2 rounded-xl border p-3 text-center text-xs font-medium bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-900/70">
                           <CheckCircle2 size={18} /> Pagamento recebido! O saldo será atualizado em breve.
                         </div>
                       )}
-                      <div className="text-center">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Canal de depósito em atualização</p>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">
-                            {currencyOpt.symbol}
-                          </span>
-                          <input
-                            type="number"
-                            min={minDeposit}
-                            placeholder={`Mín. ${minDeposit}`}
-                            className={`w-full rounded-xl border py-3 pl-14 pr-5 text-center text-xl font-black outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-gray-200 bg-gray-50 text-gray-900'}`}
-                            value={depositAmount}
-                            onChange={(e) => setDepositAmount(e.target.value)}
-                          />
-                        </div>
-                        <p className="text-[10px] text-gray-400 mt-2">
-                          Moeda: <strong>{preferredCurrency}</strong> (definida pelo país em{' '}
+
+                      {depositStep === 'amount' && (
+                        <>
+                          <div className="text-center">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Pagamento por Referência</p>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-lg">
+                                {currencyOpt.symbol}
+                              </span>
+                              <input
+                                type="number"
+                                min={minDeposit}
+                                placeholder={`Mín. ${minDeposit}`}
+                                className="w-full rounded-xl border py-3 pl-14 pr-5 text-center text-xl font-black outline-none transition-colors focus:border-accent border-border bg-muted text-foreground"
+                                value={depositAmount}
+                                onChange={(e) => setDepositAmount(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {depositPresets.map((val) => (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => setDepositAmount(val)}
+                                className="rounded-lg border py-2 text-xs font-bold transition-colors hover:border-accent hover:text-accent border-border bg-muted text-muted-foreground"
+                              >
+                                {val}
+                              </button>
+                            ))}
+                          </div>
                           <button
-                            type="button"
-                            onClick={() => router.push('/dashboard?mode=wallet&view=payment-settings')}
-                            className="text-accent font-bold hover:underline"
+                            onClick={handleRequestDeposit}
+                            disabled={depositLoading || !depositAmount}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
                           >
-                            Moeda e Banco
+                            {depositLoading ? <Loader2 className="animate-spin" size={20} /> : <ExternalLink size={18} />}
+                            Solicitar Depósito
                           </button>
-                          )
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {depositPresets.map((val) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setDepositAmount(val)}
-                            className={`rounded-lg border py-2 text-xs font-bold transition-colors hover:border-accent hover:text-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-900 text-gray-300' : 'border-gray-200 bg-gray-50 text-gray-600'}`}
-                          >
-                            {val}
-                          </button>
-                        ))}
-                      </div>
-                      <button 
-                        onClick={handleFlutterwaveDeposit}
-                        disabled={depositLoading || !depositAmount}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
-                      >
-                        {depositLoading ? <Loader2 className="animate-spin" size={20} /> : <ExternalLink size={18} />}
-                        Canal de depósito em atualização
-                      </button>
-                      <p className="text-[10px] text-center text-gray-400">
-                        A API de pagamentos está temporariamente indisponível. Tente novamente mais tarde.
-                      </p>
+                        </>
+                      )}
+
+                      {depositStep === 'payment' && (
+                        <>
+                          <div className="flex items-center gap-4 rounded-xl border-2 border-dashed border-green-400 bg-green-50 dark:bg-green-900/10 p-5">
+                            <img src="/express.png" alt="Multicaixa Express" className="w-16 h-16 object-contain flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-bold text-green-700 dark:text-green-300">Pagamento por Referência</p>
+                              <p className="text-xs text-green-600 dark:text-green-400">Multicaixa Express</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between rounded-xl border border-border bg-muted p-3">
+                              <div>
+                                <p className="text-[10px] text-muted-foreground font-medium">Entidade</p>
+                                <p className="text-sm font-bold text-foreground">00930 · Unitel Money</p>
+                              </div>
+                              <button
+                                onClick={() => { navigator.clipboard.writeText('00930'); alert('Entidade copiada!') }}
+                                className="text-xs font-bold text-accent hover:underline px-2 py-1"
+                              >
+                                Copiar
+                              </button>
+                            </div>
+
+                            <div className="flex items-center justify-between rounded-xl border border-border bg-muted p-3">
+                              <div>
+                                <p className="text-[10px] text-muted-foreground font-medium">Referência (Telefone)</p>
+                                <p className="text-sm font-bold text-foreground tracking-widest">{depositReference}</p>
+                              </div>
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(depositReference); alert('Referência copiada!') }}
+                                className="text-xs font-bold text-accent hover:underline px-2 py-1"
+                              >
+                                Copiar
+                              </button>
+                            </div>
+
+                            <div className="flex items-center justify-between rounded-xl border border-border bg-muted p-3">
+                              <div>
+                                <p className="text-[10px] text-muted-foreground font-medium">Valor</p>
+                                <p className="text-sm font-bold text-green-700 dark:text-green-400">{formatMoney(Number(depositAmount), preferredCurrency)}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 p-3 text-[11px] text-blue-800 dark:text-blue-200 leading-relaxed">
+                            <p className="font-bold mb-1 text-xs">Instruções:</p>
+                            <ol className="list-decimal list-inside space-y-0.5">
+                              <li>Abra o <strong>Multicaixa Express</strong></li>
+                              <li>Clique em <strong>Pagamentos</strong> → <strong>Pagamentos por Referência</strong></li>
+                              <li>Insira a <strong>Entidade</strong> 00930 · Unitel Money</li>
+                              <li>Insira a <strong>Referência</strong> (seu telefone) {depositReference}</li>
+                              <li>Insira o <strong>Valor</strong> {formatMoney(Number(depositAmount), preferredCurrency)}</li>
+                              <li>Confirme o pagamento</li>
+                            </ol>
+                          </div>
+
+                          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 p-3">
+                            <p className="text-[11px] font-bold text-red-700 dark:text-red-300 mb-0.5">⚠️ Aviso</p>
+                            <p className="text-[10px] text-red-600 dark:text-red-400 leading-relaxed">
+                              Pague primeiro, depois confirme. Confirmar sem pagar pode resultar em <strong>banimento permanente</strong>.
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                if (confirm('Tens um depósito pendente. Se voltares sem confirmar, o pedido será perdido. Deseja continuar?')) {
+                                  setDepositStep('amount')
+                                }
+                              }}
+                              className="flex-1 rounded-lg border py-2 text-xs font-semibold border-border bg-muted text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            >
+                              Voltar
+                            </button>
+                            <button
+                              onClick={handleConfirmDeposit}
+                              disabled={depositSubmitting}
+                              className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                              {depositSubmitting ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+                              Já Paguei, Confirmar
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
               ) : view === 'withdraw' ? (
-                <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
-                  <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-orange-950/20' : 'border-border bg-orange-50/50'}`}>
+                <div className="overflow-hidden rounded-2xl border shadow-sm border-border bg-card">
+                  <div className="border-b p-4 border-border bg-orange-50/50 dark:bg-orange-950/20">
                     <h2 className="flex items-center gap-2 text-lg font-bold">
                       <Banknote className="text-orange-600" /> Levantamento de Dinheiro
                     </h2>
@@ -512,13 +602,9 @@ function DashboardContent() {
                   </div>
                   <div className="p-5 sm:p-6">
                     <div className="mx-auto max-w-sm space-y-4">
-                      <div className={`flex items-center justify-between rounded-xl border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-border bg-gray-50'}`}>
-                        <span className="text-sm text-gray-500">Saldo Disponível</span>
-                        <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{formatMoney(balance, preferredCurrency)}</span>
-                      </div>
 
                       {!bankComplete ? (
-                        <div className={`rounded-xl border p-4 text-sm ${theme === 'dark' ? 'border-amber-900/70 bg-amber-950/30 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                        <div className="rounded-xl border p-4 text-sm bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-900/70">
                           <p className="font-bold mb-1">Dados bancários em falta</p>
                           <p className="text-xs mb-3">
                             Guarda o teu nome, banco e IBAN/conta em Moeda e Banco antes de solicitar levantamento.
@@ -532,12 +618,12 @@ function DashboardContent() {
                           </button>
                         </div>
                       ) : (
-                        <div className={`space-y-1 rounded-xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-border bg-white'}`}>
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <div className="space-y-1 rounded-xl border p-4 border-border bg-card">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
                             <Building2 size={14} /> Conta de recebimento
                           </p>
                           {formatBankSummary(withdrawalCountry, bankDetails).map((line) => (
-                            <p key={line} className={`text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{line}</p>
+                            <p key={line} className="text-sm text-foreground">{line}</p>
                           ))}
                           <button
                             type="button"
@@ -561,7 +647,7 @@ function DashboardContent() {
                             type="number"
                             placeholder="0"
                             min={0}
-                            className={`w-full rounded-xl border py-3 pl-14 pr-4 font-bold outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
+                            className="w-full rounded-xl border py-3 pl-14 pr-4 font-bold outline-none transition-colors focus:border-accent border-border bg-muted text-foreground"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
                           />
@@ -575,7 +661,7 @@ function DashboardContent() {
                         <input
                           type="tel"
                           placeholder={userProfile?.phone || 'Número de telefone'}
-                          className={`w-full rounded-xl border px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-accent ${theme === 'dark' ? 'border-gray-700 bg-gray-950 text-white' : 'border-border bg-gray-50 text-gray-900'}`}
+                          className="w-full rounded-xl border px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-accent border-border bg-muted text-foreground"
                           value={withdrawPhone}
                           onChange={(e) => setWithdrawPhone(e.target.value)}
                         />
@@ -599,16 +685,16 @@ function DashboardContent() {
                   </div>
                 </div>
               ) : (
-                <div className={`overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
-                  <div className={`border-b p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-border bg-gray-50/60'}`}>
+                <div className="overflow-hidden rounded-2xl border shadow-sm border-border bg-card">
+                  <div className="border-b p-4 border-border bg-muted/50">
                     <h2 className="flex items-center gap-2 text-lg font-bold">
                       <List className="text-accent" /> Histórico de Transações
                     </h2>
                   </div>
-                  <div className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-border'}`}>
+                  <div className="divide-y divide-border">
                     {transactions.length > 0 ? (
                       transactions.map((t) => (
-                        <div key={t.id} className={`flex items-center justify-between gap-3 p-3 transition-colors ${theme === 'dark' ? 'hover:bg-gray-700/60' : 'hover:bg-gray-50'}`}>
+                        <div key={t.id} className="flex items-center justify-between gap-3 p-3 transition-colors hover:bg-accent hover:text-accent-foreground">
                           <div className="flex min-w-0 items-center gap-3">
                             <div className={`p-2 rounded-full ${
                               t.type === 'deposit' || t.type === 'earnings' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -616,7 +702,7 @@ function DashboardContent() {
                               {t.type === 'deposit' ? <PlusCircle size={18} /> : t.type === 'earnings' ? <ArrowDownLeft size={18} /> : t.type === 'withdraw' ? <Banknote size={18} /> : <ArrowUpRight size={18} />}
                             </div>
                             <div className="min-w-0">
-                              <p className={`line-clamp-1 text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.description}</p>
+                              <p className="line-clamp-1 text-sm font-bold text-foreground">{t.description}</p>
                               <p className="text-[10px] text-gray-400 uppercase font-medium">{formatRelativeTime(t.created_at)} • {t.type}</p>
                             </div>
                           </div>
@@ -642,20 +728,20 @@ function DashboardContent() {
               {dashboardAnnouncements
                 .filter(a => a.type === 'comunicado' && !dismissedAnns.includes(a.id))
                 .map((a) => (
-                  <div key={a.id} className={`rounded-xl p-5 mb-4 shadow-sm relative flex gap-4 animate-in fade-in duration-300 ${theme === 'dark' ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
-                    <div className={`p-3 rounded-xl w-12 h-12 flex items-center justify-center flex-shrink-0 ${theme === 'dark' ? 'bg-blue-800 text-blue-300' : 'bg-blue-100 text-blue-600'}`}>
+                  <div key={a.id} className="rounded-xl p-5 mb-4 shadow-sm relative flex gap-4 animate-in fade-in duration-300 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                    <div className="p-3 rounded-xl w-12 h-12 flex items-center justify-center flex-shrink-0 bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300">
                        <Megaphone size={22} />
                     </div>
                     <div className="flex-1 pr-6">
-                      <h4 className={`font-extrabold text-base mb-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-900'}`}>{a.title}</h4>
-                      <p className={`text-xs leading-relaxed whitespace-pre-wrap ${theme === 'dark' ? 'text-blue-300' : 'text-blue-800'}`}>{a.content}</p>
+                      <h4 className="font-extrabold text-base mb-1 text-blue-900 dark:text-blue-200">{a.title}</h4>
+                      <p className="text-xs leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-300">{a.content}</p>
                       {a.image_url && (
                         <img src={a.image_url} alt="anuncio" className="max-h-48 rounded-xl object-cover mt-3 border border-blue-100" />
                       )}
                     </div>
                     <button
                       onClick={() => setDismissedAnns([...dismissedAnns, a.id])}
-                      className={`absolute top-4 right-4 transition-colors ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-400 hover:text-blue-600'}`}
+                      className="absolute top-4 right-4 transition-colors text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
                     >
                       <X size={16} />
                     </button>
@@ -670,12 +756,8 @@ function DashboardContent() {
                 <StoriesBar currentUserId={user?.id || null} />
               </div>
 
-              <div className="-mx-4 mb-4 w-[calc(100%+2rem)] xl:hidden">
-                <SuggestedCreators variant="mobile" />
-              </div>
-
               {/* Feed Logic Same as Before */}
-              <div className={`-mx-4 mb-4 w-[calc(100%+2rem)] rounded-none border p-4 shadow-sm transition-colors duration-300 sm:mx-0 sm:w-full sm:rounded-md ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-border bg-white'}`}>
+              <div className="-mx-4 mb-4 w-[calc(100%+2rem)] rounded-none border p-4 shadow-sm transition-colors duration-300 sm:mx-0 sm:w-full sm:rounded-md border-border bg-card">
                 <div className="flex gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary p-[2px] shadow-sm flex-shrink-0">
                     <div className="w-full h-full rounded-full border border-white overflow-hidden bg-muted flex items-center justify-center text-white font-bold text-lg">
@@ -688,7 +770,7 @@ function DashboardContent() {
                   </div>
                   <button
                     onClick={() => setIsModalOpen(true)}
-                    className={`flex-1 text-left transition-colors rounded-full px-5 py-3 text-sm font-medium border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600' : 'bg-[#f3f2ef] text-gray-600 hover:bg-gray-200 border-border'}`}
+                    className="flex-1 text-left transition-colors rounded-full px-5 py-3 text-sm font-medium border bg-muted text-foreground hover:bg-accent hover:text-accent-foreground border-border"
                   >
                     O que vais publicar hoje, {userProfile?.display_name || user?.email?.split('@')[0]}?
                   </button>
@@ -696,6 +778,10 @@ function DashboardContent() {
               </div>
 
               <CreatePostModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} />
+
+              <div className="-mx-4 mb-4 w-[calc(100%+2rem)] xl:hidden">
+                <SuggestedCreators variant="mobile" />
+              </div>
 
               {loading ? (
                 <div className="flex flex-col gap-4 w-full">
@@ -738,13 +824,13 @@ function DashboardContent() {
             {dashboardAnnouncements
               .filter(a => a.type === 'anuncio')
               .map((a) => (
-                <div key={a.id} className={`rounded-2xl shadow-md p-5 overflow-hidden flex flex-col justify-between hover:shadow-lg transition-shadow ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                <div key={a.id} className="rounded-2xl shadow-md p-5 overflow-hidden flex flex-col justify-between hover:shadow-lg transition-shadow bg-card border-border">
                   <div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${theme === 'dark' ? 'bg-purple-900/30 text-purple-300 border-purple-800' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
+                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border-purple-100 dark:border-purple-800">
                       Publicidade / Anúncio
                     </span>
-                    <h4 className={`font-extrabold text-sm mt-3 mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{a.title}</h4>
-                    <p className={`text-xs leading-relaxed whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{a.content}</p>
+                    <h4 className="font-extrabold text-sm mt-3 mb-1 text-foreground">{a.title}</h4>
+                    <p className="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">{a.content}</p>
                     {a.image_url && (
                       <img src={a.image_url} alt="ads" className="w-full h-32 rounded-xl object-cover mt-3 border border-gray-100 shadow-sm" />
                     )}

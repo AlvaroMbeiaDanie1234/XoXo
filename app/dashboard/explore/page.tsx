@@ -6,7 +6,6 @@ import TopCreatorsRanking from '@/components/dashboard/top-creators-ranking'
 import { Search, UserPlus, Check, TrendingUp, Star, Sparkles, Video, Image as ImageIcon, FileText, Heart, MessageCircle, Share2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useRef } from 'react'
-import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
@@ -25,7 +24,6 @@ export default function ExplorePage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const supabase = createClient()
   const searchRef = useRef<HTMLDivElement>(null)
-  const { theme } = useTheme()
 
   useEffect(() => {
     async function loadData() {
@@ -189,14 +187,14 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-background'}`}>
+    <div className={`min-h-screen transition-colors duration-300 bg-background`}>
       {/* Global Top Navbar */}
-      <div className={`sticky top-0 z-50 border-b shadow-sm transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-border'}`}>
+      <div className={`sticky top-0 z-50 border-b shadow-sm transition-colors duration-300 bg-background border-border`}>
         <div className="max-w-[1128px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-accent lg:hidden">XoXo</h2>
-            <div ref={searchRef} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border w-full sm:w-64 transition-all focus-within:sm:w-80 relative ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-[#f3f2ef] border-border'}`}>
-              <Search size={16} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} />
+            <div ref={searchRef} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border w-full sm:w-64 transition-all focus-within:sm:w-80 relative bg-muted dark:bg-card border-border`}>
+              <Search size={16} className={'text-muted-foreground'} />
               <input
                 type="text"
                 placeholder="Pesquisar..."
@@ -213,24 +211,24 @@ export default function ExplorePage() {
                     setShowSuggestions(false)
                   }
                 }}
-                className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'}`}
+                className={`w-full bg-transparent text-sm outline-none text-foreground placeholder-muted-foreground`}
               />
               {searchQuery && (
                 <button
                   onClick={() => { setSearchQuery(''); setShowSuggestions(false) }}
-                  className={`p-0.5 rounded-full ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`p-0.5 rounded-full text-muted-foreground hover:text-foreground`}
                 >
                   <X size={14} />
                 </button>
               )}
               {showSuggestions && suggestions.length > 0 && (
-                <div className={`absolute top-full left-0 right-0 mt-2 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                <div className={`absolute top-full left-0 right-0 mt-2 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto bg-card border-border`}>
                   {suggestions.map((creator) => (
                     <Link
                       key={creator.id}
                       href={`/dashboard/creator/${creator.id}`}
                       onClick={() => setShowSuggestions(false)}
-                      className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
+                      className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors hover:bg-accent hover:text-accent-foreground`}
                     >
                       <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
                         {creator.avatar_url ? (
@@ -240,9 +238,9 @@ export default function ExplorePage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{creator.display_name || 'Sem nome'}</p>
+                        <p className={`font-medium truncate text-foreground`}>{creator.display_name || 'Sem nome'}</p>
                         {creator.email && (
-                          <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{creator.email}</p>
+                          <p className={`text-xs truncate text-muted-foreground`}>{creator.email}</p>
                         )}
                       </div>
                     </Link>
@@ -254,7 +252,7 @@ export default function ExplorePage() {
           {user && (
             <div className="hidden sm:flex items-center gap-3">
               <div className="text-right">
-                <p className={`text-xs font-medium ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>{user.email}</p>
+                <p className={`text-xs font-medium text-foreground`}>{user.email}</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-xs">
                 {user.email?.charAt(0).toUpperCase()}
@@ -280,8 +278,8 @@ export default function ExplorePage() {
 
           {/* Stories Section — show search results when query is active */}
           {searchQuery.length === 0 && (
-          <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-            <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+          <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 bg-card border-border`}>
+            <h3 className={`font-bold mb-4 flex items-center gap-2 text-foreground`}>
               <Sparkles size={18} className="text-accent" />
               Criadores em Destaque
             </h3>
@@ -297,7 +295,7 @@ export default function ExplorePage() {
                       )}
                     </div>
                   </div>
-                  <span className={`text-xs truncate w-16 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{creator.display_name?.split(' ')[0]}</span>
+                  <span className={`text-xs truncate w-16 text-center text-muted-foreground`}>{creator.display_name?.split(' ')[0]}</span>
                 </div>
               ))}
             </div>
@@ -305,14 +303,14 @@ export default function ExplorePage() {
           )}
 
           {/* Trending Section */}
-          <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-            <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+          <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 bg-card border-border`}>
+            <h3 className={`font-bold mb-4 flex items-center gap-2 text-foreground`}>
               <TrendingUp size={18} className="text-accent" />
               Em Alta
             </h3>
             <div className="space-y-4">
               {posts.slice(0, 3).map((post) => (
-                <Link key={post.id} href={`/dashboard/post/${post.id}`} className={`block p-3 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                <Link key={post.id} href={`/dashboard/post/${post.id}`} className={`block p-3 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground`}>
                   <div className="flex gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
                       {post.profiles?.avatar_url ? (
@@ -322,10 +320,10 @@ export default function ExplorePage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{post.title}</p>
-                      <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{post.profiles?.display_name}</p>
+                      <p className={`font-medium truncate text-foreground`}>{post.title}</p>
+                      <p className={`text-xs text-muted-foreground`}>{post.profiles?.display_name}</p>
                     </div>
-                    <div className={`flex items-center gap-1 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <div className={`flex items-center gap-1 text-xs text-muted-foreground`}>
                       <Heart size={14} />
                       <span>12</span>
                     </div>
@@ -337,7 +335,7 @@ export default function ExplorePage() {
 
           {/* Feed Section */}
           <div className="space-y-4">
-            <h3 className={`font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+            <h3 className={`font-bold flex items-center gap-2 text-foreground`}>
               <Star size={18} className="text-accent" />
               Feed Recente
             </h3>
@@ -346,8 +344,8 @@ export default function ExplorePage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
               </div>
             ) : posts.length === 0 ? (
-              <div className={`p-8 rounded-xl border text-center ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Nenhum conteúdo disponível no momento.</p>
+              <div className={`p-8 rounded-xl border text-center bg-card border-border`}>
+                <p className={text-muted-foreground}>Nenhum conteúdo disponível no momento.</p>
               </div>
             ) : (
               posts.map((post) => (
@@ -366,14 +364,14 @@ export default function ExplorePage() {
 
           {/* Search Results Section */}
           {searchQuery.length > 0 && filteredCreators.length > 0 && (
-            <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-              <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+            <div className={`mb-6 p-4 rounded-xl border transition-colors duration-300 bg-card border-border`}>
+              <h3 className={`font-bold mb-4 flex items-center gap-2 text-foreground`}>
                 <Search size={18} className="text-accent" />
                 Resultados para &ldquo;{searchQuery}&rdquo;
               </h3>
               <div className="space-y-3">
                 {filteredCreators.slice(0, 10).map((creator) => (
-                  <Link key={creator.id} href={`/dashboard/creator/${creator.id}`} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                  <Link key={creator.id} href={`/dashboard/creator/${creator.id}`} className={`flex items-center gap-3 p-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground`}>
                     <div className="relative">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
                         {creator.avatar_url ? (
@@ -387,9 +385,9 @@ export default function ExplorePage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{creator.display_name || 'Sem nome'}</p>
+                      <p className={`font-medium truncate text-foreground`}>{creator.display_name || 'Sem nome'}</p>
                       {creator.email && (
-                        <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{creator.email}</p>
+                        <p className={`text-xs truncate text-muted-foreground`}>{creator.email}</p>
                       )}
                     </div>
                   </Link>
@@ -399,15 +397,15 @@ export default function ExplorePage() {
           )}
 
           {searchQuery.length > 0 && filteredCreators.length === 0 && (
-            <div className={`mb-6 p-4 rounded-xl border text-center ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-border text-gray-500'}`}>
+            <div className={`mb-6 p-4 rounded-xl border text-center bg-card border-border text-muted-foreground`}>
               Nenhum resultado encontrado para &ldquo;{searchQuery}&rdquo;
             </div>
           )}
 
           {/* Suggested Creators Section — hide when searching */}
           {searchQuery.length === 0 && (
-          <div className={`mt-6 p-4 rounded-xl border transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
-            <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-foreground'}`}>
+          <div className={`mt-6 p-4 rounded-xl border transition-colors duration-300 bg-card border-border`}>
+            <h3 className={`font-bold mb-4 flex items-center gap-2 text-foreground`}>
               <UserPlus size={18} className="text-accent" />
               Criadores Sugeridos
             </h3>
@@ -427,9 +425,9 @@ export default function ExplorePage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{creator.display_name || 'Sem nome'}</p>
+                    <p className={`font-medium truncate text-foreground`}>{creator.display_name || 'Sem nome'}</p>
                     <div className="flex items-center gap-2">
-                      <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <p className={`text-xs text-muted-foreground`}>
                         {followersCount[creator.id] || 0} seguidores
                       </p>
                     </div>
@@ -438,7 +436,7 @@ export default function ExplorePage() {
                     onClick={() => handleFollow(creator.id)}
                     className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                       following.has(creator.id)
-                        ? `${theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
+                        ? 'bg-muted text-foreground hover:bg-accent hover:text-accent-foreground'
                         : 'bg-accent text-white hover:bg-accent/90'
                     }`}
                   >

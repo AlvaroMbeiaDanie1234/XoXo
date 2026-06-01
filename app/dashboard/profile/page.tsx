@@ -8,7 +8,6 @@ import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
 import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users, Globe, MapPin, Crown, Trash2, Image, Video, MessageCircle, Heart, Eye, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
 import { buildReferralCode } from '@/lib/referrals'
-import { useTheme } from 'next-themes'
 import { isAdminEmail } from '@/lib/admin-emails'
 
 export default function EditProfilePage() {
@@ -45,12 +44,12 @@ export default function EditProfilePage() {
   const [showGender, setShowGender] = useState(true)
   const [showCountry, setShowCountry] = useState(true)
   const [showLocation, setShowLocation] = useState(true)
+  const [showPhone, setShowPhone] = useState(true)
+  const [isPublic, setIsPublic] = useState(true)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const router = useRouter()
-  const { theme } = useTheme()
-
   const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
@@ -111,6 +110,8 @@ export default function EditProfilePage() {
         setShowGender(profileData.show_gender !== false)
         setShowCountry(profileData.show_country !== false)
         setShowLocation(profileData.show_location !== false)
+        setShowPhone(profileData.show_phone !== false)
+        setIsPublic(profileData.is_public !== false)
 
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
         setReferralLink(`${origin}/auth/sign-up?ref=${code}`)
@@ -270,6 +271,8 @@ export default function EditProfilePage() {
           show_gender: showGender,
           show_country: showCountry,
           show_location: showLocation,
+          show_phone: showPhone,
+          is_public: isPublic,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
@@ -395,7 +398,7 @@ export default function EditProfilePage() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-background'}`}>
+      <div className={`min-h-screen transition-colors duration-300 bg-background`}>
         <Header user={user} />
         <div className="flex items-center justify-center pt-32">
           <Loader2 className="animate-spin text-accent" size={32} />
@@ -405,7 +408,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className={`min-h-screen pb-12 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-[#f3f2ef]'}`}>
+    <div className={`min-h-screen pb-12 transition-colors duration-300 bg-background`}>
       <Header user={user} />
 
       <div className="max-w-[1128px] mx-auto flex justify-center gap-6 pt-6 px-4">
@@ -416,7 +419,7 @@ export default function EditProfilePage() {
 
         {/* Main Content (Center) */}
         <div className="flex-1 max-w-[550px] w-full">
-          <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+          <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors duration-300 bg-card border-border`}>
             {/* Header / Cover */}
             <div className="h-32 bg-gradient-to-r from-accent to-purple-600 relative" />
             
@@ -433,7 +436,7 @@ export default function EditProfilePage() {
                   </div>
                 </div>
                 
-                <h1 className={`text-2xl font-black flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <h1 className={`text-2xl font-black flex items-center justify-center gap-2 text-foreground`}>
                   {profile?.display_name || user?.email?.split('@')[0]}
                   {user?.email && isAdminEmail(user.email) && (
                     <Crown size={24} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
@@ -441,43 +444,58 @@ export default function EditProfilePage() {
                   {!(user?.email && isAdminEmail(user.email)) && profile?.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500" />}
                 </h1>
 
-                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{user?.email}</p>
-                {profile?.phone && <p className={`text-xs mt-1 flex items-center justify-center gap-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}><Phone size={12}/> {profile.phone}</p>}
+                <p className={`text-sm mt-1 text-muted-foreground`}>{user?.email}</p>
+                {profile?.show_phone !== false && profile?.phone && <p className={`text-xs mt-1 flex items-center justify-center gap-1 text-muted-foreground`}><Phone size={12}/> {profile.phone}</p>}
 
-                <div className={`mt-6 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
-                   <p className={`text-sm whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                     {profile?.bio || <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>Sem biografia. Adiciona uma descrição para que as pessoas te conheçam melhor.</span>}
+                {profile?.is_public === false && (
+                  <div className={`mt-4 p-4 rounded-xl border text-left bg-muted border-orange-200 dark:border-orange-900`}>
+                    <p className="text-sm font-bold flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                      <Eye size={16} /> Perfil Privado
+                    </p>
+                    <p className="text-xs mt-1 text-muted-foreground">
+                      O teu perfil está oculto para outros utilizadores. Apenas tu podes ver esta informação.
+                    </p>
+                  </div>
+                )}
+
+                {profile?.is_public !== false && (
+                <div className={`mt-6 p-4 rounded-xl border text-left bg-muted border-border`}>
+                   <p className={`text-sm whitespace-pre-wrap text-foreground`}>
+                     {profile?.bio || <span className="text-muted-foreground">Sem biografia. Adiciona uma descrição para que as pessoas te conheçam melhor.</span>}
                    </p>
                  </div>
+                )}
 
                  {/* User Info Display - View Mode */}
+                 {(profile?.is_public !== false) && (
                  <div className="mt-4 flex flex-wrap gap-2 justify-center">
                    {profile?.show_gender && profile?.gender && (
-                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-muted text-muted-foreground`}>
                        <UserIcon size={12} />
                        {profile.gender === 'male' ? 'Masculino' : profile.gender === 'female' ? 'Feminino' : 'Outro'}
                      </span>
                    )}
                    {profile?.show_country && profile?.country && (
-                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-muted text-muted-foreground`}>
                        <Globe size={12} />
                        {profile.country === 'AO' ? 'Angola' : profile.country === 'PT' ? 'Portugal' : profile.country === 'BR' ? 'Brasil' : profile.country === 'US' ? 'Estados Unidos' : profile.country === 'UK' ? 'Reino Unido' : profile.country}
                      </span>
                    )}
                    {profile?.show_location && profile?.location && (
-                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                     <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-muted text-muted-foreground`}>
                        <MapPin size={12} />
                        {profile.location}
                      </span>
                    )}
-                 </div>
+                  </div>
+                 )}
 
                  {/* Referral Link Card */}
-                <div className={`mt-4 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'border-accent/20 bg-gradient-to-br from-accent/5 to-purple-50'}`}>
-                  <p className={`text-sm font-bold flex items-center gap-2 mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                <div className={`mt-4 p-4 rounded-xl border text-left border-accent/20 bg-gradient-to-br from-accent/5 to-purple-50 dark:bg-muted dark:border-border`}>
+                  <p className={`text-sm font-bold flex items-center gap-2 mb-2 text-foreground`}>
                     <Link2 size={15} className="text-accent" /> Link de Referência
                   </p>
-                  <p className={`text-xs mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className={`text-xs mb-3 text-muted-foreground`}>
                     Partilha este link. Quando alguém se registar e ativar a conta, recebes{' '}
                     <strong className="text-accent">AOA {Number(referralBonusAmount).toLocaleString()}</strong> no teu saldo.
                   </p>
@@ -486,7 +504,7 @@ export default function EditProfilePage() {
                       type="text"
                       readOnly
                       value={referralLink}
-                      className={`flex-1 px-3 py-2 text-xs border rounded-lg font-mono truncate ${theme === 'dark' ? 'bg-gray-800 border-gray-600 text-gray-400' : 'bg-white border-border text-gray-600'}`}
+                      className={`flex-1 px-3 py-2 text-xs border rounded-lg font-mono truncate bg-card border-border text-muted-foreground`}
                     />
                     <button
                       type="button"
@@ -497,16 +515,16 @@ export default function EditProfilePage() {
                       {copiedReferral ? 'Copiado!' : 'Copiar'}
                     </button>
                   </div>
-                  <p className={`text-[10px] mt-2 flex items-center gap-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`}>
+                  <p className={`text-[10px] mt-2 flex items-center gap-1 text-muted-foreground`}>
                     <Users size={12} /> {referralCount} {referralCount === 1 ? 'pessoa referida' : 'pessoas referidas'}
                   </p>
                 </div>
 
                 {/* SMS Status Card */}
-                <div className={`mt-4 p-4 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
+                <div className={`mt-4 p-4 rounded-xl border text-left bg-muted border-border`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className={`text-sm font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      <p className={`text-sm font-bold flex items-center gap-2 text-foreground`}>
                         <Phone size={15} className="text-accent" /> Notificações SMS
                       </p>
                       {!profile?.phone ? (
@@ -514,14 +532,14 @@ export default function EditProfilePage() {
                           ⚠️ Sem número de telefone. Edita o teu perfil para receber SMS.
                         </p>
                       ) : (
-                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <p className={`text-xs mt-1 text-muted-foreground`}>
                           {profile?.sms_notifications_enabled !== false
                             ? `SMS ativos para ${profile.phone}`
                             : 'Notificações SMS desativadas por si.'}
                         </p>
                       )}
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${profile?.sms_notifications_enabled !== false && profile?.phone ? 'bg-green-100 text-green-700' : theme === 'dark' ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${profile?.sms_notifications_enabled !== false && profile?.phone ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
                       {profile?.sms_notifications_enabled !== false && profile?.phone ? 'Ativo' : 'Inativo'}
                     </span>
                   </div>
@@ -565,8 +583,8 @@ export default function EditProfilePage() {
                 {/* Form Fields */}
                 <div className="space-y-5">
                   <div>
-                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <UserIcon size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
+                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 text-foreground`}>
+                      <UserIcon size={16} className="text-muted-foreground" /> 
                       Nome de Exibição
                     </label>
                     <input
@@ -575,13 +593,13 @@ export default function EditProfilePage() {
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="O teu nome ou pseudónimo"
-                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all bg-card border-border text-foreground placeholder-muted-foreground`}
                     />
                   </div>
 
                   <div>
-                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <Phone size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
+                    <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 text-foreground`}>
+                      <Phone size={16} className="text-muted-foreground" /> 
                       Número de Telefone
                     </label>
                     <input
@@ -589,13 +607,13 @@ export default function EditProfilePage() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+244 923 000 000"
-                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all bg-card border-border text-foreground placeholder-muted-foreground`}
                     />
                   </div>
 
                   <div>
-                     <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                       <FileText size={16} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} /> 
+                     <label className={`block text-sm font-semibold mb-1.5 flex items-center gap-2 text-foreground`}>
+                       <FileText size={16} className="text-muted-foreground" /> 
                        Descrição / Bio
                      </label>
                      <textarea
@@ -603,26 +621,26 @@ export default function EditProfilePage() {
                        value={bio}
                        onChange={(e) => setBio(e.target.value)}
                        placeholder="Ex: Fodedor, Safado, Criador Premium..."
-                       className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                       className={`w-full px-4 py-2.5 rounded-lg border focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none bg-card border-border text-foreground placeholder-muted-foreground`}
                      />
                    </div>
 
                    {/* User Info Section */}
-                   <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
-                     <p className={`text-sm font-bold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                   <div className={`p-4 rounded-xl border bg-muted border-border`}>
+                     <p className={`text-sm font-bold mb-3 flex items-center gap-2 text-foreground`}>
                        <UserIcon size={16} className="text-accent" /> Informações Pessoais
                      </p>
                      
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                        {/* Gender */}
                        <div>
-                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                         <label className={`block text-xs font-semibold mb-1 text-foreground`}>
                            Gênero
                          </label>
                          <select
                            value={gender}
                            onChange={(e) => setGender(e.target.value as 'male' | 'female' | 'other' | '')}
-                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'border-gray-300'}`}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm bg-muted border-border text-foreground`}
                          >
                            <option value="">Selecionar...</option>
                            <option value="male">Masculino</option>
@@ -633,7 +651,7 @@ export default function EditProfilePage() {
 
                        {/* Age */}
                        <div>
-                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                         <label className={`block text-xs font-semibold mb-1 text-foreground`}>
                            Idade
                          </label>
                          <input
@@ -643,13 +661,13 @@ export default function EditProfilePage() {
                            value={age}
                            onChange={(e) => setAge(e.target.value)}
                            placeholder="18-100"
-                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm bg-muted border-border text-foreground placeholder-muted-foreground`}
                          />
                        </div>
 
                        {/* Country */}
                        <div>
-                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                         <label className={`block text-xs font-semibold mb-1 text-foreground`}>
                            País
                          </label>
                          <select
@@ -658,7 +676,7 @@ export default function EditProfilePage() {
                              setCountry(e.target.value)
                              if (e.target.value !== 'AO') setProvince('')
                            }}
-                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'border-gray-300'}`}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm bg-muted border-border text-foreground`}
                          >
                            <option value="AO">Angola</option>
                            <option value="PT">Portugal</option>
@@ -672,13 +690,13 @@ export default function EditProfilePage() {
                        {/* Province (only for Angola) */}
                        {country === 'AO' && (
                          <div>
-                           <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                           <label className={`block text-xs font-semibold mb-1 text-foreground`}>
                              Província
                            </label>
                            <select
                              value={province}
                              onChange={(e) => setProvince(e.target.value)}
-                             className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'border-gray-300'}`}
+                             className={`w-full px-3 py-2 rounded-lg border text-sm bg-muted border-border text-foreground`}
                            >
                              <option value="">Selecionar província...</option>
                              <option value="Luanda">Luanda</option>
@@ -705,7 +723,7 @@ export default function EditProfilePage() {
 
                        {/* Location */}
                        <div className="sm:col-span-2">
-                         <label className={`block text-xs font-semibold mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                         <label className={`block text-xs font-semibold mb-1 text-foreground`}>
                            Localidade / Cidade
                          </label>
                          <input
@@ -713,14 +731,14 @@ export default function EditProfilePage() {
                            value={location}
                            onChange={(e) => setLocation(e.target.value)}
                            placeholder="Ex: Luanda, Benguela, Huambo..."
-                           className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white placeholder-gray-500' : 'border-gray-300'}`}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm bg-muted border-border text-foreground placeholder-muted-foreground`}
                          />
                        </div>
                      </div>
 
                      {/* Visibility Toggles */}
                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                       <p className={`text-xs font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                       <p className={`text-xs font-semibold mb-2 text-foreground`}>
                          Visibilidade no Perfil
                        </p>
                        <div className="flex flex-wrap gap-3">
@@ -731,7 +749,7 @@ export default function EditProfilePage() {
                              onChange={(e) => setShowGender(e.target.checked)}
                              className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
                            />
-                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mostrar Gênero</span>
+                           <span className={`text-xs text-foreground`}>Mostrar Gênero</span>
                          </label>
                          <label className="flex items-center gap-2 cursor-pointer">
                            <input
@@ -740,29 +758,47 @@ export default function EditProfilePage() {
                              onChange={(e) => setShowCountry(e.target.checked)}
                              className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
                            />
-                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mostrar País</span>
+                           <span className={`text-xs text-foreground`}>Mostrar País</span>
                          </label>
-                         <label className="flex items-center gap-2 cursor-pointer">
-                           <input
-                             type="checkbox"
-                             checked={showLocation}
-                             onChange={(e) => setShowLocation(e.target.checked)}
-                             className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
-                           />
-                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Mostrar Localidade</span>
-                         </label>
-                       </div>
-                     </div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={showLocation}
+                              onChange={(e) => setShowLocation(e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                            />
+                            <span className={`text-xs text-foreground`}>Mostrar Localidade</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={showPhone}
+                              onChange={(e) => setShowPhone(e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                            />
+                            <span className={`text-xs text-foreground`}>Mostrar Telefone</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isPublic}
+                              onChange={(e) => setIsPublic(e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                            />
+                            <span className={`text-xs text-foreground`}>Perfil Público</span>
+                          </label>
+                        </div>
+                      </div>
                    </div>
 
                    {/* SMS Opt-in Toggle */}
-                   <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-border'}`}>
+                   <div className={`p-4 rounded-xl border bg-muted border-border`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className={`text-sm font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        <p className={`text-sm font-bold flex items-center gap-2 text-foreground`}>
                           <Phone size={15} className="text-accent" /> Notificações SMS
                         </p>
-                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <p className={`text-xs mt-1 text-muted-foreground`}>
                           {phone
                             ? 'Receba SMS sobre compras, levantamentos e pagamentos.'
                             : '⚠️ Adicione um número de telefone acima para ativar SMS.'}
@@ -772,7 +808,7 @@ export default function EditProfilePage() {
                         type="button"
                         onClick={() => setSmsEnabled(prev => !prev)}
                         disabled={!phone}
-                        className={`relative w-12 h-6 rounded-full transition-all duration-300 disabled:opacity-40 ${smsEnabled && phone ? 'bg-accent' : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}
+                        className={`relative w-12 h-6 rounded-full transition-all duration-300 disabled:opacity-40 ${smsEnabled && phone ? 'bg-accent' : 'bg-muted'}`}
                       >
                         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${smsEnabled && phone ? 'translate-x-6' : 'translate-x-0'}`} />
                       </button>
@@ -797,12 +833,14 @@ export default function EditProfilePage() {
                        setCountry(profile?.country || 'AO')
                        setProvince(profile?.province || '')
                        setLocation(profile?.location || '')
-                       setShowGender(profile?.show_gender !== false)
-                       setShowCountry(profile?.show_country !== false)
-                       setShowLocation(profile?.show_location !== false)
-                     }}
+                        setShowGender(profile?.show_gender !== false)
+                        setShowCountry(profile?.show_country !== false)
+                        setShowLocation(profile?.show_location !== false)
+                        setShowPhone(profile?.show_phone !== false)
+                        setIsPublic(profile?.is_public !== false)
+                      }}
                     disabled={saving}
-                    className={`px-6 py-3 rounded-full font-bold transition-colors w-full sm:w-auto ${theme === 'dark' ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    className={`px-6 py-3 rounded-full font-bold transition-colors w-full sm:w-auto text-muted-foreground hover:bg-accent hover:text-accent-foreground`}
                   >
                     Cancelar
                   </button>
@@ -829,14 +867,14 @@ export default function EditProfilePage() {
               { label: 'Visualizacoes', value: stats.views, icon: Eye, color: 'from-emerald-500 to-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600 dark:text-emerald-400' },
               { label: 'Ganhos (AOA)', value: stats.earnings.toLocaleString(), icon: DollarSign, color: 'from-amber-500 to-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-600 dark:text-amber-400' },
             ].map((item) => (
-              <div key={item.label} className={`rounded-xl border shadow-sm p-3 sm:p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+              <div key={item.label} className={`rounded-xl border shadow-sm p-3 sm:p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 bg-card border-border`}>
                 <div className="flex items-center gap-2 sm:gap-3 lg:flex-col lg:text-center">
                   <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0 ${item.text}`}>
                     <item.icon size={16} className="sm:size-5" />
                   </div>
                   <div className="min-w-0 lg:w-full">
-                    <p className={`text-base sm:text-lg font-black truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.value}</p>
-                    <p className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{item.label}</p>
+                    <p className={`text-base sm:text-lg font-black truncate text-foreground`}>{item.value}</p>
+                    <p className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider truncate text-muted-foreground`}>{item.label}</p>
                   </div>
                 </div>
               </div>
@@ -846,7 +884,7 @@ export default function EditProfilePage() {
 
           {/* Meus Conteudos */}
           {!isEditing && (
-          <div className={`mt-6 rounded-xl border shadow-sm overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+          <div className={`mt-6 rounded-xl border shadow-sm overflow-hidden transition-colors duration-300 bg-card border-border`}>
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h2 className="font-bold text-lg">Meus Conteudos</h2>
               <span className="text-xs text-gray-400 font-semibold">{myPosts.length} publicacoes</span>
@@ -924,7 +962,6 @@ export default function EditProfilePage() {
                 profile={profile}
                 vipBadgePrice={vipBadgePrice}
                 requestingBadge={requestingBadge}
-                theme={theme}
                 onBuy={handleBuyBadge}
               />
             </div>
@@ -939,7 +976,6 @@ export default function EditProfilePage() {
                 profile={profile}
                 vipBadgePrice={vipBadgePrice}
                 requestingBadge={requestingBadge}
-                theme={theme}
                 onBuy={handleBuyBadge}
               />
             </div>
@@ -950,11 +986,10 @@ export default function EditProfilePage() {
   )
 }
 
-function VipBadgeCard({ profile, vipBadgePrice, requestingBadge, theme, onBuy }: {
+function VipBadgeCard({ profile, vipBadgePrice, requestingBadge, onBuy }: {
   profile: any
   vipBadgePrice: string
   requestingBadge: boolean
-  theme: string | undefined
   onBuy: () => void
 }) {
   return (
