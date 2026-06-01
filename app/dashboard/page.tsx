@@ -514,10 +514,10 @@ function DashboardContent() {
                             <div className="flex items-center justify-between rounded-xl border border-border bg-muted p-3">
                               <div>
                                 <p className="text-[10px] text-muted-foreground font-medium">Entidade</p>
-                                <p className="text-sm font-bold text-foreground">00930 · Unitel Money</p>
+                                <p className="text-sm font-bold text-foreground">{depositEntity} · Unitel Money</p>
                               </div>
                               <button
-                                onClick={() => { navigator.clipboard.writeText('00930'); alert('Entidade copiada!') }}
+                                onClick={() => { navigator.clipboard.writeText(depositEntity); alert('Entidade copiada!') }}
                                 className="text-xs font-bold text-accent hover:underline px-2 py-1"
                               >
                                 Copiar
@@ -550,8 +550,8 @@ function DashboardContent() {
                             <ol className="list-decimal list-inside space-y-0.5">
                               <li>Abra o <strong>Multicaixa Express</strong></li>
                               <li>Clique em <strong>Pagamentos</strong> → <strong>Pagamentos por Referência</strong></li>
-                              <li>Insira a <strong>Entidade</strong> 00930 · Unitel Money</li>
-                              <li>Insira a <strong>Referência</strong> (seu telefone) {depositReference}</li>
+                              <li>Insira a <strong>Entidade</strong> {depositEntity} · Unitel Money</li>
+                              <li>Insira a <strong>Referência</strong> {depositReference}</li>
                               <li>Insira o <strong>Valor</strong> {formatMoney(Number(depositAmount), preferredCurrency)}</li>
                               <li>Confirme o pagamento</li>
                             </ol>

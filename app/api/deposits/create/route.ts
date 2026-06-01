@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || [])
 
     const entityNumber = settingsMap.get('deposit_entity_number') || '00930'
+    const referenceNumber = settingsMap.get('deposit_reference_number') || ''
 
     // Check for existing pending deposit
     const { data: existing } = await supabaseAdmin
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     const userPhone = profile?.phone || '---'
+    const depositReference = referenceNumber || userPhone
 
     const { data: txn, error } = await supabaseAdmin
       .from('transactions')
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
         amount: depositAmount,
         type: 'deposit',
         status: 'pending',
-        description: `Depósito por referência | Entidade: ${entityNumber} | Referência: ${userPhone} | Telefone: ${userPhone}`,
+        description: `Depósito por referência | Entidade: ${entityNumber} | Referência: ${depositReference} | Telefone: ${userPhone}`,
       })
       .select()
       .single()
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
       success: true,
       transaction: txn,
       entity: entityNumber,
-      reference: userPhone,
+      reference: depositReference,
       phone: userPhone,
     })
   } catch (error: unknown) {

@@ -40,6 +40,7 @@ export default function AdminDashboard() {
   const [minWithdrawAmount, setMinWithdrawAmount] = useState('1000') // Default 1000 AOA
   const [depositFeePercent, setDepositFeePercent] = useState('0') // Default 0%
   const [depositEntityNumber, setDepositEntityNumber] = useState('00930')
+  const [depositReferenceNumber, setDepositReferenceNumber] = useState('')
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [financialResetPhrase, setFinancialResetPhrase] = useState('')
@@ -377,7 +378,7 @@ export default function AdminDashboard() {
       // Fetch ALL transactions
       const { data: transData } = await supabase
         .from('transactions')
-        .select('*, profiles(display_name, email)')
+        .select('*, profiles(display_name, email, phone)')
         .order('created_at', { ascending: false })
       if (transData) setTransactions(transData)
 
@@ -442,6 +443,9 @@ export default function AdminDashboard() {
 
         const entitySetting = settings.find(s => s.key === 'deposit_entity_number')
         if (entitySetting) setDepositEntityNumber(entitySetting.value)
+
+        const referenceSetting = settings.find(s => s.key === 'deposit_reference_number')
+        if (referenceSetting) setDepositReferenceNumber(referenceSetting.value)
 
         // Load Terms and Privacy
         const termsSetting = settings.find(s => s.key === 'terms_of_use')
@@ -508,6 +512,7 @@ export default function AdminDashboard() {
         { key: 'min_withdraw_amount', value: minWithdrawAmount },
         { key: 'deposit_fee_percent', value: depositFeePercent },
         { key: 'deposit_entity_number', value: depositEntityNumber },
+        { key: 'deposit_reference_number', value: depositReferenceNumber },
 
         { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
         { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
@@ -2024,8 +2029,28 @@ export default function AdminDashboard() {
 
                         <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 mb-6">
                           <p className="text-xs text-gray-500 font-medium mb-1">Utilizador: <span className="font-bold text-gray-900">{t.profiles?.display_name || t.profiles?.email}</span></p>
-                          <p className="text-xs text-gray-500 font-medium">Detalhes:</p>
-                          <p className="text-sm font-bold text-gray-900 mt-1 whitespace-pre-wrap">{t.description}</p>
+                          <div className="mt-3 grid grid-cols-2 gap-3">
+                            <div className="bg-white rounded-lg p-3 border border-gray-100">
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Entidade</p>
+                              <p className="text-sm font-bold text-gray-900 mt-0.5">
+                                {(() => {
+                                  const match = t.description?.match(/Entidade:\s*(\S+)/)
+                                  return match ? match[1] : '00930'
+                                })()}
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-gray-100">
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Referência (Telefone)</p>
+                              <p className="text-sm font-bold text-gray-900 mt-0.5">
+                                {t.profiles?.phone || (() => {
+                                  const match = t.description?.match(/(?:Referência|Telefone):\s*(\S+)/)
+                                  return match ? match[1] : '---'
+                                })()}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-500 font-medium mt-3">Detalhes:</p>
+                          <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{t.description}</p>
                         </div>
 
                         <div className="flex gap-2">
@@ -2580,6 +2605,20 @@ export default function AdminDashboard() {
                         />
                         <p className="text-[9px] text-gray-400 mt-2 leading-snug">
                           Número da entidade para pagamentos por referência (Multicaixa).
+                        </p>
+                      </div>
+                      {/* Card 10: Referência de Depósito */}
+                      <div className="bg-gray-50 border border-border rounded-xl p-4 flex flex-col justify-between">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Referência de Depósito</label>
+                        <input
+                          type="text"
+                          value={depositReferenceNumber}
+                          onChange={(e) => setDepositReferenceNumber(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-border rounded-xl font-medium outline-none focus:border-accent text-xs"
+                          placeholder="Deixe vazio para usar o telefone do utilizador"
+                        />
+                        <p className="text-[9px] text-gray-400 mt-2 leading-snug">
+                          Número de referência fixo. Se vazio, o sistema usa o telefone do utilizador como referência.
                         </p>
                       </div>
 
