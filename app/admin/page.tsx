@@ -67,6 +67,13 @@ export default function AdminDashboard() {
   const [earningsAmount, setEarningsAmount] = useState('')
   const [convertingEarnings, setConvertingEarnings] = useState(false)
 
+  // Deduction states
+  const [showDeductModal, setShowDeductModal] = useState(false)
+  const [selectedUserForDeduct, setSelectedUserForDeduct] = useState<any>(null)
+  const [deductAmount, setDeductAmount] = useState('')
+  const [deductReason, setDeductReason] = useState('')
+  const [deducting, setDeducting] = useState(false)
+
   // Announcement Form states
   const [annType, setAnnType] = useState('comunicado') // 'comunicado' or 'anuncio'
   const [annTitle, setAnnTitle] = useState('')
@@ -1126,6 +1133,55 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleDeductEarnings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUserForDeduct || !deductAmount || parseFloat(deductAmount) <= 0) return
+    setDeducting(true)
+    try {
+      const amount = parseFloat(deductAmount)
+      const currentEarnings = selectedUserForDeduct.withdrawable_earnings || 0
+      if (amount > currentEarnings) {
+        toast({
+          title: "Valor excede ganhos disponíveis",
+          description: `O utilizador tem apenas AOA ${currentEarnings.toLocaleString()} em ganhos.`,
+          variant: "destructive",
+        })
+        setDeducting(false)
+        return
+      }
+
+      const { error: txError } = await supabase.from('transactions').insert({
+        user_id: selectedUserForDeduct.id,
+        type: 'earnings_debit',
+        amount,
+        status: 'completed',
+        description: deductReason || `Desconto administrativo de ganhos (${currentUser?.email})`,
+      })
+      if (txError) throw txError
+
+      setUsers(prev => prev.map(u => u.id === selectedUserForDeduct.id ? {
+        ...u,
+        withdrawable_earnings: (u.withdrawable_earnings || 0) - amount,
+      } : u))
+
+      setShowDeductModal(false)
+      setDeductAmount('')
+      setDeductReason('')
+      toast({
+        title: "Ganhos descontados",
+        description: `AOA ${amount.toLocaleString()} foram descontados dos ganhos de ${selectedUserForDeduct.display_name || 'utilizador'}.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      })
+    } finally {
+      setDeducting(false)
+    }
+  }
+
   const handleResetPassword = async (userId: string, userEmail: string) => {
     console.log('[Reset Password] userId:', userId, 'userEmail:', userEmail)
     toast({
@@ -1670,6 +1726,15 @@ export default function AdminDashboard() {
                                   Converter para Ganhos
                                 </button>
                               )}
+
+                              {/* Descontar Ganhos */}
+                              <button
+                                onClick={() => { setSelectedUserForDeduct(u); setDeductAmount(''); setDeductReason(''); setShowDeductModal(true); setOpenActionsUserId(null) }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-left hover:bg-red-50 transition-colors"
+                              >
+                                <ArrowDownLeft size={14} className="text-red-600" />
+                                Descontar Ganhos
+                              </button>
 
                               {/* Coordenadas Bancárias */}
                               <button
@@ -3103,6 +3168,84 @@ export default function AdminDashboard() {
                         <><Loader2 size={16} className="animate-spin" /> Convertendo...</>
                       ) : (
                         <>Converter para Ganhos</>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Deduct Earnings Modal */}
+          {showDeductModal && selectedUserForDeduct && (
+            <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="bg-white border border-border w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in scale-in duration-300 relative overflow-hidden">
+                <div className="absolute -top-10 -left-10 w-32 h-32 bg-red-500/20 rounded-full blur-2xl" />
+                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-red-500/20 rounded-full blur-2xl" />
+
+                <div className="relative z-10 text-center mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-3 shadow-md">
+                    <ArrowDownLeft size={24} />
+                  </div>
+                  <h3 className="text-lg font-black text-gray-900 leading-tight">Descontar Ganhos</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Descontar dos ganhos de <strong className="text-gray-800">{selectedUserForDeduct.display_name || 'Utilizador'}</strong>
+                  </p>
+                </div>
+
+                <form onSubmit={handleDeductEarnings} className="space-y-4 relative z-10">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
+                      Ganhos atuais: <span className="text-green-600">AOA {((selectedUserForDeduct as any).withdrawable_earnings || 0).toLocaleString()}</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="Valor a descontar"
+                        value={deductAmount}
+                        onChange={(e) => setDeductAmount(e.target.value)}
+                        className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-lg font-black text-foreground outline-none focus:border-red-400 transition-colors pl-16"
+                        required
+                        min="1"
+                        max={((selectedUserForDeduct as any).withdrawable_earnings || 0)}
+                      />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">AOA</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Descrição / Motivo</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Desconto administrativo"
+                      value={deductReason}
+                      onChange={(e) => setDeductReason(e.target.value)}
+                      className="w-full bg-gray-50 border border-border rounded-xl px-3 py-3 text-xs text-foreground outline-none focus:border-red-400 transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeductModal(false)
+                        setDeductAmount('')
+                        setDeductReason('')
+                        setSelectedUserForDeduct(null)
+                      }}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-3 rounded-xl transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={deducting || !deductAmount || parseFloat(deductAmount) <= 0}
+                      className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-black py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      {deducting ? (
+                        <><Loader2 size={16} className="animate-spin" /> A descontar...</>
+                      ) : (
+                        <>Descontar Ganhos</>
                       )}
                     </button>
                   </div>
