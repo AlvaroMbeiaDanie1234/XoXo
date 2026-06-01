@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -44,7 +45,9 @@ export async function POST(request: NextRequest) {
 
     const { post_id } = await request.json()
 
-    const { data, error } = await supabase
+    const supabaseAdmin = createAdminClient()
+
+    const { data, error } = await supabaseAdmin
       .from('favorites')
       .insert({
         user_id: user.id,
@@ -53,6 +56,34 @@ export async function POST(request: NextRequest) {
       .select()
 
     if (error) throw error
+
+    // Fetch post creator to send notification
+    const { data: postData } = await supabaseAdmin
+      .from('posts')
+      .select('user_id, title')
+      .eq('id', post_id)
+      .single()
+
+    if (postData && postData.user_id !== user.id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .single()
+
+      const likerName = profile?.display_name || user.email
+
+      await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: postData.user_id,
+          title: 'Nova Curitida',
+          message: `${likerName} gostou do teu conteúdo: "${postData.title}"`,
+          type: 'favorite',
+          post_id,
+          is_read: false
+        })
+    }
 
     return NextResponse.json(data[0], { status: 201 })
   } catch (error) {

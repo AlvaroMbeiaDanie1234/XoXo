@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Loader2, X, Image as ImageIcon, Send, Eye, ChevronLeft } from 'lucide-react'
+import { Plus, Loader2, X, Image as ImageIcon, Send, Eye, ChevronLeft, Crown } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/format-relative-time'
 
 interface StoryItem {
@@ -17,6 +17,7 @@ interface StoryUser {
   id: string
   display_name: string
   avatar_url: string | null
+  email?: string | null
   stories: StoryItem[]
 }
 
@@ -71,6 +72,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
             id: s.user_id,
             display_name: s.profiles?.display_name || 'Usuário',
             avatar_url: s.profiles?.avatar_url || null,
+            email: s.profiles?.email || null,
             stories: [],
           })
         }
@@ -82,9 +84,13 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
           story_views: s.story_views || [],
         })
       }
+      const isSuperAdmin = (u: StoryUser) =>
+        u.email?.toLowerCase() === 'superadmin.xoxo@gmail.com'
       const ownFirst = [...grouped.values()].sort((a, b) => {
         if (a.id === currentUserId) return -1
         if (b.id === currentUserId) return 1
+        if (isSuperAdmin(a) && !isSuperAdmin(b)) return -1
+        if (isSuperAdmin(b) && !isSuperAdmin(a)) return 1
         return 0
       })
       setStoryUsers(ownFirst)
@@ -269,7 +275,9 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
             )}
             {storyUsers
               .filter(u => u.id !== currentUserId)
-              .map((user) => (
+              .map((user) => {
+                const isAdmin = user.email?.toLowerCase() === 'superadmin.xoxo@gmail.com'
+                return (
                 <button
                   key={user.id}
                   onClick={() => {
@@ -279,7 +287,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
                   }}
                   className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16 group"
                 >
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-purple-500 p-[3px] shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">
+                  <div className={`relative w-16 h-16 rounded-full p-[3px] shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all ${isAdmin ? 'bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 shadow-amber-400/40' : 'bg-gradient-to-br from-accent to-purple-500'}`}>
                     <div className="w-full h-full rounded-full bg-white overflow-hidden">
                       {user.avatar_url ? (
                         <img src={user.avatar_url} className="w-full h-full object-cover" />
@@ -289,12 +297,17 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
                         </div>
                       )}
                     </div>
+                    {isAdmin && (
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full p-0.5 shadow-md shadow-amber-500/50 ring-2 ring-white">
+                        <Crown size={12} className="text-white" />
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[10px] font-bold text-gray-500 truncate w-full text-center dark:text-gray-400">
+                  <span className={`text-[10px] font-bold truncate w-full text-center dark:text-gray-400 ${isAdmin ? 'text-amber-600' : 'text-gray-500'}`}>
                     {user.display_name?.split(' ')[0]}
                   </span>
                 </button>
-              ))}
+              )})}
           </>
         )}
       </div>

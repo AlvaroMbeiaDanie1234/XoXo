@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       const commenterName = commenterProfile?.display_name || user.email
 
       // Send notification to post creator
+      const commentId = data?.[0]?.id
       await supabaseAdmin
         .from('notifications')
         .insert({
@@ -108,6 +109,8 @@ export async function POST(request: NextRequest) {
           title: 'Novo Comentário',
           message: `${commenterName} comentou no teu conteúdo: "${postData.title}"`,
           type: 'comment',
+          post_id,
+          comment_id: commentId,
           is_read: false
         })
     }

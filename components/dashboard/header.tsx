@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe, Users, Moon, Sun } from 'lucide-react'
+import { Wallet, DollarSign, LogOut, Bell, Circle, CheckCircle, Globe, Users, Moon, Sun, MessageSquare, Heart } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -74,19 +74,31 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   const loadNotifications = async () => {
     if (!user) return
-    // Fetch recent wallet events (credit + debit) as notifications
-    const { data } = await supabase
+    // Fetch system notifications (comments, favorites, tips)
+    const { data: sysNotifs } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    // Fetch recent wallet events
+    const { data: txnNotifs } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
       .in('type', ['earnings', 'deposit', 'message'])
       .order('created_at', { ascending: false })
-      .limit(5)
+      .limit(10)
 
-    if (data) {
-      setNotifications(data)
-      setUnreadCount(data.length > 0 ? 1 : 0) // Show red dot if any notifications
-    }
+    const allNotifs: any[] = [
+      ...(sysNotifs || []).map(n => ({ ...n, source: 'system' })),
+      ...(txnNotifs || []).map(n => ({ ...n, source: 'transaction' })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    setNotifications(allNotifs)
+    const unread = (sysNotifs || []).filter(n => !n.is_read).length
+    setUnreadCount(unread)
   }
 
   useEffect(() => {
@@ -95,9 +107,10 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
     loadNotifications()
 
     // Realtime subscription for profile balance updates
-    const profileChannel = supabase
-      .channel('public:profiles')
-      .on(
+        const profileChannelName = `public:profiles:user=${user.id}:${Date.now()}`
+        const profileChannel = supabase
+          .channel(profileChannelName)
+          .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
         (payload) => {
@@ -113,8 +126,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       .subscribe();
 
     // Realtime subscription for new transaction notifications (deposits/earnings)
+        const txnChannelName = `public:transactions:user=${user.id}:${Date.now()}`
         const txnChannel = supabase
-          .channel(`public:transactions:user=${user.id}`)
+          .channel(txnChannelName)
           .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
@@ -122,6 +136,19 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               // Always re-fetch balance from DB to get the authoritative value
               loadBalance();
               // Refresh notifications list
+              loadNotifications();
+            },
+          )
+          .subscribe();
+
+    // Realtime subscription for system notifications
+        const notifChannelName = `public:notifications:user=${user.id}:${Date.now()}`
+        const notifChannel = supabase
+          .channel(notifChannelName)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+            () => {
               loadNotifications();
             },
           )
@@ -154,6 +181,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
       document.removeEventListener('mousedown', handleClickOutside)
       supabase.removeChannel(profileChannel)
       supabase.removeChannel(txnChannel)
+      supabase.removeChannel(notifChannel)
     }
   }, [user, supabase])
 
@@ -167,7 +195,6 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
 
   const toggleNotif = () => {
     setNotifOpen(!notifOpen)
-    if (!notifOpen) setUnreadCount(0)
   }
 
   const handleLangChange = (newLang: 'PT' | 'EN') => {
@@ -258,7 +285,9 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full shadow-sm animate-pulse"></span>
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm px-1">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
               </button>
 
@@ -269,22 +298,59 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
                   </div>
                   <div className="max-h-[calc(70vh-48px)] overflow-y-auto sm:max-h-[300px]">
                     {notifications.length > 0 ? (
-                      notifications.map(notif => (
-                        <div key={notif.id} className={`p-3 border-b flex gap-3 items-start transition-colors ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'}`}>
-                          <div className="mt-1 flex-shrink-0 text-accent">
-                            <DollarSign size={16} className="bg-accent/10 rounded-full p-0.5" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className={`break-words text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
-                            <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                              <span className={`text-xs font-bold ${notif.type === 'message' ? 'text-red-500' : 'text-accent'}`}>
-                                {notif.type === 'message' ? '-' : '+'} AOA {notif.amount?.toLocaleString()}
-                              </span>
-                              <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatRelativeTime(notif.created_at)}</span>
+                      notifications.map(notif => {
+                        if (notif.source === 'system') {
+                          return (
+                            <div
+                              key={notif.id}
+                              onClick={() => {
+                                if (notif.post_id) {
+                                  router.push(`/dashboard/post/${notif.post_id}`)
+                                }
+                                if (!notif.is_read) {
+                                  fetch('/api/notifications', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: notif.id }),
+                                  }).then(() => loadNotifications())
+                                }
+                              }}
+                              className={`p-3 border-b flex gap-3 items-start transition-colors cursor-pointer ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'} ${!notif.is_read ? (theme === 'dark' ? 'bg-gray-700/50' : 'bg-blue-50/50') : ''}`}
+                            >
+                              <div className="mt-1 flex-shrink-0">
+                                {notif.type === 'comment' ? (
+                                  <MessageSquare size={16} className="text-blue-500" />
+                                ) : notif.type === 'favorite' ? (
+                                  <Heart size={16} className="text-red-500" />
+                                ) : (
+                                  <Bell size={16} className="text-accent" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={`break-words text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.title}</p>
+                                <p className={`break-words text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{notif.message}</p>
+                                <span className={`text-[10px] mt-1 block ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatRelativeTime(notif.created_at)}</span>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return (
+                          <div key={notif.id} className={`p-3 border-b flex gap-3 items-start transition-colors ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'}`}>
+                            <div className="mt-1 flex-shrink-0 text-accent">
+                              <DollarSign size={16} className="bg-accent/10 rounded-full p-0.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={`break-words text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-800'}`}>{notif.description}</p>
+                              <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                <span className={`text-xs font-bold ${notif.type === 'message' ? 'text-red-500' : 'text-accent'}`}>
+                                  {notif.type === 'message' ? '-' : '+'} AOA {notif.amount?.toLocaleString()}
+                                </span>
+                                <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatRelativeTime(notif.created_at)}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        )
+                      })
                     ) : (
                       <div className={`p-4 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         Nenhuma notificação no momento.

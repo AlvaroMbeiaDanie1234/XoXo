@@ -53,14 +53,35 @@ export default function CommentSection({ postId, userId }: CommentSectionProps) 
 
   const fetchComments = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: rawComments, error } = await supabase
         .from('comments')
-        .select('*, profiles(display_name, avatar_url)')
+        .select('id, user_id, post_id, content, created_at, parent_id')
         .eq('post_id', postId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setComments(data || [])
+
+      if (rawComments) {
+        const userIds = [...new Set(rawComments.map(c => c.user_id))]
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds)
+
+        const profilesMap: Record<string, any> = {}
+        if (profiles) {
+          profiles.forEach(p => { profilesMap[p.id] = p })
+        }
+
+        const enriched = rawComments.map(c => ({
+          ...c,
+          profiles: profilesMap[c.user_id] || null,
+        }))
+
+        setComments(enriched)
+      } else {
+        setComments([])
+      }
     } catch (err) {
       console.error('Error fetching comments:', err)
     } finally {

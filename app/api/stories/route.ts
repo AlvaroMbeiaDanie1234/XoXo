@@ -11,7 +11,7 @@ export async function GET() {
     const supabaseAdmin = createAdminClient()
     const { data } = await supabaseAdmin
       .from('stories')
-      .select('*, profiles!stories_user_id_fkey(display_name, avatar_url), story_views(count)')
+      .select('*, profiles!stories_user_id_fkey(display_name, avatar_url, email), story_views(count)')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(50)

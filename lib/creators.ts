@@ -12,7 +12,14 @@ export interface CreatorProfile {
   post_count?: number
 }
 
+let cachedAdminIds: { ids: Set<string>; ts: number } | null = null
+const ADMIN_CACHE_TTL = 5 * 60 * 1000
+
 export async function getAdminUserIds(): Promise<Set<string>> {
+  if (cachedAdminIds && Date.now() - cachedAdminIds.ts < ADMIN_CACHE_TTL) {
+    return cachedAdminIds.ids
+  }
+
   const supabaseAdmin = createAdminClient()
   const ids = new Set<string>()
   let page = 1
@@ -33,6 +40,7 @@ export async function getAdminUserIds(): Promise<Set<string>> {
     page++
   }
 
+  cachedAdminIds = { ids, ts: Date.now() }
   return ids
 }
 
@@ -55,15 +63,30 @@ export async function fetchSuggestedCreators(
 ): Promise<CreatorProfile[]> {
   const adminIds = await getAdminUserIds()
 
-  const { data: postRows } = await supabaseAdmin
-    .from('posts')
-    .select('user_id')
-    .limit(5000)
+  const { data: postCountRows } = await supabaseAdmin
+    .rpc('get_post_counts', {})
 
-  const postCounts = new Map<string, number>()
-  postRows?.forEach((post) => {
-    if (post.user_id) postCounts.set(post.user_id, (postCounts.get(post.user_id) || 0) + 1)
-  })
+  let postCounts = new Map<string, number>()
+
+  try {
+    const { data: postCountRows } = await supabaseAdmin.rpc('get_post_counts', {})
+    if (postCountRows) {
+      postCounts = new Map(postCountRows.map((r: any) => [r.user_id, Number(r.count)]))
+    }
+  } catch {
+    // RPC not available, fallback below
+  }
+
+  if (postCounts.size === 0) {
+    const { data: fallback } = await supabaseAdmin
+      .from('posts')
+      .select('user_id')
+      .limit(5000)
+
+    fallback?.forEach((post: any) => {
+      if (post.user_id) postCounts.set(post.user_id, (postCounts.get(post.user_id) || 0) + 1)
+    })
+  }
 
   const rankedPostCreatorIds = [...postCounts.entries()]
     .sort((a, b) => b[1] - a[1])

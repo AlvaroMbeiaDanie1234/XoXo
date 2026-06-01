@@ -126,23 +126,42 @@ export default function PostDetailsPage() {
   }, [id, supabase])
 
   const fetchComments = async () => {
-    const { data } = await supabase
-      .from('comments')
-      .select('*, profiles(display_name, avatar_url)')
-      .eq('post_id', id)
-      .order('created_at', { ascending: true })
-    
-    if (data) {
-      // Organize into tree (simple 2-level for now)
-      const rootComments = data.filter(c => !c.parent_id)
-      const replies = data.filter(c => c.parent_id)
-      
-      const tree = rootComments.map(c => ({
-        ...c,
-        replies: replies.filter(r => r.parent_id === c.id)
-      }))
-      
-      setComments(tree)
+    try {
+      const { data: rawComments } = await supabase
+        .from('comments')
+        .select('id, user_id, post_id, content, created_at, parent_id')
+        .eq('post_id', id)
+        .order('created_at', { ascending: true })
+
+      if (rawComments) {
+        const userIds = [...new Set(rawComments.map(c => c.user_id))]
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds)
+
+        const profilesMap: Record<string, any> = {}
+        if (profiles) {
+          profiles.forEach(p => { profilesMap[p.id] = p })
+        }
+
+        const enriched = rawComments.map(c => ({
+          ...c,
+          profiles: profilesMap[c.user_id] || null,
+        }))
+
+        const rootComments = enriched.filter(c => !c.parent_id)
+        const replies = enriched.filter(c => c.parent_id)
+
+        const tree = rootComments.map(c => ({
+          ...c,
+          replies: replies.filter(r => r.parent_id === c.id),
+        }))
+
+        setComments(tree)
+      }
+    } catch (err) {
+      console.error('XoXo PostDetails: Error fetching comments:', err)
     }
   }
 

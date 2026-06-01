@@ -68,7 +68,7 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
 
     setLoading(true)
     fetchCreators()
-    const interval = setInterval(fetchCreators, 45000)
+    const interval = setInterval(fetchCreators, 300000)
     return () => clearInterval(interval)
   }, [fetchCreators, isMobileVariant])
 
