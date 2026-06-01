@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
+import { Radio } from 'lucide-react'
 
 interface ZegoStreamProps {
   roomID: string
@@ -20,8 +21,10 @@ export default function ZegoStream({
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const zpRef = useRef<any>(null)
+  const [live, setLive] = useState(!isHost)
 
   useEffect(() => {
+    if (!live) return
     let active = true
 
     const initZego = async () => {
@@ -56,12 +59,10 @@ export default function ZegoStream({
           throw new Error('NEXT_PUBLIC_ZEGO_SERVER_SECRET is missing')
         }
 
-        // Import the prebuilt package dynamically
         const { ZegoUIKitPrebuilt } = await import('@zegocloud/zego-uikit-prebuilt')
 
         if (!active) return
 
-        // Generate Kit Token
         const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
           appID,
           serverSecret,
@@ -70,11 +71,9 @@ export default function ZegoStream({
           userName || `User_${userID.slice(0, 4)}`
         )
 
-        // Create instance
         const zp = ZegoUIKitPrebuilt.create(kitToken)
         zpRef.current = zp
 
-        // Join Room
         zp.joinRoom({
           container: containerRef.current!,
           scenario: {
@@ -91,12 +90,12 @@ export default function ZegoStream({
           showMyCameraToggleButton: isHost,
           showMyMicrophoneToggleButton: isHost,
           showAudioVideoSettingsButton: isHost,
-          showTextChat: false, // We have our own beautiful chat
+          showTextChat: false,
           lowerLeftNotification: {
             showUserJoinAndLeave: false,
             showTextChat: false,
           },
-          layout: 'Auto', // Use auto layout for better responsiveness
+          layout: 'Auto',
           showLeavingView: false,
           showRoomInfo: false,
           showDuration: false,
@@ -128,7 +127,7 @@ export default function ZegoStream({
         }
       }
     }
-  }, [roomID, userID, userName, isHost])
+  }, [live, roomID, userID, userName, isHost])
 
   if (error) {
     return (
@@ -145,10 +144,18 @@ export default function ZegoStream({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full bg-black relative"
-      style={{ minHeight: '400px' }}
-    />
+    <div className="w-full h-full bg-black relative" style={{ minHeight: '400px' }}>
+      {isHost && !live && (
+        <button
+          onClick={() => setLive(true)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-50 bg-gradient-to-b from-accent to-purple-600 text-white font-black text-[11px] uppercase tracking-widest px-2.5 py-6 rounded-r-xl shadow-2xl hover:from-accent/90 hover:to-purple-600/90 transition-all flex flex-col items-center gap-1.5 pointer-events-auto border-l-0 border-2 border-l-0 border-accent/30"
+          style={{ writingMode: 'vertical-lr', textOrientation: 'mixed' }}
+        >
+          <Radio size={16} className="animate-pulse" />
+          <span>GO LIVE</span>
+        </button>
+      )}
+      <div ref={containerRef} className="w-full h-full" />
+    </div>
   )
 }

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users, Globe, MapPin, Crown } from 'lucide-react'
+import { Camera, Save, Loader2, User as UserIcon, Phone, FileText, CheckCircle, ShieldCheck, Star, Link2, Copy, Users, Globe, MapPin, Crown, Trash2, Image, Video, MessageCircle, Heart, Eye, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
 import { buildReferralCode } from '@/lib/referrals'
 import { useTheme } from 'next-themes'
 import { isAdminEmail } from '@/lib/admin-emails'
@@ -25,6 +25,10 @@ export default function EditProfilePage() {
   const [referralLink, setReferralLink] = useState('')
   const [copiedReferral, setCopiedReferral] = useState(false)
   const [balance, setBalance] = useState(0)
+  const [myPosts, setMyPosts] = useState<any[]>([])
+  const [loadingPosts, setLoadingPosts] = useState(true)
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null)
+  const [stats, setStats] = useState({ posts: 0, likes: 0, comments: 0, views: 0, earnings: 0 })
 
   // Form fields
   const [displayName, setDisplayName] = useState('')
@@ -58,6 +62,8 @@ export default function EditProfilePage() {
       }
       setUser(user)
 
+      loadMyPosts(user.id)
+      loadStats(user.id)
       let { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -284,6 +290,107 @@ export default function EditProfilePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const loadMyPosts = async (userId: string) => {
+    const { data: posts } = await supabase
+      .from('posts')
+      .select('id, title, content_type, created_at, content_url, thumbnail_url, is_free, price')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (!posts) { setLoadingPosts(false); return }
+
+    const ids = posts.map(p => p.id)
+
+    const likesPerPost: Record<string, number> = {}
+    const commentsPerPost: Record<string, number> = {}
+    const viewsPerPost: Record<string, number> = {}
+
+    const [{ data: likesData }, { data: commentsData }, { data: viewsData }] = await Promise.all([
+      supabase.from('likes').select('post_id').in('post_id', ids),
+      supabase.from('comments').select('post_id').in('post_id', ids),
+      supabase.from('post_views').select('post_id').in('post_id', ids),
+    ])
+
+    if (likesData) for (const l of likesData) likesPerPost[l.post_id] = (likesPerPost[l.post_id] || 0) + 1
+    if (commentsData) for (const c of commentsData) commentsPerPost[c.post_id] = (commentsPerPost[c.post_id] || 0) + 1
+    if (viewsData) for (const v of viewsData) viewsPerPost[v.post_id] = (viewsPerPost[v.post_id] || 0) + 1
+
+    const postsWithStats = posts.map(p => ({
+      ...p,
+      likes_count: likesPerPost[p.id] || 0,
+      comments_count: commentsPerPost[p.id] || 0,
+      views_count: viewsPerPost[p.id] || 0,
+    }))
+
+    setMyPosts(postsWithStats)
+    setLoadingPosts(false)
+  }
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Tens a certeza que desejas eliminar esta publicação permanentemente?')) return
+    setDeletingPostId(postId)
+    try {
+      await Promise.all([
+        supabase.from('likes').delete().eq('post_id', postId),
+        supabase.from('comments').delete().eq('post_id', postId),
+        supabase.from('favorites').delete().eq('post_id', postId),
+      ])
+      const { error } = await supabase.from('posts').delete().eq('id', postId)
+      if (error) throw error
+      setMyPosts(prev => prev.filter(p => p.id !== postId))
+      setStats(prev => ({ ...prev, posts: prev.posts - 1 }))
+    } catch (err: any) {
+      console.error(err)
+      alert('Erro ao eliminar publicação: ' + err.message)
+    } finally {
+      setDeletingPostId(null)
+    }
+  }
+
+  const loadStats = async (userId: string) => {
+    const { count: postCount } = await supabase
+      .from('posts').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+
+    const { data: postIds } = await supabase
+      .from('posts').select('id').eq('user_id', userId)
+
+    let likesTotal = 0
+    let commentsTotal = 0
+    let viewsTotal = 0
+
+    if (postIds && postIds.length > 0) {
+      const ids = postIds.map(p => p.id)
+      const { count: likesCount } = await supabase
+        .from('likes').select('*', { count: 'exact', head: true }).in('post_id', ids)
+      likesTotal = likesCount ?? 0
+
+      const { count: commentsCount } = await supabase
+        .from('comments').select('*', { count: 'exact', head: true }).in('post_id', ids)
+      commentsTotal = commentsCount ?? 0
+
+      const { count: viewsCount } = await supabase
+        .from('post_views').select('*', { count: 'exact', head: true }).in('post_id', ids)
+      viewsTotal = viewsCount ?? 0
+    }
+
+    const { data: earningsData } = await supabase
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'earnings')
+      .eq('status', 'completed')
+
+    const earningsTotal = earningsData?.reduce((sum, t) => sum + Number(t.amount), 0) ?? 0
+
+    setStats({
+      posts: postCount ?? 0,
+      likes: likesTotal,
+      comments: commentsTotal,
+      views: viewsTotal,
+      earnings: earningsTotal,
+    })
   }
 
   if (loading) {
@@ -711,6 +818,104 @@ export default function EditProfilePage() {
               </form>
             )}
           </div>
+
+          {/* Creator Stats */}
+          {!isEditing && (
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { label: 'Publicacoes', value: stats.posts, icon: BarChart3, color: 'from-blue-500 to-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-600 dark:text-blue-400' },
+              { label: 'Reacoes', value: stats.likes, icon: Heart, color: 'from-red-500 to-red-600', bg: 'bg-red-50 dark:bg-red-950/30', text: 'text-red-600 dark:text-red-400' },
+              { label: 'Comentarios', value: stats.comments, icon: MessageCircle, color: 'from-purple-500 to-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30', text: 'text-purple-600 dark:text-purple-400' },
+              { label: 'Visualizacoes', value: stats.views, icon: Eye, color: 'from-emerald-500 to-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Ganhos (AOA)', value: stats.earnings.toLocaleString(), icon: DollarSign, color: 'from-amber-500 to-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-600 dark:text-amber-400' },
+            ].map((item) => (
+              <div key={item.label} className={`rounded-xl border shadow-sm p-3 sm:p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+                <div className="flex items-center gap-2 sm:gap-3 lg:flex-col lg:text-center">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0 ${item.text}`}>
+                    <item.icon size={16} className="sm:size-5" />
+                  </div>
+                  <div className="min-w-0 lg:w-full">
+                    <p className={`text-base sm:text-lg font-black truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.value}</p>
+                    <p className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{item.label}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          )}
+
+          {/* Meus Conteudos */}
+          {!isEditing && (
+          <div className={`mt-6 rounded-xl border shadow-sm overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}`}>
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <h2 className="font-bold text-lg">Meus Conteudos</h2>
+              <span className="text-xs text-gray-400 font-semibold">{myPosts.length} publicacoes</span>
+            </div>
+            {loadingPosts ? (
+              <div className="flex justify-center py-8"><Loader2 className="animate-spin text-accent" size={24} /></div>
+            ) : myPosts.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm">Nenhum conteudo publicado ainda.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {myPosts.map((post) => {
+                  const engagement = post.views_count > 0 ? ((post.likes_count + post.comments_count) / post.views_count) * 100 : 0
+                  const isPositive = engagement >= 5
+                  return (
+                  <div key={post.id} className="px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {post.content_type === 'video' ? (
+                          post.thumbnail_url ? <img src={post.thumbnail_url} className="w-full h-full object-cover" /> : <Video size={20} className="text-gray-400" />
+                        ) : post.content_type === 'photo' ? (
+                          post.thumbnail_url ? <img src={post.thumbnail_url} className="w-full h-full object-cover" /> : <Image size={20} className="text-gray-400" />
+                        ) : (
+                          <FileText size={20} className="text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">{post.title}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-semibold uppercase">
+                          <span>{post.content_type}</span>
+                          {!post.is_free && <span className="text-accent">Pago</span>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeletePost(post.id)}
+                        disabled={deletingPostId === post.id}
+                        className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                          deletingPostId === post.id
+                            ? 'text-gray-300'
+                            : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
+                        }`}
+                      >
+                        {deletingPostId === post.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                        <Heart size={12} className="text-red-400" /> {post.likes_count}
+                      </span>
+                      <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                        <MessageCircle size={12} className="text-blue-400" /> {post.comments_count}
+                      </span>
+                      <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                        <Eye size={12} className="text-emerald-400" /> {post.views_count}
+                      </span>
+                      <span className={`flex items-center gap-1 font-bold ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                        {post.views_count > 0 ? (
+                          <>{isPositive ? '▲' : '▼'} {engagement.toFixed(1)}%</>
+                        ) : (
+                          <span className="text-gray-400 font-normal">—</span>
+                        )}
+                        <span className="text-[10px] font-normal text-gray-400">eng.</span>
+                      </span>
+                    </div>
+                  </div>
+                )})}
+              </div>
+            )}
+          </div>
+          )}
 
           {/* VIP Badge Card — visible on mobile/tablet below form */}
           {!(user?.email && isAdminEmail(user.email)) && (

@@ -234,15 +234,27 @@ export default function LiveStreamPage() {
 
   // Fetch comments for chosen stream
   const fetchStreamComments = async (streamId: string) => {
-    const { data } = await supabase
+    const { data: comments } = await supabase
       .from('live_stream_comments')
-      .select('*, profiles(display_name, avatar_url)')
+      .select('id, content, user_id, created_at')
       .eq('stream_id', streamId)
       .order('created_at', { ascending: true })
       .limit(50)
 
-    if (data) {
-      setChatComments(data as any[])
+    if (comments) {
+      const userIds = [...new Set(comments.map(c => c.user_id))]
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', userIds.length > 0 ? userIds : ['none'])
+
+      const profileMap: Record<string, any> = {}
+      if (profiles) for (const p of profiles) profileMap[p.id] = p
+
+      setChatComments(comments.map(c => ({
+        ...c,
+        profiles: profileMap[c.user_id] || { display_name: 'Usuário', avatar_url: null }
+      })) as any[])
     }
   }
 
@@ -261,7 +273,7 @@ export default function LiveStreamPage() {
       }, async (payload) => {
         const { data: senderProfile } = await supabase
           .from('profiles')
-          .select('display_name, avatar_url')
+          .select('id, display_name, avatar_url')
           .eq('id', payload.new.user_id)
           .single()
 
@@ -271,7 +283,8 @@ export default function LiveStreamPage() {
             ...prev,
             {
               ...payload.new,
-              profiles: senderProfile || { display_name: 'Usuário', avatar_url: '' }
+              user_id: payload.new.user_id,
+              profiles: senderProfile || { display_name: 'Usuário', avatar_url: null }
             }
           ] as ChatComment[]
         })
@@ -1058,7 +1071,7 @@ export default function LiveStreamPage() {
                   )
                 )}
 
-                {/* Overlays */}
+                {/* Overlays - top */}
                 <div className="absolute top-4 left-4 z-30 flex items-center gap-2 flex-wrap max-w-[90%]">
                   <span className="bg-red-600 text-white font-black text-[10px] tracking-wider uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-lg animate-pulse">
                     <span className="w-1.5 h-1.5 bg-white rounded-full" />

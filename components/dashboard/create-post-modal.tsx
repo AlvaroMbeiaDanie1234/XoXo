@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useTheme } from 'next-themes'
-import { X, Image as ImageIcon, Video, Calendar, Settings, DollarSign, Loader2, Circle, Square } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Calendar, Settings, DollarSign, Loader2, Circle, Square, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface CreatePostModalProps {
   isOpen: boolean
@@ -23,6 +24,8 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraReady, setCameraReady] = useState(false)
+  const [profileReady, setProfileReady] = useState<boolean | null>(null)
+  const [checkingProfile, setCheckingProfile] = useState(true)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const liveVideoRef = useRef<HTMLVideoElement>(null)
@@ -58,7 +61,17 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
   useEffect(() => {
     if (!isOpen) {
       clearMedia()
+      return
     }
+    setCheckingProfile(true)
+    setProfileReady(null)
+    supabase.from('profiles').select('phone, avatar_url').eq('id', user.id).single().then(({ data }) => {
+      setProfileReady(!!(data?.phone && data?.avatar_url))
+      setCheckingProfile(false)
+    }).catch(() => {
+      setProfileReady(false)
+      setCheckingProfile(false)
+    })
     return () => {
       stopCamera()
       if (timerRef.current) clearInterval(timerRef.current)
@@ -281,6 +294,29 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          {checkingProfile ? (
+            <div className="flex-1 flex items-center justify-center">
+              <Loader2 size={24} className="animate-spin text-accent" />
+            </div>
+          ) : profileReady === false ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
+                <AlertTriangle size={32} className="text-amber-500" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">Perfil incompleto</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-sm">
+                Para publicar conteúdos, precisas de adicionar um número de telefone e uma foto de perfil.
+              </p>
+              <Link
+                href="/dashboard/profile"
+                onClick={handleClose}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-accent text-white font-bold hover:bg-accent/90 transition-colors"
+              >
+                Editar Perfil
+              </Link>
+            </div>
+          ) : (
+          <>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white font-bold text-lg">
@@ -467,7 +503,8 @@ export default function CreatePostModal({ isOpen, onClose, user }: CreatePostMod
                 )}
               </button>
             </div>
-          </div>
+            </div>
+            </>)}
         </form>
       </div>
 

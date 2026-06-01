@@ -47,6 +47,18 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const supabase = createClient()
 
+  const checkProfileReady = async (): Promise<boolean> => {
+    if (!currentUserId) return false
+    const { data } = await supabase
+      .from('profiles')
+      .select('phone, avatar_url')
+      .eq('id', currentUserId)
+      .single()
+    const ready = !!(data?.phone && data?.avatar_url)
+    if (!ready) alert('Para publicar estados, precisas de adicionar um número de telefone e uma foto de perfil na página de perfil.')
+    return ready
+  }
+
   useEffect(() => {
     loadStories()
   }, [])
@@ -256,13 +268,14 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
           <>
             {currentUserId && (
               <button
-                onClick={() => {
+                onClick={async () => {
                   const ownIdx = storyUsers.findIndex(u => u.id === currentUserId)
                   if (ownIdx >= 0) {
                     setViewingIndex(ownIdx)
                     setViewingStoryIndex(0)
                   } else {
-                    setShowCreateModal(true)
+                    const ready = await checkProfileReady()
+                    if (ready) setShowCreateModal(true)
                   }
                 }}
                 className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16 group"
@@ -363,7 +376,7 @@ export default function StoriesBar({ currentUserId }: { currentUserId: string | 
               )}
               {storyUsers[viewingIndex].id === currentUserId && (
                 <button
-                  onClick={() => { closeViewer(); setTimeout(() => setShowCreateModal(true), 100) }}
+                  onClick={async () => { const ready = await checkProfileReady(); if (ready) { closeViewer(); setTimeout(() => setShowCreateModal(true), 100) } }}
                   className="p-1.5 rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors backdrop-blur-sm"
                 >
                   <Plus size={16} />
