@@ -15,7 +15,7 @@ import StoriesBar from '@/components/dashboard/stories-bar'
 import {
   Search, Wallet, PlusCircle, List, ArrowLeft, Loader2,
   CheckCircle2, ExternalLink, ArrowUpRight, ArrowDownLeft,
-  Banknote, Building2, Send, Megaphone, X
+  Banknote, Building2, Send, Megaphone, X, Ban
 } from 'lucide-react'
 import { Suspense } from 'react'
 import WalletPreferences from '@/components/dashboard/wallet-preferences'
@@ -85,6 +85,13 @@ function DashboardContent() {
   const [depositRefPhone, setDepositRefPhone] = useState('')
   const [depositTxnId, setDepositTxnId] = useState('')
   const [depositSubmitting, setDepositSubmitting] = useState(false)
+  const [suspensionData, setSuspensionData] = useState<{ reason: string } | null>(null)
+  const [susMessage, setSusMessage] = useState('')
+  const [susPhone, setSusPhone] = useState('')
+  const [susRemaining, setSusRemaining] = useState(3)
+  const [susSending, setSusSending] = useState(false)
+  const [susSent, setSusSent] = useState(false)
+  const [susError, setSusError] = useState('')
 
   const supabase = createClient()
   const router = useRouter()
@@ -189,7 +196,7 @@ function DashboardContent() {
         }
 
         // Fetch User Profile
-        const { data: profile, error: profileError } = await supabase.from('profiles').select('id, display_name, avatar_url, balance, is_verified, is_free_plan, preferred_currency, withdrawal_country, bank_account_name, bank_name, bank_account_number, bank_branch, bank_pix').eq('id', currentUser.id).single()
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('id, display_name, avatar_url, balance, is_verified, is_free_plan, suspended, suspension_reason, preferred_currency, withdrawal_country, bank_account_name, bank_name, bank_account_number, bank_branch, bank_pix').eq('id', currentUser.id).single()
         if (profileError) {
           console.error("XoXo Dashboard: Error fetching user profile:", profileError)
         }
@@ -197,6 +204,15 @@ function DashboardContent() {
           const val = Number(profile.balance);
           setBalance(isNaN(val) ? 0 : val)
           setUserProfile(profile)
+          // Check suspension and show modal
+          if (profile.suspended) {
+            setSuspensionData({ reason: profile.suspension_reason || 'A sua conta foi suspensa.' })
+            // Fetch remaining messages and phone
+            fetch('/api/suspension/message').then(r => r.json()).then(d => {
+              if (d.remaining !== undefined) setSusRemaining(d.remaining)
+              if (d.phone) setSusPhone(d.phone)
+            }).catch(() => {})
+          }
         }
 
         if (searchParams.get('status') === 'success') {
@@ -852,6 +868,102 @@ function DashboardContent() {
           </div>
         )}
       </div>
+
+      {suspensionData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-border max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Ban className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Conta Suspensa</h2>
+                <p className="text-sm text-muted-foreground">A sua conta foi suspensa</p>
+              </div>
+            </div>
+            <div className="bg-muted rounded-xl p-4">
+              <p className="text-sm text-foreground whitespace-pre-wrap">{suspensionData.reason}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enquanto a sua conta estiver suspensa, não pode publicar conteúdos nem interagir com outros utilizadores.
+              Apenas pode contactar o suporte.
+            </p>
+
+            {susSent ? (
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto" />
+                <p className="text-sm font-semibold text-green-700 dark:text-green-300">Mensagem enviada com sucesso!</p>
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  Restam {susRemaining} mensagen(s) de 3. Aguarde o contacto da nossa equipa.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Mensagem para o suporte ({susRemaining} de 3 restantes)
+                  </label>
+                  <textarea
+                    value={susMessage}
+                    onChange={e => setSusMessage(e.target.value)}
+                    placeholder="Escreva a sua mensagem..."
+                    rows={3}
+                    className="w-full rounded-xl border border-border bg-background p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
+                    maxLength={500}
+                    disabled={susRemaining <= 0}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Telemóvel (opcional — para receber feedback se a conta for reativada)
+                  </label>
+                  <input
+                    type="tel"
+                    value={susPhone}
+                    onChange={e => setSusPhone(e.target.value)}
+                    placeholder="+244 900 000 000"
+                    className="w-full rounded-xl border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    disabled={susRemaining <= 0}
+                  />
+                </div>
+                {susError && (
+                  <p className="text-xs text-red-500">{susError}</p>
+                )}
+                <button
+                  onClick={async () => {
+                    if (!susMessage.trim()) return
+                    setSusSending(true)
+                    setSusError('')
+                    try {
+                      const res = await fetch('/api/suspension/message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: susMessage, phone: susPhone }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) {
+                        setSusError(data.error || 'Erro ao enviar')
+                      } else {
+                        setSusSent(true)
+                        setSusRemaining(data.remaining)
+                        setSusMessage('')
+                      }
+                    } catch {
+                      setSusError('Erro de conexão')
+                    } finally {
+                      setSusSending(false)
+                    }
+                  }}
+                  disabled={!susMessage.trim() || susSending || susRemaining <= 0}
+                  className="w-full bg-accent text-accent-foreground font-bold py-2.5 rounded-xl text-sm transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {susSending ? 'A enviar...' : `Enviar mensagem (${susRemaining}/3)`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <ConsentModal />
     </div>

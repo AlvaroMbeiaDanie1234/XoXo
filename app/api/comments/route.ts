@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assertFreeTierAction } from '@/lib/free-tier'
+import { assertNotSuspended } from '@/lib/assert-suspended'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -48,14 +49,19 @@ export async function POST(request: NextRequest) {
     console.log('Comment creation request:', { user_id: user.id, post_id, content, parent_id })
 
     const supabaseAdmin = createAdminClient()
+
+    // Check suspension
+    const suspendCheck = await assertNotSuspended(supabaseAdmin, user.id)
+    if (!suspendCheck.ok) {
+      return NextResponse.json({ error: suspendCheck.error }, { status: 403 })
+    }
+
     const check = await assertFreeTierAction(
       supabaseAdmin,
       user.id,
       'comment',
       user.email
     )
-
-    console.log('Free tier check result:', check)
 
     if (!check.ok) {
       console.error('Comment creation failed: Free tier limit reached', check)

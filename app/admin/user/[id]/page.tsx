@@ -7,7 +7,7 @@ import Header from '@/components/dashboard/header'
 import { formatRelativeTime } from '@/lib/format-relative-time'
 import { 
   Users, Shield, Calendar, Mail, Phone, MapPin, 
-  Trash2, Eye, CheckCircle, XCircle, Loader2, ArrowLeft, Star, PlusCircle, Ban,
+  Trash2, Eye, CheckCircle, XCircle, Loader2, ArrowLeft, Star, PlusCircle, Ban, MessageCircle,
   FileText, Video as VideoIcon, Image as ImageIcon, DollarSign, Play,
 } from 'lucide-react'
 

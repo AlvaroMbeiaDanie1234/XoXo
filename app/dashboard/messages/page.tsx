@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/dashboard/header'
 import Sidebar from '@/components/dashboard/sidebar'
-import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon, Mic, Square, Trash2 } from 'lucide-react'
+import { Send, Search, Users, Loader2, ArrowLeft, Check, CheckCheck, Paperclip, X, FileText, Image as ImageIcon, Mic, Square, Trash2, Ban } from 'lucide-react'
 import { useOnlinePresence } from '@/hooks/use-online-presence'
 import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
 
@@ -115,7 +115,7 @@ function MessagesContent() {
       // For simplicity, let's fetch everyone you've exchanged messages with or follow
       const { data: subs } = await supabase
         .from('subscriptions')
-        .select('following_id, profiles!subscriptions_following_id_fkey(id, display_name, avatar_url)')
+        .select('following_id, profiles!subscriptions_following_id_fkey(id, display_name, avatar_url, suspended)')
         .eq('follower_id', currentUser.id)
 
       const subbedContacts = subs?.map((s: any) => Array.isArray(s.profiles) ? s.profiles[0] : s.profiles).filter(Boolean) || []
@@ -123,7 +123,7 @@ function MessagesContent() {
       // Also fetch people who sent you messages (even if you don't follow them)
       const { data: messageSenders } = await supabase
         .from('messages')
-        .select('sender_id, profiles!messages_sender_id_fkey(id, display_name, avatar_url)')
+        .select('sender_id, profiles!messages_sender_id_fkey(id, display_name, avatar_url, suspended)')
         .eq('receiver_id', currentUser.id)
 
       const senderContacts = messageSenders?.map((m: any) => Array.isArray(m.profiles) ? m.profiles[0] : m.profiles).filter(Boolean) || []
@@ -557,7 +557,12 @@ function MessagesContent() {
                   </div>
                   <div className="text-left overflow-hidden flex-1">
                     <p className={`font-bold truncate text-foreground`}>{contact.display_name}</p>
-                    <p className={`text-xs truncate text-muted-foreground`}>Clique para iniciar conversa</p>
+                    {contact.suspended && (
+                      <p className="text-[10px] font-bold text-red-500 flex items-center gap-1">
+                        <Ban size={10} /> Conta Suspensa
+                      </p>
+                    )}
+                    {!contact.suspended && <p className={`text-xs truncate text-muted-foreground`}>Clique para iniciar conversa</p>}
                   </div>
                   {unreadCounts[contact.id] > 0 && (
                     <span className="bg-accent text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in duration-300 flex-shrink-0 ml-auto">
@@ -588,6 +593,13 @@ function MessagesContent() {
                     </div>
                   </Link>
                 </div>
+                {selectedContact.suspended && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-red-500/10 border-t border-red-200 px-4 py-1">
+                    <p className="text-[10px] font-bold text-red-600 flex items-center gap-1 justify-center">
+                      <Ban size={10} /> Esta conta está suspensa
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Messages Area */}

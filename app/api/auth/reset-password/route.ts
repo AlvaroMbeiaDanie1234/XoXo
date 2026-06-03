@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicSiteUrl } from '@/lib/site-url'
+import { friendlyAuthError } from '@/lib/supabase/error-handler'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -30,12 +31,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (linkError) {
-      console.error('[API/ResetPassword] Falha ao gerar link de recuperacao:', {
-        message: linkError.message,
-        email,
-        recoveryRedirectUrl,
-      })
-
+      console.error('[API/ResetPassword] Falha ao gerar link de recuperacao:', linkError.message)
       return NextResponse.json({ success: true })
     }
 
@@ -131,7 +127,7 @@ export async function POST(request: NextRequest) {
     console.error('[API/ResetPassword] Erro inesperado:', error)
 
     return NextResponse.json(
-      { error: error?.message || 'Erro ao enviar e-mail de recuperacao.' },
+      { error: friendlyAuthError(error?.message) },
       { status: 500 },
     )
   }

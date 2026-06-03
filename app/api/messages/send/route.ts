@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { SUPERADMIN_EMAIL } from '@/lib/admin-emails'
 import { assertFreeTierAction, getFreeTierStatus } from '@/lib/free-tier'
+import { getSuspensionStatus } from '@/lib/assert-suspended'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,13 +16,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const supabaseAdmin = createAdminClient()
+
     const { receiver_id, content, file_url, file_name, file_type } = await request.json()
 
     if (!receiver_id || (!content?.trim() && !file_url)) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
     }
 
-    const supabaseAdmin = createAdminClient()
+    // Check if sender is suspended — only allow messaging superadmin
+    const suspension = await getSuspensionStatus(supabaseAdmin, user.id)
+    if (suspension.suspended) {
+      const { data: receiver } = await supabaseAdmin
+        .from('profiles')
+        .select('email')
+        .eq('id', receiver_id)
+        .maybeSingle()
+
+      if (!receiver || receiver.email?.toLowerCase() !== SUPERADMIN_EMAIL) {
+        return NextResponse.json(
+          { error: 'A sua conta está suspensa. Só pode contactar o suporte (superadmin.xoxo@gmail.com).', suspension },
+          { status: 403 }
+        )
+      }
+    }
+
     const check = await assertFreeTierAction(
       supabaseAdmin,
       user.id,

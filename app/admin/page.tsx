@@ -80,7 +80,9 @@ export default function AdminDashboard() {
   const [annType, setAnnType] = useState('comunicado') // 'comunicado' or 'anuncio'
   const [annTitle, setAnnTitle] = useState('')
   const [annContent, setAnnContent] = useState('')
-  const [annTarget, setAnnTarget] = useState('') // '' means all
+  const [annTargetAll, setAnnTargetAll] = useState(true) // true = all users
+  const [annTargetUsers, setAnnTargetUsers] = useState<string[]>([]) // selected user IDs
+  const [annSearchQuery, setAnnSearchQuery] = useState('')
   const [annImage, setAnnImage] = useState('')
   const [annLink, setAnnLink] = useState('')
   const [submittingAnn, setSubmittingAnn] = useState(false)
@@ -393,7 +395,7 @@ export default function AdminDashboard() {
       // Fetch recent feedbacks
       const { data: feedbacksData } = await supabase
         .from('feedbacks')
-        .select('*, profiles(display_name, email, avatar_url)')
+        .select('*, profiles(display_name, email, avatar_url, phone)')
         .order('created_at', { ascending: false })
         .limit(100)
       if (feedbacksData) setFeedbacks(feedbacksData)
@@ -676,18 +678,40 @@ export default function AdminDashboard() {
       return
     }
 
+    if (!annTargetAll && annTargetUsers.length === 0) {
+      toast({
+        title: "Nenhum destinatário",
+        description: "Seleciona pelo menos um utilizador ou marca 'Todos os Utilizadores'.",
+        variant: "destructive"
+      })
+      return
+    }
+
     setSubmittingAnn(true)
     try {
-      const { data, error } = await supabase.from('system_announcements').insert({
-        type: annType,
-        title: annTitle,
-        content: annContent,
-        target_user_id: annTarget || null,
-        image_url: annImage || null,
-        link_url: annLink || null
-      }).select().single()
+      if (annTargetAll) {
+        const { data, error } = await supabase.from('system_announcements').insert({
+          type: annType,
+          title: annTitle,
+          content: annContent,
+          target_user_id: null,
+          image_url: annImage || null,
+          link_url: annLink || null
+        }).select().single()
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        const inserts = annTargetUsers.map(userId => ({
+          type: annType,
+          title: annTitle,
+          content: annContent,
+          target_user_id: userId,
+          image_url: annImage || null,
+          link_url: annLink || null
+        }))
+        const { error } = await supabase.from('system_announcements').insert(inserts)
+        if (error) throw error
+      }
 
       toast({
         title: "Publicado com sucesso!",
@@ -697,7 +721,9 @@ export default function AdminDashboard() {
       // Reset form
       setAnnTitle('')
       setAnnContent('')
-      setAnnTarget('')
+      setAnnTargetAll(true)
+      setAnnTargetUsers([])
+      setAnnSearchQuery('')
       setAnnImage('')
       setAnnLink('')
 
@@ -1447,7 +1473,7 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('deposits')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'deposits' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Wallet size={20} /> Depósitos {pendingDeposits.length > 0 && <span className="bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingDeposits.length}</span>}
               </button>
-              
+               
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Settings size={20} /> Definições
               </button>
@@ -2108,16 +2134,62 @@ export default function AdminDashboard() {
 
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Destinatário</label>
-                      <select
-                        value={annTarget}
-                        onChange={(e) => setAnnTarget(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl font-medium outline-none focus:border-accent text-sm"
-                      >
-                        <option value="">Todos os Utilizadores</option>
-                        {users.map(u => (
-                          <option key={u.id} value={u.id}>{u.display_name || u.email}</option>
-                        ))}
-                      </select>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input
+                          type="checkbox"
+                          checked={annTargetAll}
+                          onChange={(e) => {
+                            setAnnTargetAll(e.target.checked)
+                            if (e.target.checked) setAnnSearchQuery('')
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Todos os Utilizadores</span>
+                      </label>
+                      {!annTargetAll && (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={annSearchQuery}
+                            onChange={(e) => setAnnSearchQuery(e.target.value)}
+                            placeholder="Pesquisar utilizadores..."
+                            className="w-full px-3 py-2 bg-gray-50 border border-border rounded-xl font-medium outline-none focus:border-accent text-sm"
+                          />
+                          <div className="max-h-48 overflow-y-auto border border-border rounded-xl bg-gray-50 divide-y divide-border">
+                            {users
+                              .filter(u => {
+                                if (!annSearchQuery) return true
+                                const q = annSearchQuery.toLowerCase()
+                                return (u.display_name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.phone || '').toLowerCase().includes(q)
+                              })
+                              .map(u => (
+                                <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={annTargetUsers.includes(u.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setAnnTargetUsers(prev => [...prev, u.id])
+                                      } else {
+                                        setAnnTargetUsers(prev => prev.filter(id => id !== u.id))
+                                      }
+                                    }}
+                                    className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                                  />
+                                  <span className="text-sm text-gray-700 truncate">{u.display_name || u.email}</span>
+                                </label>
+                              ))}
+                            {users.filter(u => {
+                              if (!annSearchQuery) return true
+                              const q = annSearchQuery.toLowerCase()
+                              return (u.display_name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.phone || '').toLowerCase().includes(q)
+                            }).length === 0 && (
+                              <p className="text-xs text-gray-400 text-center py-3">Nenhum utilizador encontrado.</p>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-400">{annTargetUsers.length} utilizador(es) selecionado(s)</p>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -2418,6 +2490,11 @@ export default function AdminDashboard() {
                               <h3 className="font-bold text-gray-900">{feedback.profiles?.display_name || 'Utilizador'}</h3>
                               <span className="text-xs text-gray-500">{feedback.profiles?.email || ''}</span>
                               <span className="text-xs text-gray-400">• {formatRelativeTime(feedback.created_at)}</span>
+                              {feedback.rating === 0 && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">
+                                  APELO DE SUSPENSÃO
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 mb-3">
                               {[1, 2, 3, 4, 5].map((star) => (

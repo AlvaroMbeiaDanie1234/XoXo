@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { friendlyAuthError } from '@/lib/supabase/error-handler'
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
@@ -25,14 +26,14 @@ export default function ResetPasswordPage() {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        setError(data?.error || 'Erro ao enviar email de recuperacao')
+        setError(friendlyAuthError(data?.error))
         setLoading(false)
         return
       }
 
       setSuccess(true)
     } catch (err: any) {
-      setError(err?.message || 'Erro ao enviar email de recuperacao')
+      setError(friendlyAuthError(err?.message))
       setLoading(false)
     }
   }

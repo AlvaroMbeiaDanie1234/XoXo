@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff } from 'lucide-react'
+import { friendlyAuthError } from '@/lib/supabase/error-handler'
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState('')
@@ -27,7 +28,7 @@ export default function UpdatePasswordPage() {
       })
 
       if (updateError) {
-        setError(updateError.message || 'Erro ao atualizar senha')
+        setError(friendlyAuthError(updateError.message))
         setLoading(false)
         return
       }
@@ -37,7 +38,7 @@ export default function UpdatePasswordPage() {
         router.push('/auth/login')
       }, 2000)
     } catch (err: any) {
-      setError(err?.message || 'Erro ao atualizar senha')
+      setError(friendlyAuthError(err?.message))
       setLoading(false)
     }
   }

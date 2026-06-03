@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveReferrerId } from '@/lib/referrals'
+import { friendlyAuthError } from '@/lib/supabase/error-handler'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
 
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (createError || !userData?.user) {
       console.error('[API/Signup] Erro ao criar utilizador administrativamente:', createError)
       return NextResponse.json(
-        { error: `Erro ao criar conta: ${createError?.message || 'Tente novamente.'}` },
+        { error: `Erro ao criar conta: ${friendlyAuthError(createError?.message || 'Tente novamente.')}` },
         { status: 400 }
       )
     }
@@ -308,7 +309,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[API/Signup] Erro crítico no fluxo de cadastro:', error)
     return NextResponse.json(
-      { error: error?.message || 'Erro interno ao processar o cadastro.' },
+      { error: friendlyAuthError(error?.message) },
       { status: 500 }
     )
   }

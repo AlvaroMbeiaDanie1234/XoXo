@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assertFreeTierAction } from '@/lib/free-tier'
+import { assertNotSuspended } from '@/lib/assert-suspended'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -46,6 +47,13 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseAdmin = createAdminClient()
+
+    // Check suspension
+    const suspendCheck = await assertNotSuspended(supabaseAdmin, user.id)
+    if (!suspendCheck.ok) {
+      return NextResponse.json({ error: suspendCheck.error }, { status: 403 })
+    }
+
     const check = await assertFreeTierAction(supabaseAdmin, user.id, 'post', user.email)
     if (!check.ok) {
       return NextResponse.json(

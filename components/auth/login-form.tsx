@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslation } from '@/hooks/useTranslation'
+import { friendlyAuthError } from '@/lib/supabase/error-handler'
 
 export default function LoginForm() {
   const { t } = useTranslation()
@@ -39,25 +40,12 @@ export default function LoginForm() {
       })
 
       if (authError) {
-        setError(authError.message || 'Erro ao fazer login')
+        setError(friendlyAuthError(authError.message))
         setLoading(false)
         return
       }
 
       if (data?.user) {
-        // Check if user is suspended
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('suspended, suspension_reason')
-          .eq('id', data.user.id)
-          .single()
-
-        if (profile?.suspended) {
-          setError(profile.suspension_reason || 'A sua conta foi suspensa.')
-          setLoading(false)
-          return
-        }
-
         setSuccess(true)
         setError(null)
         
@@ -72,7 +60,7 @@ export default function LoginForm() {
         }, 500)
       }
     } catch (err: any) {
-      setError(err?.message || 'Erro ao fazer login')
+      setError(friendlyAuthError(err?.message))
       setLoading(false)
     }
   }
