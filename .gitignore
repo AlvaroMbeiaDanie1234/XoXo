@@ -16,7 +16,8 @@ node_modules
 
 # Backups and Database Volumes (DO NOT COMMIT)
 backup-07-06-2026/
-docker-supabase/volumes/
+docker-supabase/volumes/db/data/
+docker-supabase/volumes/storage/
 backup*.sql
 auth-backup*.sql
 import_storage.sql
