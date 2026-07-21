@@ -58,22 +58,29 @@ export default function ExplorePage() {
         .limit(500)
 
       let followersMap: Record<string, number> = {}
-      if (profiles) {
+      if (profiles && profiles.length > 0) {
         setCreators(profiles)
         setAllCreators(profiles)
 
-        // Single query for all follower counts
-        const { data: allSubs } = await supabase
-          .from('subscriptions')
-          .select('following_id')
-          .in('following_id', profiles.map(p => p.id))
+        // Chunk queries to avoid URI Too Long error from Kong API Gateway
+        const CHUNK_SIZE = 50
+        const profileIds = profiles.map(p => p.id)
+        const allSubs: { following_id: string }[] = []
+
+        for (let i = 0; i < profileIds.length; i += CHUNK_SIZE) {
+          const chunk = profileIds.slice(i, i + CHUNK_SIZE)
+          const { data } = await supabase
+            .from('subscriptions')
+            .select('following_id')
+            .in('following_id', chunk)
+          
+          if (data) allSubs.push(...data)
+        }
 
         followersMap = {}
-        if (allSubs) {
-          allSubs.forEach(sub => {
-            followersMap[sub.following_id] = (followersMap[sub.following_id] || 0) + 1
-          })
-        }
+        allSubs.forEach(sub => {
+          followersMap[sub.following_id] = (followersMap[sub.following_id] || 0) + 1
+        })
         setFollowersCount(followersMap)
       }
 

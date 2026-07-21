@@ -1473,7 +1473,11 @@ export default function AdminDashboard() {
               <button onClick={() => setActiveTab('deposits')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'deposits' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Wallet size={20} /> Depósitos {pendingDeposits.length > 0 && <span className="bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingDeposits.length}</span>}
               </button>
-               
+               {isSuperAdminEmail(currentUser?.email) && (
+                <button onClick={() => setActiveTab('intelligence')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'intelligence' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
+                  <ShieldCheck size={20} /> Inteligência
+                </button>
+              )}
               <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'settings' ? 'bg-accent text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <Settings size={20} /> Definições
               </button>
