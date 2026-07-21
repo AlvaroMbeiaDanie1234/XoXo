@@ -1,9 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
+const WebSocket = require('ws');
+global.WebSocket = WebSocket;
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const supabaseUrl = 'http://localhost:8000';
+const supabaseUrl = 'https://xoxo.ao/supabase-api';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -71,12 +73,8 @@ async function fix() {
         console.error(`Error uploading ${destPath}:`, uploadError.message);
       } else {
         if (ownerId && ownerId !== 'messages') {
-            const sql = `UPDATE storage.objects SET owner = '${ownerId}' WHERE name = '${destPath}' AND bucket_id = '${bucketName}';`;
-            try {
-                execSync(`docker exec supabase-db psql -U postgres -c "${sql}"`);
-            } catch (err) {
-                console.error(`   Failed to restore owner for ${destPath}`);
-            }
+            const sql = `UPDATE storage.objects SET owner = '${ownerId}' WHERE name = '${destPath}' AND bucket_id = '${bucketName}';\n`;
+            fs.appendFileSync('update_owners.sql', sql);
         }
       }
       
