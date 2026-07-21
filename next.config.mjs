@@ -10,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: '/supabase-api/:path*',
-        destination: 'http://204.168.143.175:8010/:path*',
+        destination: 'http://127.0.0.1:8010/:path*',
       },
     ]
   },
