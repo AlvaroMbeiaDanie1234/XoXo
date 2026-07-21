@@ -30,13 +30,21 @@ export default function SuggestedCreators({ variant = 'sidebar', className = '' 
       return
     }
 
-    const { data } = await supabase
-      .from('subscriptions')
-      .select('following_id')
-      .eq('follower_id', userId)
-      .in('following_id', creatorIds)
+    const CHUNK_SIZE = 50
+    const allSubs: { following_id: string }[] = []
 
-    setSubscribedIds(new Set(data?.map((item) => item.following_id) || []))
+    for (let i = 0; i < creatorIds.length; i += CHUNK_SIZE) {
+      const chunk = creatorIds.slice(i, i + CHUNK_SIZE)
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('following_id')
+        .eq('follower_id', userId)
+        .in('following_id', chunk)
+        
+      if (data) allSubs.push(...data)
+    }
+
+    setSubscribedIds(new Set(allSubs.map((item) => item.following_id)))
   }, [supabase])
 
   const fetchCreators = useCallback(async () => {

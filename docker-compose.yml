@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: local-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./docker/entrypoint/00-init.sql:/docker-entrypoint-initdb.d/00-init.sql
+      - ./backup-07-06-2026/database/auth_data.sql:/docker-entrypoint-initdb.d/01-auth_data.sql
+      - ./backup-07-06-2026/database/public_schema.sql:/docker-entrypoint-initdb.d/02-public_schema.sql
+      - ./backup-07-06-2026/database/public_data.sql:/docker-entrypoint-initdb.d/03-public_data.sql
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

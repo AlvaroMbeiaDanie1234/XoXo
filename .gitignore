@@ -13,3 +13,10 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .next/
 .DS_Store
+
+# Backups and Database Volumes (DO NOT COMMIT)
+backup-07-06-2026/
+docker-supabase/volumes/
+backup*.sql
+auth-backup*.sql
+import_storage.sql
