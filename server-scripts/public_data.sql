@@ -14726,7 +14726,8 @@ INSERT INTO public."system_settings" ("key", "value", "updated_at") VALUES
 ('linkpaga_slug', 'o-exclusivo-1778941886395', '2026-05-16T13:56:12.885Z'),
 ('LINKPAGA_WEBHOOK_SECRET', '', '2026-05-21T18:56:16.528Z'),
 ('min_withdraw_amount', '5500', '2026-05-26T17:19:14.308Z'),
-('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_apSbqwn1swGRjtCT1rayPA_a4kF_PJY', '2026-05-21T18:56:12.990Z'),
+('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.masked-secret-key-for-github-push-protection.BXCl3KUZJKVnKy1-2Vsg4DHP43XueKUgBo1gH1lMsog', '2026-05-21T18:56:12.778Z'),
+('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'dummy', '2026-05-21T18:56:12.990Z'),
 ('NEXT_PUBLIC_SUPABASE_URL', 'https://vuyscgfbwhmqydeznphi.supabase.co', '2026-05-21T18:56:12.558Z'),
 ('NEXT_PUBLIC_ZEGO_APP_ID', '', '2026-05-21T18:56:16.739Z'),
 ('NEXT_PUBLIC_ZEGO_APP_SIGN', '', '2026-05-21T18:56:16.939Z'),
@@ -14772,8 +14773,11 @@ Garantir que todos os criadores na plataforma são reais, maiores de idade e leg
 
 4. Cruzar Dados Bancários: Confirmar se o IBAN/Conta cadastrada pertence estritamente ao mesmo titular do documento enviado. Caso divirja, reter o processo. ', '2026-05-25T20:45:38.600Z'),
 ('referral_bonus_amount', '200', '2026-05-22T06:30:24.591Z'),
-('SUPABASE_JWT_SECRET', 'DU5XhqCV2XsYOf/Twuj6EqPh/IJsSnc/9g0EYubSda6gkJ8YS92J5jkEuH9fjjRSb97nSYDPtiVfRUzCqmeH/w==', '2026-05-21T18:56:14.068Z'),
-('SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_apSbqwn1swGRjtCT1rayPA_a4kF_PJY', '2026-05-21T18:56:13.866Z'),
+('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.masked-secret-key-for-github-push-protection.BXCl3KUZJKVnKy1-2Vsg4DHP43XueKUgBo1gH1lMsog', '2026-05-21T18:56:13.417Z'),
+('SUPABASE_JWT_SECRET', 'DU5XhqCV2XsYOf/Twuj6EqPh/IJsSnc/masked-secret-key-for-github-push-protection/w==', '2026-05-21T18:56:14.068Z'),
+('SUPABASE_PUBLISHABLE_KEY', 'dummy', '2026-05-21T18:56:13.866Z'),
+('SUPABASE_SECRET_KEY', 'dummy', '2026-05-21T18:56:14.266Z'),
+('SUPABASE_SERVICE_ROLE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.masked-secret-key-for-github-push-protection.s3TFlLyj1a0aVXegMLrmbyA2khTA6jO5i64GhD0fEG0', '2026-05-21T18:56:14.474Z'),
 ('SUPABASE_URL', 'https://vuyscgfbwhmqydeznphi.supabase.co', '2026-05-21T18:56:13.207Z'),
 ('TELCOSMS_SUSPENDED_GLOBAL', 'false', '2026-05-17T20:52:33.823Z'),
 ('terms_of_use', 'O mercado de plataformas de monetização de conteúdo por subscrição direta (comumente conhecidas como plataformas de "Economia dos Criadores" ou Creator Economy).
