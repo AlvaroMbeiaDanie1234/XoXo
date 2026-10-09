@@ -50,44 +50,35 @@ export default function ExplorePage() {
         setLoading(false)
       }
 
-      // Fetch all creators (profiles)
+      // Fetch top creators (profiles) - limit to 20 instead of 500
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, is_verified, bio, created_at')
         .neq('id', currentUser?.id || '')
-        .limit(500)
+        .limit(20)
 
       let followersMap: Record<string, number> = {}
       if (profiles && profiles.length > 0) {
         setCreators(profiles)
         setAllCreators(profiles)
 
-        // Chunk queries to avoid URI Too Long error from Kong API Gateway
-        const CHUNK_SIZE = 50
         const profileIds = profiles.map(p => p.id)
-        const allSubs: { following_id: string }[] = []
-
-        for (let i = 0; i < profileIds.length; i += CHUNK_SIZE) {
-          const chunk = profileIds.slice(i, i + CHUNK_SIZE)
-          const { data } = await supabase
-            .from('subscriptions')
-            .select('following_id')
-            .in('following_id', chunk)
-          
-          if (data) allSubs.push(...data)
-        }
+        const { data: subsData } = await supabase
+          .from('subscriptions')
+          .select('following_id')
+          .in('following_id', profileIds)
 
         followersMap = {}
-        allSubs.forEach(sub => {
+        subsData?.forEach(sub => {
           followersMap[sub.following_id] = (followersMap[sub.following_id] || 0) + 1
         })
         setFollowersCount(followersMap)
       }
 
-      // Fetch posts with real likes count
+      // Fetch posts with relation counts
       const { data: postsData } = await supabase
         .from('posts')
-        .select('*, profiles!inner(display_name, avatar_url, is_verified), likes(count)')
+        .select('*, profiles!inner(display_name, avatar_url, is_verified), likes(count), comments(count), post_views(count)')
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -97,15 +88,17 @@ export default function ExplorePage() {
 
       let followingIds: string[] = []
       let likedIds: string[] = []
-      // Fetch current user's subscriptions
+      // Fetch current user's subscriptions and interactions in batch
       if (currentUser) {
-        const [subsRes, likesRes] = await Promise.all([
+        const postIds = (postsData || []).map(p => p.id)
+        const [subsRes, likesRes, purchasesRes] = await Promise.all([
           supabase.from('subscriptions').select('following_id').eq('follower_id', currentUser.id),
-          supabase.from('likes').select('post_id').eq('user_id', currentUser.id)
+          postIds.length > 0 ? supabase.from('likes').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds) : Promise.resolve({ data: [] }),
+          postIds.length > 0 ? supabase.from('purchases').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds) : Promise.resolve({ data: [] })
         ])
 
         const followingSet = new Set(subsRes.data?.map(s => s.following_id) || [])
-        const likedSet = new Set(likesRes.data?.map(l => l.post_id) || [])
+        const likedSet = new Set(likesRes.data?.map((l: any) => l.post_id) || [])
         setFollowing(followingSet)
         setLikedPosts(likedSet)
         followingIds = Array.from(followingSet)
@@ -355,7 +348,7 @@ export default function ExplorePage() {
                 <p className={text-muted-foreground}>Nenhum conteúdo disponível no momento.</p>
               </div>
             ) : (
-              posts.map((post) => (
+              posts.map((post, idx) => (
                 <PostCard
                   key={post.id}
                   {...post}
@@ -363,7 +356,13 @@ export default function ExplorePage() {
                   creator_avatar={post.profiles?.avatar_url || undefined}
                   creator_verified={post.profiles?.is_verified || false}
                   creator_id={post.user_id}
-                  likes={post.likes?.[0]?.count || 0}
+                  created_at={post.created_at}
+                  initialLikesCount={post.likes?.[0]?.count ?? 0}
+                  initialCommentsCount={post.comments?.[0]?.count ?? 0}
+                  initialViewsCount={post.post_views?.[0]?.count ?? 0}
+                  initialIsLiked={likedPosts.has(post.id)}
+                  currentUser={user}
+                  priorityImage={idx < 2}
                 />
               ))
             )}

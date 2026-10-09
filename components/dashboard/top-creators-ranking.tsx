@@ -12,6 +12,11 @@ interface Creator {
   subscriber_count: number
 }
 
+import { readTimedCache, writeTimedCache } from '@/lib/client-cache'
+
+const TOP_CREATORS_CACHE_KEY = 'xoxo:top-creators:ranking'
+const TOP_CREATORS_CACHE_TTL = 5 * 60 * 1000
+
 export default function TopCreatorsRanking() {
   const [topCreators, setTopCreators] = useState<Creator[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,22 +25,37 @@ export default function TopCreatorsRanking() {
   useEffect(() => {
     async function fetchTopCreators() {
       try {
-        // Fetch profiles with limit
+        const cached = readTimedCache<Creator[]>(TOP_CREATORS_CACHE_KEY, TOP_CREATORS_CACHE_TTL)
+        if (cached && cached.length > 0) {
+          setTopCreators(cached)
+          setLoading(false)
+          return
+        }
+
+        // Fetch top profiles (limit to 30 candidates instead of 100)
         const { data: profiles, error } = await supabase
           .from('profiles')
           .select('id, display_name, avatar_url, is_verified')
-          .limit(100)
+          .limit(30)
 
         if (error) throw error
 
-        // Single query for all subscriber counts
-        const { data: allSubs } = await supabase
+        const profileIds = (profiles || []).map(p => p.id)
+        if (profileIds.length === 0) {
+          setTopCreators([])
+          setLoading(false)
+          return
+        }
+
+        // Only query subscriptions for candidate profile IDs
+        const { data: subsData } = await supabase
           .from('subscriptions')
           .select('following_id')
+          .in('following_id', profileIds)
 
         const countMap: Record<string, number> = {}
-        if (allSubs) {
-          allSubs.forEach(sub => {
+        if (subsData) {
+          subsData.forEach(sub => {
             countMap[sub.following_id] = (countMap[sub.following_id] || 0) + 1
           })
         }
@@ -46,8 +66,9 @@ export default function TopCreatorsRanking() {
         }))
 
         // Sort by subscriber count and get top 3
-        const sorted = creatorsWithCounts.sort((a, b) => b.subscriber_count - a.subscriber_count)
-        setTopCreators(sorted.slice(0, 3))
+        const sorted = creatorsWithCounts.sort((a, b) => b.subscriber_count - a.subscriber_count).slice(0, 3)
+        setTopCreators(sorted)
+        writeTimedCache(TOP_CREATORS_CACHE_KEY, sorted)
       } catch (err) {
         console.error('Error fetching top creators:', err)
       } finally {

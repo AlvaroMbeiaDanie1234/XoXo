@@ -50,13 +50,14 @@ function SidebarContent() {
 
     fetchUnreadCount()
 
-    // Listen for new messages or message updates in real-time
+    // Listen for new messages or message updates in real-time filtered to this user
     const channel = supabase
-      .channel('sidebar_unread_messages')
+      .channel(`sidebar_unread_messages_${user.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'messages'
+        table: 'messages',
+        filter: `receiver_id=eq.${user.id}`,
       }, () => {
         fetchUnreadCount()
       })

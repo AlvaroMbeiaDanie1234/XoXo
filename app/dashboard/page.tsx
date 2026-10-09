@@ -51,6 +51,49 @@ interface Post {
     is_verified?: boolean
     email?: string
   }
+  likes?: { count: number }[]
+  comments?: { count: number }[]
+  post_views?: { count: number }[]
+  _initialLikesCount?: number
+  _initialCommentsCount?: number
+  _initialViewsCount?: number
+  _initialSubscriberCount?: number
+  _initialIsLiked?: boolean
+  _initialHasPurchased?: boolean
+}
+
+async function fetchBatchPostInteractions(supabase: any, postsData: any[], currentUser: any) {
+  if (!postsData || postsData.length === 0) {
+    return {
+      likedSet: new Set<string>(),
+      purchasedSet: new Set<string>(),
+      subsMap: {} as Record<string, number>,
+    }
+  }
+
+  const postIds = postsData.map(p => p.id)
+  const creatorIds = Array.from(new Set(postsData.map(p => p.user_id).filter(Boolean)))
+
+  const [likesRes, purchasesRes, subsRes] = await Promise.all([
+    currentUser
+      ? supabase.from('likes').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds)
+      : Promise.resolve({ data: [] }),
+    currentUser
+      ? supabase.from('purchases').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds)
+      : Promise.resolve({ data: [] }),
+    creatorIds.length > 0
+      ? supabase.from('subscriptions').select('following_id').in('following_id', creatorIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const likedSet = new Set<string>((likesRes.data || []).map((l: any) => l.post_id))
+  const purchasedSet = new Set<string>((purchasesRes.data || []).map((p: any) => p.post_id))
+  const subsMap: Record<string, number> = {}
+  subsRes.data?.forEach((s: any) => {
+    subsMap[s.following_id] = (subsMap[s.following_id] || 0) + 1
+  })
+
+  return { likedSet, purchasedSet, subsMap }
 }
 
 function DashboardContent() {
@@ -125,14 +168,30 @@ function DashboardContent() {
       
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('*, profiles(display_name, avatar_url, is_verified, email)')
+        .select(`
+          *,
+          profiles(display_name, avatar_url, is_verified, email),
+          likes(count),
+          comments(count),
+          post_views(count)
+        `)
         .order('created_at', { ascending: false })
         .range(from, to)
 
       if (postsError) throw postsError
       
       if (postsData && postsData.length > 0) {
-        setPosts(prev => [...prev, ...postsData])
+        const { likedSet, purchasedSet, subsMap } = await fetchBatchPostInteractions(supabase, postsData, user)
+        const enriched = postsData.map((p: any) => ({
+          ...p,
+          _initialLikesCount: p.likes?.[0]?.count ?? 0,
+          _initialCommentsCount: p.comments?.[0]?.count ?? 0,
+          _initialViewsCount: p.post_views?.[0]?.count ?? 0,
+          _initialSubscriberCount: subsMap[p.user_id] ?? 0,
+          _initialIsLiked: likedSet.has(p.id),
+          _initialHasPurchased: purchasedSet.has(p.id),
+        }))
+        setPosts(prev => [...prev, ...enriched])
         setPage(prev => prev + 1)
         setHasMore(postsData.length >= POSTS_PER_PAGE)
       } else {
@@ -246,18 +305,42 @@ function DashboardContent() {
             transactionsForCache = transData
           }
         } else {
-          // Fetch posts with pagination
+          // Fetch posts with pagination and relation counts
           const { data: postsData, error: postsError } = await supabase
             .from('posts')
-            .select('*, profiles(display_name, avatar_url, is_verified, email)')
+            .select(`
+              *,
+              profiles(display_name, avatar_url, is_verified, email),
+              likes(count),
+              comments(count),
+              post_views(count)
+            `)
             .order('created_at', { ascending: false })
             .range(0, POSTS_PER_PAGE - 1)
 
           if (postsError) throw postsError
-          setPosts(postsData || [])
-          setHasMore((postsData?.length || 0) >= POSTS_PER_PAGE)
-          setPage(1)
-          postsForCache = postsData || []
+
+          if (postsData && postsData.length > 0) {
+            const { likedSet, purchasedSet, subsMap } = await fetchBatchPostInteractions(supabase, postsData, currentUser)
+            const enriched = postsData.map((p: any) => ({
+              ...p,
+              _initialLikesCount: p.likes?.[0]?.count ?? 0,
+              _initialCommentsCount: p.comments?.[0]?.count ?? 0,
+              _initialViewsCount: p.post_views?.[0]?.count ?? 0,
+              _initialSubscriberCount: subsMap[p.user_id] ?? 0,
+              _initialIsLiked: likedSet.has(p.id),
+              _initialHasPurchased: purchasedSet.has(p.id),
+            }))
+            setPosts(enriched)
+            setHasMore(enriched.length >= POSTS_PER_PAGE)
+            setPage(1)
+            postsForCache = enriched
+          } else {
+            setPosts([])
+            setHasMore(false)
+            setPage(1)
+            postsForCache = []
+          }
         }
 
         writeTimedCache(cacheKey, {
@@ -805,7 +888,7 @@ function DashboardContent() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 w-full overflow-visible">
-                  {posts.map((post) => {
+                  {posts.map((post, idx) => {
                     const isAdminCreator = post.profiles?.email && (
                       post.profiles.email.toLowerCase() === 'admin.xoxo@gmail.com' ||
                       post.profiles.email.toLowerCase() === 'superadmin.xoxo@gmail.com'
@@ -819,6 +902,16 @@ function DashboardContent() {
                         creator_verified={isAdminCreator ? true : (post.profiles?.is_verified || false)}
                         creator_id={post.user_id}
                         is_admin_post={isAdminCreator || false}
+                        created_at={post.created_at}
+                        initialLikesCount={post._initialLikesCount ?? post.likes?.[0]?.count ?? 0}
+                        initialCommentsCount={post._initialCommentsCount ?? post.comments?.[0]?.count ?? 0}
+                        initialViewsCount={post._initialViewsCount ?? post.post_views?.[0]?.count ?? 0}
+                        initialSubscriberCount={post._initialSubscriberCount ?? 0}
+                        initialIsLiked={post._initialIsLiked ?? false}
+                        initialHasPurchased={post._initialHasPurchased ?? false}
+                        isFreePlanUser={!!userProfile?.is_free_plan}
+                        currentUser={user}
+                        priorityImage={idx < 2}
                       />
                     )
                   })}

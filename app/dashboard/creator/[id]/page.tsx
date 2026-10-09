@@ -48,10 +48,10 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
     .eq('id', id)
     .single()
 
-  // Fetch creator posts
+  // Fetch creator posts with relation counts
   const { data: posts, error: postsError } = await supabase
     .from('posts')
-    .select('*, profiles(display_name, avatar_url)')
+    .select('*, profiles(display_name, avatar_url, is_verified), likes(count), comments(count), post_views(count)')
     .eq('user_id', id)
     .order('created_at', { ascending: false })
 
@@ -60,6 +60,15 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
     .from('subscriptions')
     .select('*', { count: 'exact', head: true })
     .eq('following_id', id)
+
+  // Batch query user interactions for these posts
+  const postIds = (posts || []).map((p: any) => p.id)
+  const [userLikesRes, userPurchasesRes] = await Promise.all([
+    user && postIds.length > 0 ? supabase.from('likes').select('post_id').eq('user_id', user.id).in('post_id', postIds) : Promise.resolve({ data: [] }),
+    user && postIds.length > 0 ? supabase.from('purchases').select('post_id').eq('user_id', user.id).in('post_id', postIds) : Promise.resolve({ data: [] })
+  ])
+  const likedSet = new Set((userLikesRes.data || []).map((l: any) => l.post_id))
+  const purchasedSet = new Set((userPurchasesRes.data || []).map((p: any) => p.post_id))
 
   if (creatorError || !creator) {
     return (
@@ -198,7 +207,7 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
               </div>
             ) : (
               <div className="flex flex-col gap-6 w-full max-w-[560px] mx-auto">
-                {posts.map((post: any) => (
+                {posts.map((post: any, idx: number) => (
                   <PostCard
                     key={post.id}
                     id={post.id}
@@ -213,6 +222,15 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
                     creator_id={post.user_id}
                     price={post.price}
                     is_free={post.is_free}
+                    created_at={post.created_at}
+                    initialLikesCount={post.likes?.[0]?.count ?? 0}
+                    initialCommentsCount={post.comments?.[0]?.count ?? 0}
+                    initialViewsCount={post.post_views?.[0]?.count ?? 0}
+                    initialSubscriberCount={subscriberCount || 0}
+                    initialIsLiked={likedSet.has(post.id)}
+                    initialHasPurchased={purchasedSet.has(post.id)}
+                    currentUser={user}
+                    priorityImage={idx < 2}
                   />
                 ))}
               </div>

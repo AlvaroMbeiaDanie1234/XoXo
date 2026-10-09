@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import CommentsModal from './comments-modal'
 
-interface PostCardProps {
+export interface PostCardProps {
   id: string
   title: string
   description: string
@@ -36,9 +36,19 @@ interface PostCardProps {
   price?: number
   is_free?: boolean
   is_admin_post?: boolean
+  created_at?: string
+  initialLikesCount?: number
+  initialCommentsCount?: number
+  initialViewsCount?: number
+  initialSubscriberCount?: number
+  initialIsLiked?: boolean
+  initialHasPurchased?: boolean
+  isFreePlanUser?: boolean
+  currentUser?: any
+  priorityImage?: boolean
 }
 
-export default function PostCard({
+function PostCardComponent({
   id,
   title,
   description,
@@ -52,14 +62,24 @@ export default function PostCard({
   price,
   is_free = true,
   is_admin_post = false,
+  created_at,
+  initialLikesCount,
+  initialCommentsCount,
+  initialViewsCount,
+  initialSubscriberCount,
+  initialIsLiked,
+  initialHasPurchased,
+  isFreePlanUser,
+  currentUser: propCurrentUser,
+  priorityImage = false,
 }: PostCardProps) {
-  const [isLiked, setIsLiked] = useState(false)
-  const [likesCount, setLikesCount] = useState(0)
-  const [commentsCount, setCommentsCount] = useState(0)
-  const [viewsCount, setViewsCount] = useState(0)
-  const [createdAt, setCreatedAt] = useState<Date | null>(null)
-  const [subscriberCount, setSubscriberCount] = useState(0)
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isLiked, setIsLiked] = useState(initialIsLiked ?? false)
+  const [likesCount, setLikesCount] = useState(initialLikesCount ?? 0)
+  const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0)
+  const [viewsCount, setViewsCount] = useState(initialViewsCount ?? 0)
+  const [createdAt, setCreatedAt] = useState<Date | null>(created_at ? new Date(created_at) : null)
+  const [subscriberCount, setSubscriberCount] = useState(initialSubscriberCount ?? 0)
+  const [currentUser, setCurrentUser] = useState<any>(propCurrentUser ?? null)
   const [creatorVerified, setCreatorVerified] = useState(creator_verified || false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showCardPaywall, setShowCardPaywall] = useState(false)
@@ -69,8 +89,8 @@ export default function PostCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
   const [customReportReason, setCustomReportReason] = useState('')
-  const [isFreePlan, setIsFreePlan] = useState(false)
-  const [hasPurchased, setHasPurchased] = useState(false)
+  const [isFreePlan, setIsFreePlan] = useState(isFreePlanUser ?? false)
+  const [hasPurchased, setHasPurchased] = useState(initialHasPurchased ?? false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -126,7 +146,35 @@ export default function PostCard({
     return () => observer.disconnect()
   }, [showCardPaywall, currentUser, id, content_type, supabase])
 
+  // Synchronize state if parent re-renders with fresh batch data
   useEffect(() => {
+    if (initialIsLiked !== undefined) setIsLiked(initialIsLiked)
+    if (initialLikesCount !== undefined) setLikesCount(initialLikesCount)
+    if (initialCommentsCount !== undefined) setCommentsCount(initialCommentsCount)
+    if (initialViewsCount !== undefined) setViewsCount(initialViewsCount)
+    if (initialSubscriberCount !== undefined) setSubscriberCount(initialSubscriberCount)
+    if (initialHasPurchased !== undefined) setHasPurchased(initialHasPurchased)
+    if (isFreePlanUser !== undefined) setIsFreePlan(isFreePlanUser)
+    if (propCurrentUser !== undefined) setCurrentUser(propCurrentUser)
+    if (created_at) setCreatedAt(new Date(created_at))
+  }, [
+    initialIsLiked,
+    initialLikesCount,
+    initialCommentsCount,
+    initialViewsCount,
+    initialSubscriberCount,
+    initialHasPurchased,
+    isFreePlanUser,
+    propCurrentUser,
+    created_at,
+  ])
+
+  useEffect(() => {
+    // If stats are already provided via batch props, skip the 9 HTTP requests!
+    if (initialLikesCount !== undefined && propCurrentUser !== undefined) {
+      return
+    }
+
     async function fetchPostStats() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -163,7 +211,7 @@ export default function PostCard({
     }
 
     fetchPostStats()
-  }, [id, creator_id, supabase])
+  }, [id, creator_id, supabase, initialLikesCount, propCurrentUser])
 
   const handleTimeUpdate = () => {
     if (is_free === false && !isFreePlan && videoRef.current && videoRef.current.currentTime >= 5) {
@@ -356,6 +404,7 @@ export default function PostCard({
                 onTimeUpdate={handleTimeUpdate}
                 className="w-full h-auto max-h-[300px] object-contain"
                 poster={thumbnail_url}
+                preload="none"
                 muted={true}
                 playsInline
                 controls={is_free && isPlaying}
@@ -407,6 +456,9 @@ export default function PostCard({
           alt={title}
           width={800}
           height={600}
+          priority={priorityImage}
+          loading={priorityImage ? 'eager' : 'lazy'}
+          decoding="async"
           className={`w-full h-auto max-h-[300px] object-contain transition-transform duration-700 group-hover:scale-105 ${!is_free && !isFreePlan && !hasPurchased ? 'blur-sm' : ''}`}
         />
       ) : (
@@ -582,3 +634,6 @@ export default function PostCard({
     </div>
   )
 }
+
+const PostCard = memo(PostCardComponent)
+export default PostCard
