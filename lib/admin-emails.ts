@@ -6,9 +6,15 @@ export const ADMIN_EMAILS = [
 export const SUPERADMIN_EMAIL = 'superadmin.xoxo@gmail.com'
 
 export function isAdminEmail(email?: string | null): boolean {
-  return !!email && ADMIN_EMAILS.includes(email.toLowerCase() as (typeof ADMIN_EMAILS)[number])
+  if (!email) return false
+  const lower = email.toLowerCase().trim()
+  if (ADMIN_EMAILS.some((a) => a.toLowerCase() === lower)) return true
+  const envAdmins = process.env.ADMIN_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) || []
+  return envAdmins.includes(lower)
 }
 
 export function isSuperAdminEmail(email?: string | null): boolean {
-  return !!email && email.toLowerCase() === SUPERADMIN_EMAIL
+  if (!email) return false
+  const lower = email.toLowerCase().trim()
+  return lower === SUPERADMIN_EMAIL.toLowerCase()
 }

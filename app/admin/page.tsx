@@ -8,7 +8,7 @@ import {
   Wallet, List, ArrowUpRight, ArrowDownLeft, Banknote, Megaphone,
   ChevronDown, ChevronRight, AlertTriangle, FileText, KeyRound, MessageCircle, Star, Ban, ShieldOff, Settings, Building2, Save, X, Loader2, MoreHorizontal
 } from 'lucide-react'
-import { isSuperAdminEmail } from '@/lib/admin-emails'
+import { isAdminEmail, isSuperAdminEmail } from '@/lib/admin-emails'
 import { useTheme } from 'next-themes'
 import Header from '@/components/dashboard/header'
 import { useRouter } from 'next/navigation'
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
 
     async function loadAdminData() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user || (user.email !== 'admin.xoxo@gmail.com' && user.email !== 'superadmin.xoxo@gmail.com')) {
+      if (!user || !isAdminEmail(user.email)) {
         router.push('/')
         return
       }
@@ -789,9 +789,13 @@ export default function AdminDashboard() {
       if (smsTargetMode === 'selected' && smsSelectedUsers.length > 0) {
         payload.userIds = smsSelectedUsers
       }
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/sms/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify(payload),
       })
       const data = await res.json()

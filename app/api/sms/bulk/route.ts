@@ -6,11 +6,22 @@ import { isAdminEmail } from '@/lib/admin-emails'
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
+
+    // Support Bearer token header or cookie session
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined
+
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+      error: userError,
+    } = await supabase.auth.getUser(token)
 
-    if (!user || !isAdminEmail(user.email)) {
+    if (userError || !user || !isAdminEmail(user.email)) {
+      console.warn('[SMS Bulk] 401 Unauthorized attempt:', {
+        email: user?.email,
+        hasUser: !!user,
+        error: userError?.message,
+      })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -61,38 +72,55 @@ export async function POST(request: NextRequest) {
     let sent = 0
     let failed = 0
 
-    for (const profile of profiles) {
-      const phone = profile.phone?.trim()
-      if (!phone) { failed++; continue }
-      if (profile.sms_suspended_by_admin) { failed++; continue }
-      if (profile.sms_notifications_enabled === false) { failed++; continue }
+    const cleanMessage = message.trim()
+    const CHUNK_SIZE = 10
 
-      let formattedPhone = phone.replace(/\D/g, '')
-      if (formattedPhone.startsWith('244') && formattedPhone.length > 9) {
-        formattedPhone = formattedPhone.substring(3)
-      }
+    for (let i = 0; i < profiles.length; i += CHUNK_SIZE) {
+      const chunk = profiles.slice(i, i + CHUNK_SIZE)
+      await Promise.all(
+        chunk.map(async (profile) => {
+          const phone = profile.phone?.trim()
+          if (!phone) {
+            failed++
+            return
+          }
+          if (profile.sms_suspended_by_admin) {
+            failed++
+            return
+          }
+          if (profile.sms_notifications_enabled === false) {
+            failed++
+            return
+          }
 
-      try {
-        const response = await fetch('https://www.telcosms.co.ao/api/v2/send_message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: {
-              api_key_app: apiKey,
-              phone_number: formattedPhone,
-              message_body: message.trim(),
-            },
-          }),
-        })
+          let formattedPhone = phone.replace(/\D/g, '')
+          if (formattedPhone.startsWith('244') && formattedPhone.length > 9) {
+            formattedPhone = formattedPhone.substring(3)
+          }
 
-        if (response.ok) {
-          sent++
-        } else {
-          failed++
-        }
-      } catch {
-        failed++
-      }
+          try {
+            const response = await fetch('https://www.telcosms.co.ao/api/v2/send_message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: {
+                  api_key_app: apiKey,
+                  phone_number: formattedPhone,
+                  message_body: cleanMessage,
+                },
+              }),
+            })
+
+            if (response.ok) {
+              sent++
+            } else {
+              failed++
+            }
+          } catch {
+            failed++
+          }
+        }),
+      )
     }
 
     return NextResponse.json({ sent, failed, total: profiles.length })
